@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { ThemeToggle } from './ThemeToggle';
 
 const NAV = [
   { to: '/admin', label: 'Übungen', end: true },
@@ -12,12 +13,12 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-ink-700 bg-ink-900/80 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-border bg-bg/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-8">
             <span className="text-xl font-extrabold tracking-tight">
               Just<span className="text-accent">Tally</span>
-              <span className="ml-2 text-xs font-medium uppercase tracking-widest text-slate-500">
+              <span className="ml-2 text-xs font-medium uppercase tracking-widest text-fg-subtle">
                 Admin
               </span>
             </span>
@@ -29,7 +30,9 @@ export function AdminLayout() {
                   end={item.end}
                   className={({ isActive }) =>
                     `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                      isActive ? 'bg-ink-700 text-white' : 'text-slate-400 hover:text-slate-200'
+                      isActive
+                        ? 'bg-surface-2 text-fg'
+                        : 'text-fg-muted hover:text-fg'
                     }`
                   }
                 >
@@ -39,10 +42,11 @@ export function AdminLayout() {
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <button onClick={() => navigate('/')} className="btn-ghost px-3 py-1.5 text-xs">
               Mobile Ansicht
             </button>
-            <span className="hidden text-sm text-slate-400 sm:inline">{user?.name}</span>
+            <span className="hidden text-sm text-fg-muted sm:inline">{user?.name}</span>
             <button onClick={logout} className="btn-ghost px-3 py-1.5 text-xs">
               Abmelden
             </button>

@@ -1,11 +1,13 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useOnline } from '../hooks/useOnline';
+import { ThemeToggle } from './ThemeToggle';
+import { DumbbellIcon, ClipboardIcon, TrendingIcon } from './icons';
 
 const NAV = [
-  { to: '/', label: 'Übungen', icon: '🏋️', end: true },
-  { to: '/workout', label: 'Training', icon: '📋', end: false },
-  { to: '/history', label: 'Verlauf', icon: '📈', end: false },
+  { to: '/', label: 'Übungen', Icon: DumbbellIcon, end: true },
+  { to: '/workout', label: 'Training', Icon: ClipboardIcon, end: false },
+  { to: '/history', label: 'Verlauf', Icon: TrendingIcon, end: false },
 ];
 
 export function MobileLayout() {
@@ -15,18 +17,22 @@ export function MobileLayout() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-ink-700 bg-ink-900/80 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-bg/80 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <span className="text-lg font-extrabold tracking-tight">
             Just<span className="text-accent">Tally</span>
           </span>
           {!online && (
-            <span className="chip bg-amber-500/15 text-amber-300" title="Offline-Modus">
+            <span
+              className="chip bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
+              title="Offline-Modus"
+            >
               ● Offline
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           {isAdmin && (
             <button onClick={() => navigate('/admin')} className="btn-ghost px-3 py-1.5 text-xs">
               Admin
@@ -42,21 +48,28 @@ export function MobileLayout() {
         <Outlet />
       </main>
 
-      <nav className="fixed bottom-0 left-1/2 z-20 w-full max-w-md -translate-x-1/2 border-t border-ink-700 bg-ink-900/95 backdrop-blur">
+      <nav className="fixed bottom-0 left-1/2 z-20 w-full max-w-md -translate-x-1/2 border-t border-border bg-bg/95 backdrop-blur">
         <div className="grid grid-cols-3">
-          {NAV.map((item) => (
+          {NAV.map(({ to, label, Icon, end }) => (
             <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
+              key={to}
+              to={to}
+              end={end}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-0.5 py-3 text-xs font-medium transition ${
-                  isActive ? 'text-accent' : 'text-slate-400'
+                `relative flex flex-col items-center gap-1 py-3 text-xs font-medium transition ${
+                  isActive ? 'text-accent' : 'text-fg-subtle hover:text-fg-muted'
                 }`
               }
             >
-              <span className="text-lg">{item.icon}</span>
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <span className="absolute top-0 h-0.5 w-10 rounded-full bg-accent" />
+                  )}
+                  <Icon width={20} height={20} />
+                  {label}
+                </>
+              )}
             </NavLink>
           ))}
         </div>

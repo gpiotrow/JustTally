@@ -30,22 +30,22 @@ export function History() {
             return (
               <li key={s.id} className="card p-4">
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-200">{dateFmt.format(s.date)}</p>
+                  <p className="text-sm font-semibold text-fg">{dateFmt.format(s.date)}</p>
                   <button
                     onClick={() => deleteSession(s.id)}
-                    className="text-xs text-slate-500 hover:text-red-400"
+                    className="text-xs text-fg-subtle hover:text-danger"
                   >
                     Löschen
                   </button>
                 </div>
-                <p className="mb-3 text-xs text-slate-500">
+                <p className="mb-3 text-xs text-fg-subtle">
                   {s.entries.length} Übungen · {totalSets} Sätze
                 </p>
                 <ul className="space-y-1.5">
                   {s.entries.map((e, i) => (
-                    <li key={i} className="text-sm text-slate-300">
-                      <span className="font-medium">{e.exerciseName}</span>{' '}
-                      <span className="text-slate-500">
+                    <li key={i} className="text-sm text-fg-muted">
+                      <span className="font-medium text-fg">{e.exerciseName}</span>{' '}
+                      <span className="text-fg-subtle">
                         {e.sets
                           .map((set) => `${set.reps}${set.weight ? `×${set.weight}kg` : ''}`)
                           .join(', ')}

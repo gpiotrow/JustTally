@@ -49,7 +49,7 @@ export function ExerciseManager() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Übungen verwalten</h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-fg-muted">
             Erstelle und pflege Übungen mit Anleitung, Fotos und Videos.
           </p>
         </div>
@@ -65,9 +65,9 @@ export function ExerciseManager() {
       ) : exercises.length === 0 ? (
         <EmptyState title="Noch keine Übungen" hint="Lege deine erste Übung an." />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-ink-700">
+        <div className="overflow-hidden rounded-2xl border border-border">
           <table className="w-full text-left text-sm">
-            <thead className="bg-ink-800 text-xs uppercase tracking-wide text-slate-400">
+            <thead className="bg-surface-2 text-xs uppercase tracking-wide text-fg-muted">
               <tr>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Kategorie</th>
@@ -76,13 +76,13 @@ export function ExerciseManager() {
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-ink-700">
+            <tbody className="divide-y divide-border bg-surface">
               {exercises.map((ex) => (
-                <tr key={ex.id} className="hover:bg-ink-800/50">
-                  <td className="px-4 py-3 font-medium text-slate-100">{ex.name}</td>
+                <tr key={ex.id} className="hover:bg-surface-2/50">
+                  <td className="px-4 py-3 font-medium text-fg">{ex.name}</td>
                   <td className="px-4 py-3"><CategoryBadge category={ex.category} /></td>
                   <td className="px-4 py-3"><DifficultyBadge difficulty={ex.difficulty} /></td>
-                  <td className="px-4 py-3 text-slate-400">{ex.media.length}</td>
+                  <td className="px-4 py-3 text-fg-muted">{ex.media.length}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">
                       <button onClick={() => setEditing(ex)} className="btn-ghost px-3 py-1.5 text-xs">

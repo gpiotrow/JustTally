@@ -89,23 +89,23 @@ export function Workout() {
           {entries.map((entry, ei) => (
             <div key={ei} className="card p-4">
               <div className="mb-3 flex items-center justify-between">
-                <p className="font-semibold text-slate-100">{entry.exerciseName}</p>
+                <p className="font-semibold text-fg">{entry.exerciseName}</p>
                 <button
                   onClick={() => removeEntry(ei)}
-                  className="text-xs text-slate-500 hover:text-red-400"
+                  className="text-xs text-fg-subtle hover:text-danger"
                 >
                   Entfernen
                 </button>
               </div>
               <div className="space-y-2">
-                <div className="grid grid-cols-[2rem,1fr,1fr] gap-2 text-xs font-semibold uppercase text-slate-500">
+                <div className="grid grid-cols-[2rem,1fr,1fr] gap-2 text-xs font-semibold uppercase text-fg-subtle">
                   <span>Satz</span>
                   <span>Wdh.</span>
                   <span>Gewicht (kg)</span>
                 </div>
                 {entry.sets.map((set, si) => (
                   <div key={si} className="grid grid-cols-[2rem,1fr,1fr] items-center gap-2">
-                    <span className="text-sm text-slate-400">{si + 1}</span>
+                    <span className="text-sm text-fg-muted">{si + 1}</span>
                     <input
                       type="number"
                       inputMode="numeric"
@@ -143,10 +143,10 @@ export function Workout() {
               <li key={ex.id}>
                 <button
                   onClick={() => addExercise(ex.id, ex.name)}
-                  className="flex w-full items-center justify-between rounded-xl bg-ink-900 px-4 py-3 text-left text-slate-200 hover:bg-ink-700"
+                  className="flex w-full items-center justify-between rounded-xl bg-surface-2 px-4 py-3 text-left text-fg hover:bg-border"
                 >
                   <span>{ex.name}</span>
-                  <span className="text-xs capitalize text-slate-500">{ex.category}</span>
+                  <span className="text-xs capitalize text-fg-subtle">{ex.category}</span>
                 </button>
               </li>
             ))}

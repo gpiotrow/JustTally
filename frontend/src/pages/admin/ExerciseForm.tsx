@@ -8,6 +8,7 @@ import {
 } from '../../api/exercises';
 import { CATEGORIES, type Difficulty, type Exercise } from '../../lib/types';
 import { ErrorBanner } from '../../components/ui';
+import { VideoIcon } from '../../components/icons';
 
 const DIFFICULTIES: Difficulty[] = ['beginner', 'intermediate', 'advanced'];
 
@@ -138,9 +139,9 @@ export function ExerciseForm({
         </button>
       </form>
 
-      <div className="border-t border-ink-700 pt-5">
+      <div className="border-t border-border pt-5">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
             Fotos &amp; Videos
           </h3>
           <button
@@ -163,19 +164,21 @@ export function ExerciseForm({
         </div>
 
         {!current ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-fg-subtle">
             Speichere die Übung zuerst, um Medien hinzuzufügen.
           </p>
         ) : current.media.length === 0 ? (
-          <p className="text-sm text-slate-500">Noch keine Medien.</p>
+          <p className="text-sm text-fg-subtle">Noch keine Medien.</p>
         ) : (
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
             {current.media.map((m) => (
-              <div key={m.id} className="group relative aspect-square overflow-hidden rounded-xl bg-ink-900">
+              <div key={m.id} className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-surface-2">
                 {m.mediaType === 'image' ? (
                   <img src={m.thumbnailUrl ?? m.url} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-3xl">🎬</div>
+                  <div className="flex h-full w-full items-center justify-center text-fg-subtle">
+                    <VideoIcon width={32} height={32} />
+                  </div>
                 )}
                 <button
                   type="button"

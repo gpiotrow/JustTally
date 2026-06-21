@@ -58,15 +58,13 @@ export function ExerciseDetail() {
       ))}
 
       <section className="card p-4">
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-muted">
           Anleitung
         </h2>
         {exercise.instructions ? (
-          <p className="whitespace-pre-wrap leading-relaxed text-slate-200">
-            {exercise.instructions}
-          </p>
+          <p className="whitespace-pre-wrap leading-relaxed text-fg">{exercise.instructions}</p>
         ) : (
-          <p className="text-slate-500">Keine Anleitung hinterlegt.</p>
+          <p className="text-fg-subtle">Keine Anleitung hinterlegt.</p>
         )}
       </section>
 
@@ -79,7 +77,7 @@ export function ExerciseDetail() {
 
 function BackLink() {
   return (
-    <Link to="/" className="inline-flex items-center gap-1 text-sm font-medium text-slate-400">
+    <Link to="/" className="inline-flex items-center gap-1 text-sm font-medium text-fg-muted hover:text-fg">
       ‹ Zurück
     </Link>
   );

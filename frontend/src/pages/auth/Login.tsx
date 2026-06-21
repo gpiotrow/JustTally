@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorBanner } from '../../components/ui';
+import { ThemeToggle } from '../../components/ThemeToggle';
 
 export function Login() {
   const { login } = useAuth();
@@ -57,7 +58,7 @@ export function Login() {
           {busy ? 'Anmelden…' : 'Anmelden'}
         </button>
       </form>
-      <p className="mt-4 text-center text-sm text-slate-400">
+      <p className="mt-4 text-center text-sm text-fg-muted">
         Noch kein Konto?{' '}
         <Link to="/register" className="font-semibold text-accent">
           Registrieren
@@ -76,11 +77,14 @@ export function AuthShell({
 }) {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-extrabold tracking-tight">
           Just<span className="text-accent">Tally</span>
         </h1>
-        <p className="mt-2 text-sm text-slate-400">{subtitle}</p>
+        <p className="mt-2 text-sm text-fg-muted">{subtitle}</p>
       </div>
       <div className="card p-6">{children}</div>
     </div>

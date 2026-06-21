@@ -2,6 +2,9 @@ node_modules/
 dist/
 *.log
 
+# Build caches
+*.tsbuildinfo
+
 # Env
 .env
 backend/.env

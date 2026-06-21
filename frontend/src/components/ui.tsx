@@ -3,8 +3,8 @@ import type { Difficulty } from '../lib/types';
 
 export function Spinner({ label }: { label?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-400">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-ink-700 border-t-accent" />
+    <div className="flex flex-col items-center justify-center gap-3 py-16 text-fg-muted">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent" />
       {label && <p className="text-sm">{label}</p>}
     </div>
   );
@@ -13,8 +13,8 @@ export function Spinner({ label }: { label?: string }) {
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="card flex flex-col items-center gap-2 px-6 py-12 text-center">
-      <p className="text-base font-semibold text-slate-200">{title}</p>
-      {hint && <p className="text-sm text-slate-400">{hint}</p>}
+      <p className="text-base font-semibold text-fg">{title}</p>
+      {hint && <p className="text-sm text-fg-muted">{hint}</p>}
     </div>
   );
 }
@@ -28,9 +28,9 @@ export function ErrorBanner({ message }: { message: string }) {
 }
 
 const DIFFICULTY_STYLES: Record<Difficulty, string> = {
-  beginner: 'bg-emerald-500/15 text-emerald-300',
-  intermediate: 'bg-amber-500/15 text-amber-300',
-  advanced: 'bg-rose-500/15 text-rose-300',
+  beginner: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+  intermediate: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+  advanced: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
 };
 
 const DIFFICULTY_LABEL: Record<Difficulty, string> = {
@@ -44,7 +44,7 @@ export function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
 }
 
 export function CategoryBadge({ category }: { category: string }) {
-  return <span className="chip bg-ink-700 text-slate-300 capitalize">{category}</span>;
+  return <span className="chip bg-surface-2 text-fg-muted capitalize">{category}</span>;
 }
 
 export function Modal({
@@ -58,15 +58,15 @@ export function Modal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="card max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-b-none rounded-t-2xl bg-ink-800 p-5 sm:rounded-2xl"
+        className="card max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-b-none rounded-t-2xl p-5 sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-100">{title}</h2>
+          <h2 className="text-lg font-bold text-fg">{title}</h2>
           <button onClick={onClose} className="btn-ghost px-2.5 py-1.5" aria-label="Schließen">
             ✕
           </button>

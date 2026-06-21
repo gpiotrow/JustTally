@@ -70,7 +70,7 @@ export function Register() {
           {busy ? 'Registrieren…' : 'Registrieren'}
         </button>
       </form>
-      <p className="mt-4 text-center text-sm text-slate-400">
+      <p className="mt-4 text-center text-sm text-fg-muted">
         Bereits ein Konto?{' '}
         <Link to="/login" className="font-semibold text-accent">
           Anmelden

@@ -51,7 +51,7 @@ export function UserManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Benutzer</h1>
-          <p className="text-sm text-slate-400">Verwalte Konten und Rollen.</p>
+          <p className="text-sm text-fg-muted">Verwalte Konten und Rollen.</p>
         </div>
         <button onClick={() => setCreating(true)} className="btn-primary">
           + Benutzer
@@ -65,9 +65,9 @@ export function UserManagement() {
       ) : users.length === 0 ? (
         <EmptyState title="Keine Benutzer" />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-ink-700">
+        <div className="overflow-hidden rounded-2xl border border-border">
           <table className="w-full text-left text-sm">
-            <thead className="bg-ink-800 text-xs uppercase tracking-wide text-slate-400">
+            <thead className="bg-surface-2 text-xs uppercase tracking-wide text-fg-muted">
               <tr>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">E-Mail</th>
@@ -75,14 +75,14 @@ export function UserManagement() {
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-ink-700">
+            <tbody className="divide-y divide-border bg-surface">
               {users.map((u) => (
-                <tr key={u.id} className="hover:bg-ink-800/50">
-                  <td className="px-4 py-3 font-medium text-slate-100">
+                <tr key={u.id} className="hover:bg-surface-2/50">
+                  <td className="px-4 py-3 font-medium text-fg">
                     {u.name}
-                    {u.id === me?.id && <span className="ml-2 text-xs text-slate-500">(du)</span>}
+                    {u.id === me?.id && <span className="ml-2 text-xs text-fg-subtle">(du)</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-400">{u.email}</td>
+                  <td className="px-4 py-3 text-fg-muted">{u.email}</td>
                   <td className="px-4 py-3">
                     <select
                       className="input w-auto py-1.5 text-xs"

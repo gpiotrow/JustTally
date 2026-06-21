@@ -2,8 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Semantic design tokens (RGB channels so Tailwind alpha modifiers work).
+ * Light + dark are designed together; every text/bg pair meets WCAG AA.
+ */
 :root {
+  color-scheme: light;
+  --bg: 248 250 252; /* slate-50  */
+  --surface: 255 255 255; /* white */
+  --surface-2: 241 245 249; /* slate-100 */
+  --border: 226 232 240; /* slate-200 */
+  --fg: 15 23 42; /* slate-900 — primary text */
+  --fg-muted: 71 85 105; /* slate-600 — secondary (~7:1) */
+  --fg-subtle: 100 116 139; /* slate-500 — hints */
+  --accent: 185 28 28; /* red-700 — dark red accent (5.9:1 on white) */
+  --btn-bg: 15 23 42; /* neutral primary button */
+  --btn-fg: 255 255 255;
+  --danger: 185 28 28; /* red-700 */
+}
+
+.dark {
   color-scheme: dark;
+  --bg: 15 23 42; /* slate-900 */
+  --surface: 30 41 59; /* slate-800 */
+  --surface-2: 51 65 85; /* slate-700 */
+  --border: 51 65 85; /* slate-700 */
+  --fg: 241 245 249; /* slate-100 */
+  --fg-muted: 148 163 184; /* slate-400 (~7:1 on slate-900) */
+  --fg-subtle: 100 116 139; /* slate-500 */
+  --accent: 248 113 113; /* red-400 — lighter so it reads on dark */
+  --btn-bg: 241 245 249; /* light neutral button */
+  --btn-fg: 15 23 42;
+  --danger: 185 28 28;
 }
 
 html,
@@ -14,37 +44,47 @@ body,
 
 body {
   margin: 0;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
   -webkit-font-smoothing: antialiased;
   /* Respect iOS safe areas */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
     env(safe-area-inset-left);
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
+  }
 }
 
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
-      transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+      transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2
+      focus-visible:ring-offset-bg;
   }
   .btn-primary {
-    @apply btn bg-accent text-white hover:bg-accent-dark;
+    @apply btn bg-btn text-btn-fg hover:opacity-90;
   }
   .btn-ghost {
-    @apply btn bg-ink-800 text-slate-200 hover:bg-ink-700;
+    @apply btn border border-border bg-transparent text-fg-muted hover:bg-surface-2 hover:text-fg;
   }
   .btn-danger {
-    @apply btn bg-red-600/90 text-white hover:bg-red-600;
+    @apply btn bg-danger text-white hover:opacity-90;
   }
   .input {
-    @apply w-full rounded-xl border border-ink-700 bg-ink-800 px-3.5 py-2.5 text-sm text-slate-100
-      placeholder:text-slate-500 outline-none focus:border-accent;
+    @apply w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-fg
+      placeholder:text-fg-subtle outline-none transition focus:border-accent
+      focus:ring-2 focus:ring-accent/25;
   }
   .label {
-    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400;
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-fg-muted;
   }
   .card {
-    @apply rounded-2xl border border-ink-700 bg-ink-800/60;
+    @apply rounded-2xl border border-border bg-surface;
   }
   .chip {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
