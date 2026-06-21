@@ -1,0 +1,21 @@
+node_modules/
+dist/
+*.log
+
+# Env
+.env
+backend/.env
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+backend/data/
+
+# Uploaded media (keep folders, ignore content)
+backend/uploads/**/*
+!backend/uploads/**/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
