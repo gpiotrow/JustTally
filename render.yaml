@@ -2,6 +2,7 @@ services:
   - type: web
     name: just-tally
     env: node
+    nodeVersion: 22
     plan: free
     buildCommand: |
       cd frontend && npm install && npm run build && cd ../backend && npm install
