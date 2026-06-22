@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { initSchema } from './db/database.js';
 import { UPLOADS_DIR } from './services/mediaService.js';
 import authRoutes from './routes/auth.js';
@@ -9,6 +11,7 @@ import userRoutes from './routes/users.js';
 
 initSchema();
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -37,6 +40,17 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/users', userRoutes);
+
+// Serve frontend static files (production build)
+const frontendDist = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDist));
+
+// SPA fallback: serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  }
+});
 
 // 404
 app.use('/api', (req, res) => {

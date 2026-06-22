@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: just-tally
+    env: node
+    plan: free
+    buildCommand: |
+      cd frontend && npm install && npm run build && cd ../backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
