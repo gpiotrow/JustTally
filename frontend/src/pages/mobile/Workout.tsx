@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useWorkouts } from '../../hooks/useWorkouts';
-import { Modal, Spinner, EmptyState } from '../../components/ui';
+import { Modal, Spinner, EmptyState, CategoryBadge } from '../../components/ui';
 import type { WorkoutEntry } from '../../lib/types';
+import { useLanguage } from '../../i18n';
+import { localizedExercise } from '../../lib/exerciseText';
 
 /**
  * Build an active workout: pick exercises, log sets (reps + weight),
@@ -13,10 +15,11 @@ export function Workout() {
   const { exercises, loading } = useExercises();
   const { addSession } = useWorkouts();
   const navigate = useNavigate();
+  const { lang, t } = useLanguage();
   const [entries, setEntries] = useState<WorkoutEntry[]>([]);
   const [picking, setPicking] = useState(false);
 
-  if (loading) return <Spinner label="Laden…" />;
+  if (loading) return <Spinner label={t('common.loading')} />;
 
   function addExercise(exerciseId: string, exerciseName: string) {
     setEntries((prev) => [
@@ -71,19 +74,16 @@ export function Workout() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Training</h1>
+        <h1 className="text-2xl font-bold">{t('workout.title')}</h1>
         {entries.length > 0 && (
           <button onClick={save} className="btn-primary px-4 py-2 text-sm">
-            Speichern
+            {t('common.save')}
           </button>
         )}
       </div>
 
       {entries.length === 0 ? (
-        <EmptyState
-          title="Noch keine Übungen"
-          hint="Füge Übungen hinzu, um dein Training zu protokollieren."
-        />
+        <EmptyState title={t('workout.emptyTitle')} hint={t('workout.emptyHint')} />
       ) : (
         <div className="space-y-4">
           {entries.map((entry, ei) => (
@@ -94,14 +94,14 @@ export function Workout() {
                   onClick={() => removeEntry(ei)}
                   className="text-xs text-fg-subtle hover:text-danger"
                 >
-                  Entfernen
+                  {t('workout.remove')}
                 </button>
               </div>
               <div className="space-y-2">
                 <div className="grid grid-cols-[2rem,1fr,1fr] gap-2 text-xs font-semibold uppercase text-fg-subtle">
-                  <span>Satz</span>
-                  <span>Wdh.</span>
-                  <span>Gewicht (kg)</span>
+                  <span>{t('workout.set')}</span>
+                  <span>{t('workout.reps')}</span>
+                  <span>{t('workout.weight')}</span>
                 </div>
                 {entry.sets.map((set, si) => (
                   <div key={si} className="grid grid-cols-[2rem,1fr,1fr] items-center gap-2">
@@ -125,7 +125,7 @@ export function Workout() {
                 ))}
               </div>
               <button onClick={() => addSet(ei)} className="btn-ghost mt-3 w-full py-1.5 text-xs">
-                + Satz
+                {t('workout.addSet')}
               </button>
             </div>
           ))}
@@ -133,23 +133,26 @@ export function Workout() {
       )}
 
       <button onClick={() => setPicking(true)} className="btn-ghost w-full">
-        + Übung hinzufügen
+        {t('workout.addExercise')}
       </button>
 
       {picking && (
-        <Modal title="Übung wählen" onClose={() => setPicking(false)}>
+        <Modal title={t('workout.pickTitle')} onClose={() => setPicking(false)}>
           <ul className="space-y-2">
-            {exercises.map((ex) => (
-              <li key={ex.id}>
-                <button
-                  onClick={() => addExercise(ex.id, ex.name)}
-                  className="flex w-full items-center justify-between rounded-xl bg-surface-2 px-4 py-3 text-left text-fg hover:bg-border"
-                >
-                  <span>{ex.name}</span>
-                  <span className="text-xs capitalize text-fg-subtle">{ex.category}</span>
-                </button>
-              </li>
-            ))}
+            {exercises.map((ex) => {
+              const name = localizedExercise(ex, lang).name;
+              return (
+                <li key={ex.id}>
+                  <button
+                    onClick={() => addExercise(ex.id, name)}
+                    className="flex w-full items-center justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3 text-left text-fg hover:bg-border"
+                  >
+                    <span>{name}</span>
+                    <CategoryBadge category={ex.category} />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </Modal>
       )}

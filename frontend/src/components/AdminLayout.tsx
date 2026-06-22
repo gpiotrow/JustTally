@@ -1,15 +1,18 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ThemeToggle } from './ThemeToggle';
+import { LanguageToggle } from './LanguageToggle';
+import { useT, type TKey } from '../i18n';
 
-const NAV = [
-  { to: '/admin', label: 'Übungen', end: true },
-  { to: '/admin/users', label: 'Benutzer', end: false },
+const NAV: { to: string; labelKey: TKey; end: boolean }[] = [
+  { to: '/admin', labelKey: 'nav.exercises', end: true },
+  { to: '/admin/users', labelKey: 'nav.users', end: false },
 ];
 
 export function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const t = useT();
 
   return (
     <div className="min-h-screen">
@@ -36,19 +39,20 @@ export function AdminLayout() {
                     }`
                   }
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </NavLink>
               ))}
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            <LanguageToggle />
             <ThemeToggle />
             <button onClick={() => navigate('/')} className="btn-ghost px-3 py-1.5 text-xs">
-              Mobile Ansicht
+              {t('layout.mobileView')}
             </button>
             <span className="hidden text-sm text-fg-muted sm:inline">{user?.name}</span>
             <button onClick={logout} className="btn-ghost px-3 py-1.5 text-xs">
-              Abmelden
+              {t('common.logout')}
             </button>
           </div>
         </div>

@@ -31,34 +31,60 @@ function seed() {
 
   const samples = [
     {
-      name: 'Barbell Bench Press',
+      nameDe: 'Langhantel-Bankdrücken',
+      nameEn: 'Barbell Bench Press',
       category: 'chest',
       difficulty: 'intermediate',
-      instructions:
+      instructionsDe:
+        'Flach auf die Bank legen. Die Stange etwas weiter als schulterbreit greifen. Die Stange zur Brustmitte absenken, dann nach oben drücken, bis die Arme gestreckt sind.',
+      instructionsEn:
         'Lie flat on the bench. Grip the bar slightly wider than shoulder width. Lower the bar to mid-chest, then press up until arms are extended.',
     },
     {
-      name: 'Bodyweight Squat',
+      nameDe: 'Kniebeuge (Körpergewicht)',
+      nameEn: 'Bodyweight Squat',
       category: 'legs',
       difficulty: 'beginner',
-      instructions:
+      instructionsDe:
+        'Schulterbreit hinstellen. Die Hüfte nach hinten und unten absenken, bis die Oberschenkel parallel zum Boden sind. Über die Fersen wieder hochdrücken.',
+      instructionsEn:
         'Stand with feet shoulder-width apart. Lower your hips back and down until thighs are parallel to the floor. Drive through your heels to stand.',
     },
     {
-      name: 'Pull-Up',
+      nameDe: 'Klimmzug',
+      nameEn: 'Pull-Up',
       category: 'back',
       difficulty: 'advanced',
-      instructions:
+      instructionsDe:
+        'Im Obergriff an der Stange hängen. Die Brust zur Stange ziehen, indem die Ellenbogen nach unten gedrückt werden. Kontrolliert ablassen.',
+      instructionsEn:
         'Hang from the bar with an overhand grip. Pull your chest toward the bar by driving your elbows down. Lower under control.',
     },
   ];
 
   const insert = db.prepare(
-    `INSERT INTO exercises (id, name, category, difficulty, instructions, created_by, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO exercises
+       (id, name, name_de, name_en, category, difficulty, instructions, instructions_de, instructions_en, created_by, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   for (const ex of samples) {
-    insert.run(nanoid(), ex.name, ex.category, ex.difficulty, ex.instructions, adminId, now, now);
+    // Denormalized name/instructions = German-preferred resolved value.
+    const name = ex.nameDe || ex.nameEn;
+    const instructions = ex.instructionsDe || ex.instructionsEn;
+    insert.run(
+      nanoid(),
+      name,
+      ex.nameDe,
+      ex.nameEn,
+      ex.category,
+      ex.difficulty,
+      instructions,
+      ex.instructionsDe,
+      ex.instructionsEn,
+      adminId,
+      now,
+      now
+    );
   }
   console.log(`Inserted ${samples.length} sample exercises.`);
 }

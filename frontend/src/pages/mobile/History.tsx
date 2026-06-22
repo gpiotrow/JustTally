@@ -1,28 +1,28 @@
 import { useWorkouts } from '../../hooks/useWorkouts';
 import { EmptyState, Spinner } from '../../components/ui';
+import { useLanguage } from '../../i18n';
 
-const dateFmt = new Intl.DateTimeFormat('de-DE', {
+const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   weekday: 'short',
   day: '2-digit',
   month: 'short',
   hour: '2-digit',
   minute: '2-digit',
-});
+};
 
 export function History() {
   const { sessions, loaded, deleteSession } = useWorkouts();
+  const { lang, t } = useLanguage();
+  const dateFmt = new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-US', DATE_OPTIONS);
 
-  if (!loaded) return <Spinner label="Laden…" />;
+  if (!loaded) return <Spinner label={t('common.loading')} />;
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Verlauf</h1>
+      <h1 className="text-2xl font-bold">{t('history.title')}</h1>
 
       {sessions.length === 0 ? (
-        <EmptyState
-          title="Noch keine Trainings"
-          hint="Deine gespeicherten Trainings erscheinen hier — nur auf diesem Gerät."
-        />
+        <EmptyState title={t('history.emptyTitle')} hint={t('history.emptyHint')} />
       ) : (
         <ul className="space-y-3">
           {sessions.map((s) => {
@@ -35,11 +35,11 @@ export function History() {
                     onClick={() => deleteSession(s.id)}
                     className="text-xs text-fg-subtle hover:text-danger"
                   >
-                    Löschen
+                    {t('common.delete')}
                   </button>
                 </div>
                 <p className="mb-3 text-xs text-fg-subtle">
-                  {s.entries.length} Übungen · {totalSets} Sätze
+                  {s.entries.length} {t('history.exercises')} · {totalSets} {t('history.sets')}
                 </p>
                 <ul className="space-y-1.5">
                   {s.entries.map((e, i) => (

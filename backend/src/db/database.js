@@ -58,6 +58,30 @@ export function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_media_exercise ON media(exercise_id);
     CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises(category);
   `);
+
+  migrateBilingualColumns();
+}
+
+/**
+ * Add bilingual content columns to `exercises` if they don't exist yet, then
+ * backfill the German variant from the legacy single-language columns.
+ * Idempotent: safe to run on every startup.
+ */
+function migrateBilingualColumns() {
+  const columns = db.prepare('PRAGMA table_info(exercises)').all().map((c) => c.name);
+  const bilingual = ['name_de', 'name_en', 'instructions_de', 'instructions_en'];
+
+  for (const col of bilingual) {
+    if (!columns.includes(col)) {
+      db.exec(`ALTER TABLE exercises ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`);
+    }
+  }
+
+  // Backfill: treat existing single-language content as the German baseline.
+  db.exec(`UPDATE exercises SET name_de = name WHERE COALESCE(name_de, '') = ''`);
+  db.exec(
+    `UPDATE exercises SET instructions_de = instructions WHERE COALESCE(instructions_de, '') = ''`
+  );
 }
 
 export default db;

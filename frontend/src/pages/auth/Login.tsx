@@ -3,10 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorBanner } from '../../components/ui';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { LanguageToggle } from '../../components/LanguageToggle';
+import { useT } from '../../i18n';
 
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const t = useT();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -20,18 +23,18 @@ export function Login() {
       await login(email.trim(), password);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Anmeldung fehlgeschlagen');
+      setError(err instanceof Error ? err.message : t('login.error'));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <AuthShell subtitle="Melde dich an, um deine Übungen zu laden.">
+    <AuthShell subtitle={t('login.subtitle')}>
       <form onSubmit={onSubmit} className="space-y-4">
         {error && <ErrorBanner message={error} />}
         <div>
-          <label className="label" htmlFor="email">E-Mail</label>
+          <label className="label" htmlFor="email">{t('common.email')}</label>
           <input
             id="email"
             type="email"
@@ -43,7 +46,7 @@ export function Login() {
           />
         </div>
         <div>
-          <label className="label" htmlFor="password">Passwort</label>
+          <label className="label" htmlFor="password">{t('common.password')}</label>
           <input
             id="password"
             type="password"
@@ -55,13 +58,13 @@ export function Login() {
           />
         </div>
         <button type="submit" className="btn-primary w-full" disabled={busy}>
-          {busy ? 'Anmelden…' : 'Anmelden'}
+          {busy ? t('login.submitting') : t('login.submit')}
         </button>
       </form>
       <p className="mt-4 text-center text-sm text-fg-muted">
-        Noch kein Konto?{' '}
+        {t('login.noAccount')}{' '}
         <Link to="/register" className="font-semibold text-accent">
-          Registrieren
+          {t('login.register')}
         </Link>
       </p>
     </AuthShell>
@@ -77,7 +80,8 @@ export function AuthShell({
 }) {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
-      <div className="absolute right-4 top-4">
+      <div className="absolute right-4 top-4 flex items-center gap-2">
+        <LanguageToggle />
         <ThemeToggle />
       </div>
       <div className="mb-8 text-center">

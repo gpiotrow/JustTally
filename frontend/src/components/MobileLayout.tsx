@@ -2,18 +2,21 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useOnline } from '../hooks/useOnline';
 import { ThemeToggle } from './ThemeToggle';
+import { LanguageToggle } from './LanguageToggle';
+import { useT, type TKey } from '../i18n';
 import { DumbbellIcon, ClipboardIcon, TrendingIcon } from './icons';
 
-const NAV = [
-  { to: '/', label: 'Übungen', Icon: DumbbellIcon, end: true },
-  { to: '/workout', label: 'Training', Icon: ClipboardIcon, end: false },
-  { to: '/history', label: 'Verlauf', Icon: TrendingIcon, end: false },
+const NAV: { to: string; labelKey: TKey; Icon: typeof DumbbellIcon; end: boolean }[] = [
+  { to: '/', labelKey: 'nav.exercises', Icon: DumbbellIcon, end: true },
+  { to: '/workout', labelKey: 'nav.workout', Icon: ClipboardIcon, end: false },
+  { to: '/history', labelKey: 'nav.history', Icon: TrendingIcon, end: false },
 ];
 
 export function MobileLayout() {
   const { user, isAdmin, logout } = useAuth();
   const online = useOnline();
   const navigate = useNavigate();
+  const t = useT();
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col">
@@ -25,21 +28,22 @@ export function MobileLayout() {
           {!online && (
             <span
               className="chip bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
-              title="Offline-Modus"
+              title={t('common.offline')}
             >
-              ● Offline
+              ● {t('common.offline')}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
+          <LanguageToggle />
           <ThemeToggle />
           {isAdmin && (
             <button onClick={() => navigate('/admin')} className="btn-ghost px-3 py-1.5 text-xs">
-              Admin
+              {t('common.admin')}
             </button>
           )}
           <button onClick={logout} className="btn-ghost px-3 py-1.5 text-xs" title={user?.email}>
-            Abmelden
+            {t('common.logout')}
           </button>
         </div>
       </header>
@@ -50,7 +54,7 @@ export function MobileLayout() {
 
       <nav className="fixed bottom-0 left-1/2 z-20 w-full max-w-md -translate-x-1/2 border-t border-border bg-bg/95 backdrop-blur">
         <div className="grid grid-cols-3">
-          {NAV.map(({ to, label, Icon, end }) => (
+          {NAV.map(({ to, labelKey, Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -67,7 +71,7 @@ export function MobileLayout() {
                     <span className="absolute top-0 h-0.5 w-10 rounded-full bg-accent" />
                   )}
                   <Icon width={20} height={20} />
-                  {label}
+                  {t(labelKey)}
                 </>
               )}
             </NavLink>

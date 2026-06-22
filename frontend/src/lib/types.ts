@@ -20,10 +20,16 @@ export interface Media {
 
 export interface Exercise {
   id: string;
+  /** German-preferred resolved name (server-side fallback). */
   name: string;
+  /** German-preferred resolved instructions (server-side fallback). */
+  instructions: string;
+  nameDe: string;
+  nameEn: string;
+  instructionsDe: string;
+  instructionsEn: string;
   category: string;
   difficulty: Difficulty;
-  instructions: string;
   createdAt: number;
   updatedAt: number;
   media: Media[];

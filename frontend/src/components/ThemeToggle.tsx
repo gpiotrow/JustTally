@@ -1,18 +1,21 @@
 import { useTheme } from '../hooks/useTheme';
+import { useT } from '../i18n';
 
 /**
  * Minimal sun/moon toggle. Shows the icon for the theme you'd switch TO.
  */
 export function ThemeToggle() {
   const { theme, toggle } = useTheme();
+  const t = useT();
   const isDark = theme === 'dark';
+  const label = isDark ? t('theme.toLight') : t('theme.toDark');
 
   return (
     <button
       onClick={toggle}
       className="btn-ghost h-9 w-9 rounded-full !px-0"
-      aria-label={isDark ? 'Hellen Modus aktivieren' : 'Dunklen Modus aktivieren'}
-      title={isDark ? 'Heller Modus' : 'Dunkler Modus'}
+      aria-label={label}
+      title={label}
     >
       {isDark ? (
         // Sun

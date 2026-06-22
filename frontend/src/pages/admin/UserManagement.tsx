@@ -3,9 +3,11 @@ import { listUsers, createUser, setUserRole, deleteUser } from '../../api/users'
 import { useAuth } from '../../hooks/useAuth';
 import type { Role, User } from '../../lib/types';
 import { EmptyState, ErrorBanner, Modal, Spinner } from '../../components/ui';
+import { useT } from '../../i18n';
 
 export function UserManagement() {
   const { user: me } = useAuth();
+  const t = useT();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +19,7 @@ export function UserManagement() {
       const res = await listUsers();
       setUsers(res.users);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Laden fehlgeschlagen');
+      setError(err instanceof Error ? err.message : t('users.loadError'));
     } finally {
       setLoading(false);
     }
@@ -32,17 +34,17 @@ export function UserManagement() {
       const res = await setUserRole(u.id, role);
       setUsers((prev) => prev.map((x) => (x.id === u.id ? res.user : x)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Rolle ändern fehlgeschlagen');
+      setError(err instanceof Error ? err.message : t('users.roleError'));
     }
   }
 
   async function remove(u: User) {
-    if (!confirm(`Benutzer "${u.name}" löschen?`)) return;
+    if (!confirm(t('users.deleteConfirm', { name: u.name }))) return;
     try {
       await deleteUser(u.id);
       setUsers((prev) => prev.filter((x) => x.id !== u.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen');
+      setError(err instanceof Error ? err.message : t('users.deleteError'));
     }
   }
 
@@ -50,28 +52,28 @@ export function UserManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Benutzer</h1>
-          <p className="text-sm text-fg-muted">Verwalte Konten und Rollen.</p>
+          <h1 className="text-2xl font-bold">{t('users.title')}</h1>
+          <p className="text-sm text-fg-muted">{t('users.subtitle')}</p>
         </div>
         <button onClick={() => setCreating(true)} className="btn-primary">
-          + Benutzer
+          {t('users.new')}
         </button>
       </div>
 
       {error && <ErrorBanner message={error} />}
 
       {loading ? (
-        <Spinner label="Laden…" />
+        <Spinner label={t('common.loading')} />
       ) : users.length === 0 ? (
-        <EmptyState title="Keine Benutzer" />
+        <EmptyState title={t('users.empty')} />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border">
           <table className="w-full text-left text-sm">
             <thead className="bg-surface-2 text-xs uppercase tracking-wide text-fg-muted">
               <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">E-Mail</th>
-                <th className="px-4 py-3">Rolle</th>
+                <th className="px-4 py-3">{t('common.name')}</th>
+                <th className="px-4 py-3">{t('common.email')}</th>
+                <th className="px-4 py-3">{t('users.role')}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -80,7 +82,7 @@ export function UserManagement() {
                 <tr key={u.id} className="hover:bg-surface-2/50">
                   <td className="px-4 py-3 font-medium text-fg">
                     {u.name}
-                    {u.id === me?.id && <span className="ml-2 text-xs text-fg-subtle">(du)</span>}
+                    {u.id === me?.id && <span className="ml-2 text-xs text-fg-subtle">{t('users.you')}</span>}
                   </td>
                   <td className="px-4 py-3 text-fg-muted">{u.email}</td>
                   <td className="px-4 py-3">
@@ -100,7 +102,7 @@ export function UserManagement() {
                       className="btn-danger px-3 py-1.5 text-xs"
                       disabled={u.id === me?.id}
                     >
-                      Löschen
+                      {t('common.delete')}
                     </button>
                   </td>
                 </tr>
@@ -130,6 +132,7 @@ function CreateUserModal({
   onClose: () => void;
   onCreated: (u: User) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -145,22 +148,22 @@ function CreateUserModal({
       const res = await createUser({ name: name.trim(), email: email.trim(), password, role });
       onCreated(res.user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erstellen fehlgeschlagen');
+      setError(err instanceof Error ? err.message : t('users.createError'));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Modal title="Neuer Benutzer" onClose={onClose}>
+    <Modal title={t('users.newTitle')} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {error && <ErrorBanner message={error} />}
         <div>
-          <label className="label">Name</label>
+          <label className="label">{t('common.name')}</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div>
-          <label className="label">E-Mail</label>
+          <label className="label">{t('common.email')}</label>
           <input
             type="email"
             className="input"
@@ -170,7 +173,7 @@ function CreateUserModal({
           />
         </div>
         <div>
-          <label className="label">Passwort</label>
+          <label className="label">{t('register.passwordLabel')}</label>
           <input
             type="password"
             className="input"
@@ -181,14 +184,14 @@ function CreateUserModal({
           />
         </div>
         <div>
-          <label className="label">Rolle</label>
+          <label className="label">{t('users.role')}</label>
           <select className="input" value={role} onChange={(e) => setRole(e.target.value as Role)}>
             <option value="user">user</option>
             <option value="admin">admin</option>
           </select>
         </div>
         <button type="submit" className="btn-primary w-full" disabled={busy}>
-          {busy ? 'Erstellen…' : 'Erstellen'}
+          {busy ? t('users.creating') : t('users.create')}
         </button>
       </form>
     </Modal>

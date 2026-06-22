@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { ErrorBanner } from '../../components/ui';
 import { AuthShell } from './Login';
+import { useT } from '../../i18n';
 
 export function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const t = useT();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,18 +23,18 @@ export function Register() {
       await register(name.trim(), email.trim(), password);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registrierung fehlgeschlagen');
+      setError(err instanceof Error ? err.message : t('register.error'));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <AuthShell subtitle="Erstelle ein Konto, um loszulegen.">
+    <AuthShell subtitle={t('register.subtitle')}>
       <form onSubmit={onSubmit} className="space-y-4">
         {error && <ErrorBanner message={error} />}
         <div>
-          <label className="label" htmlFor="name">Name</label>
+          <label className="label" htmlFor="name">{t('common.name')}</label>
           <input
             id="name"
             className="input"
@@ -42,7 +44,7 @@ export function Register() {
           />
         </div>
         <div>
-          <label className="label" htmlFor="email">E-Mail</label>
+          <label className="label" htmlFor="email">{t('common.email')}</label>
           <input
             id="email"
             type="email"
@@ -54,7 +56,7 @@ export function Register() {
           />
         </div>
         <div>
-          <label className="label" htmlFor="password">Passwort (min. 6 Zeichen)</label>
+          <label className="label" htmlFor="password">{t('register.passwordLabel')}</label>
           <input
             id="password"
             type="password"
@@ -67,13 +69,13 @@ export function Register() {
           />
         </div>
         <button type="submit" className="btn-primary w-full" disabled={busy}>
-          {busy ? 'Registrieren…' : 'Registrieren'}
+          {busy ? t('register.submitting') : t('register.submit')}
         </button>
       </form>
       <p className="mt-4 text-center text-sm text-fg-muted">
-        Bereits ein Konto?{' '}
+        {t('register.haveAccount')}{' '}
         <Link to="/login" className="font-semibold text-accent">
-          Anmelden
+          {t('register.login')}
         </Link>
       </p>
     </AuthShell>

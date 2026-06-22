@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Difficulty } from '../lib/types';
+import { useT, type TKey } from '../i18n';
+import { CATEGORIES } from '../lib/types';
 
 export function Spinner({ label }: { label?: string }) {
   return (
@@ -33,18 +35,22 @@ const DIFFICULTY_STYLES: Record<Difficulty, string> = {
   advanced: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
 };
 
-const DIFFICULTY_LABEL: Record<Difficulty, string> = {
-  beginner: 'Anfänger',
-  intermediate: 'Fortgeschritten',
-  advanced: 'Profi',
-};
+const CATEGORY_SET = new Set<string>(CATEGORIES);
 
 export function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
-  return <span className={`chip ${DIFFICULTY_STYLES[difficulty]}`}>{DIFFICULTY_LABEL[difficulty]}</span>;
+  const t = useT();
+  return (
+    <span className={`chip ${DIFFICULTY_STYLES[difficulty]}`}>
+      {t(`difficulty.${difficulty}` as TKey)}
+    </span>
+  );
 }
 
 export function CategoryBadge({ category }: { category: string }) {
-  return <span className="chip bg-surface-2 text-fg-muted capitalize">{category}</span>;
+  const t = useT();
+  // Known categories get a localized label; unknown ones fall back to the raw value.
+  const label = CATEGORY_SET.has(category) ? t(`category.${category}` as TKey) : category;
+  return <span className="chip bg-surface-2 text-fg-muted capitalize">{label}</span>;
 }
 
 export function Modal({
@@ -56,6 +62,7 @@ export function Modal({
   children: ReactNode;
   onClose: () => void;
 }) {
+  const t = useT();
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
@@ -67,7 +74,7 @@ export function Modal({
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-fg">{title}</h2>
-          <button onClick={onClose} className="btn-ghost px-2.5 py-1.5" aria-label="Schließen">
+          <button onClick={onClose} className="btn-ghost px-2.5 py-1.5" aria-label={t('common.close')}>
             ✕
           </button>
         </div>

@@ -4,58 +4,70 @@ import { useExercises } from '../../hooks/useExercises';
 import { CATEGORIES } from '../../lib/types';
 import { CategoryBadge, DifficultyBadge, EmptyState, ErrorBanner, Spinner } from '../../components/ui';
 import { DumbbellIcon } from '../../components/icons';
+import { useLanguage, type TKey } from '../../i18n';
+import { localizedExercise } from '../../lib/exerciseText';
 
 export function ExerciseList() {
   const { exercises, loading, error, fromCache } = useExercises();
+  const { lang, t } = useLanguage();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string>('all');
 
+  const localized = useMemo(
+    () => exercises.map((ex) => ({ ex, name: localizedExercise(ex, lang).name })),
+    [exercises, lang]
+  );
+
   const filtered = useMemo(() => {
-    return exercises.filter((ex) => {
-      const matchesQuery = ex.name.toLowerCase().includes(query.toLowerCase());
+    return localized.filter(({ ex, name }) => {
+      const matchesQuery = name.toLowerCase().includes(query.toLowerCase());
       const matchesCat = category === 'all' || ex.category === category;
       return matchesQuery && matchesCat;
     });
-  }, [exercises, query, category]);
+  }, [localized, query, category]);
 
-  if (loading) return <Spinner label="Übungen laden…" />;
+  if (loading) return <Spinner label={t('exercises.loading')} />;
   if (error) return <ErrorBanner message={error} />;
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Übungen</h1>
+        <h1 className="text-2xl font-bold">{t('exercises.title')}</h1>
         {fromCache && (
           <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-            Offline — zwischengespeicherte Daten
+            {t('exercises.offlineCache')}
           </p>
         )}
       </div>
 
       <input
         className="input"
-        placeholder="Übung suchen…"
+        placeholder={t('exercises.searchPlaceholder')}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
 
       <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-        <FilterChip active={category === 'all'} onClick={() => setCategory('all')} label="Alle" />
+        <FilterChip
+          active={category === 'all'}
+          onClick={() => setCategory('all')}
+          label={t('exercises.all')}
+        />
         {CATEGORIES.map((c) => (
           <FilterChip
             key={c}
             active={category === c}
             onClick={() => setCategory(c)}
-            label={c}
+            label={t(`category.${c}` as TKey)}
           />
         ))}
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="Keine Übungen gefunden" hint="Passe Suche oder Filter an." />
+        <EmptyState title={t('exercises.emptyTitle')} hint={t('exercises.emptyHint')} />
       ) : (
         <ul className="space-y-3">
-          {filtered.map((ex) => {
+          {filtered.map(({ ex, name }) => {
             const cover = ex.media.find((m) => m.mediaType === 'image');
             return (
               <li key={ex.id}>
@@ -78,7 +90,7 @@ export function ExerciseList() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-fg">{ex.name}</p>
+                    <p className="truncate font-semibold text-fg">{name}</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       <CategoryBadge category={ex.category} />
                       <DifficultyBadge difficulty={ex.difficulty} />
