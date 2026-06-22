@@ -22,3 +22,6 @@ backend/uploads/**/*
 # OS
 .DS_Store
 Thumbs.db
+
+# graphify analysis output (regenerable via /graphify skill)
+graphify-out/
