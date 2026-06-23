@@ -104,6 +104,7 @@ function WorkoutEditor({ initial }: { initial: WorkoutSession | null }) {
     const session: WorkoutSession = {
       id: initial?.id ?? crypto.randomUUID(),
       date: initial?.date ?? Date.now(),
+      updatedAt: Date.now(),
       ...(trimmedTitle ? { title: trimmedTitle } : {}),
       startedAt: parseLocalInputValue(startedAt),
       ...(durationMin !== undefined && !Number.isNaN(durationMin) ? { durationMin } : {}),

@@ -58,6 +58,8 @@ export interface WorkoutSession {
   durationMin?: number;
   /** Free-text notes for the session. */
   notes?: string;
+  /** Last-modified timestamp (epoch ms); refreshed on every save, used for sync conflict resolution. */
+  updatedAt: number;
   entries: WorkoutEntry[];
 }
 

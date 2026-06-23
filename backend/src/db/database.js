@@ -1,87 +1,86 @@
-import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import pg from 'pg';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, '..', '..', 'data');
-const DB_PATH = join(DATA_DIR, 'just-tally.sqlite');
+const { Pool, types } = pg;
 
-mkdirSync(DATA_DIR, { recursive: true });
+// Postgres returns BIGINT (oid 20) as strings by default to avoid precision loss.
+// Our timestamps (epoch ms) safely fit in a JS number, so parse them as numbers.
+types.setTypeParser(20, (value) => parseInt(value, 10));
 
-const db = new DatabaseSync(DB_PATH);
-db.exec('PRAGMA journal_mode = WAL');
-db.exec('PRAGMA foreign_keys = ON');
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error(
+    'DATABASE_URL is not set. Add a Postgres connection string (e.g. a free Neon project) to your environment.'
+  );
+}
+
+const pool = new Pool({
+  connectionString,
+  ssl: { rejectUnauthorized: false },
+});
 
 /**
  * Create the schema if it does not exist yet.
- * Tables: users, exercises, media.
+ * Tables: users, exercises, media, workouts.
  */
-export function initSchema() {
-  db.exec(`
+export async function initSchema() {
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id            TEXT PRIMARY KEY,
       name          TEXT NOT NULL,
       email         TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       role          TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin','user')),
-      created_at    INTEGER NOT NULL,
-      updated_at    INTEGER NOT NULL
+      created_at    BIGINT NOT NULL,
+      updated_at    BIGINT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS exercises (
-      id           TEXT PRIMARY KEY,
-      name         TEXT NOT NULL,
-      category     TEXT NOT NULL DEFAULT 'other',
-      difficulty   TEXT NOT NULL DEFAULT 'beginner'
-                     CHECK (difficulty IN ('beginner','intermediate','advanced')),
-      instructions TEXT NOT NULL DEFAULT '',
-      created_by   TEXT,
-      created_at   INTEGER NOT NULL,
-      updated_at   INTEGER NOT NULL,
-      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+      id              TEXT PRIMARY KEY,
+      name            TEXT NOT NULL,
+      name_de         TEXT NOT NULL DEFAULT '',
+      name_en         TEXT NOT NULL DEFAULT '',
+      category        TEXT NOT NULL DEFAULT 'other',
+      difficulty      TEXT NOT NULL DEFAULT 'beginner'
+                        CHECK (difficulty IN ('beginner','intermediate','advanced')),
+      instructions    TEXT NOT NULL DEFAULT '',
+      instructions_de TEXT NOT NULL DEFAULT '',
+      instructions_en TEXT NOT NULL DEFAULT '',
+      created_by      TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at      BIGINT NOT NULL,
+      updated_at      BIGINT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS media (
       id            TEXT PRIMARY KEY,
-      exercise_id   TEXT NOT NULL,
+      exercise_id   TEXT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
       media_type    TEXT NOT NULL CHECK (media_type IN ('image','video')),
       url           TEXT NOT NULL,
       thumbnail_url TEXT,
       original_name TEXT,
-      size_bytes    INTEGER,
+      size_bytes    BIGINT,
       position      INTEGER NOT NULL DEFAULT 0,
-      created_at    INTEGER NOT NULL,
-      FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+      created_at    BIGINT NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_media_exercise ON media(exercise_id);
     CREATE INDEX IF NOT EXISTS idx_exercises_category ON exercises(category);
+
+    CREATE TABLE IF NOT EXISTS workouts (
+      id           TEXT PRIMARY KEY,
+      user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title        TEXT,
+      started_at   BIGINT,
+      duration_min INTEGER,
+      notes        TEXT,
+      entries      TEXT NOT NULL DEFAULT '[]',
+      date         BIGINT NOT NULL,
+      created_at   BIGINT NOT NULL,
+      updated_at   BIGINT NOT NULL,
+      deleted_at   BIGINT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_workouts_user ON workouts(user_id);
   `);
-
-  migrateBilingualColumns();
 }
 
-/**
- * Add bilingual content columns to `exercises` if they don't exist yet, then
- * backfill the German variant from the legacy single-language columns.
- * Idempotent: safe to run on every startup.
- */
-function migrateBilingualColumns() {
-  const columns = db.prepare('PRAGMA table_info(exercises)').all().map((c) => c.name);
-  const bilingual = ['name_de', 'name_en', 'instructions_de', 'instructions_en'];
-
-  for (const col of bilingual) {
-    if (!columns.includes(col)) {
-      db.exec(`ALTER TABLE exercises ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`);
-    }
-  }
-
-  // Backfill: treat existing single-language content as the German baseline.
-  db.exec(`UPDATE exercises SET name_de = name WHERE COALESCE(name_de, '') = ''`);
-  db.exec(
-    `UPDATE exercises SET instructions_de = instructions WHERE COALESCE(instructions_de, '') = ''`
-  );
-}
-
-export default db;
+export default pool;

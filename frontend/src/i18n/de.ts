@@ -89,6 +89,10 @@ export const de = {
   'history.sets': 'Sätze',
   'history.untitled': 'Training',
   'history.minutes': 'Min.',
+  'history.sync': 'Sync',
+  'history.syncing': 'Synchronisiere…',
+  'history.syncError': 'Synchronisierung fehlgeschlagen',
+  'history.lastSynced': 'Zuletzt synchronisiert:',
 
   // Admin — exercises
   'admin.ex.title': 'Übungen verwalten',

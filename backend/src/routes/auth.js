@@ -15,7 +15,7 @@ function publicUser(row) {
 /**
  * POST /api/auth/register — self-service registration (role: user).
  */
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   const { name, email, password } = req.body || {};
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'name, email and password are required' });
@@ -27,8 +27,8 @@ router.post('/register', (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-  if (existing) {
+  const { rows: existing } = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+  if (existing[0]) {
     return res.status(409).json({ error: 'Email already registered' });
   }
 
@@ -40,10 +40,11 @@ router.post('/register', (req, res) => {
     role: 'user',
   };
   const hash = bcrypt.hashSync(password, 10);
-  db.prepare(
+  await db.query(
     `INSERT INTO users (id, name, email, password_hash, role, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(user.id, name, email, hash, 'user', now, now);
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [user.id, name, email, hash, 'user', now, now]
+  );
 
   res.status(201).json({ token: signToken(user), user });
 });
@@ -51,12 +52,13 @@ router.post('/register', (req, res) => {
 /**
  * POST /api/auth/login
  */
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password are required' });
   }
-  const row = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+  const row = rows[0];
   if (!row || !bcrypt.compareSync(password, row.password_hash)) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
@@ -66,8 +68,9 @@ router.post('/login', (req, res) => {
 /**
  * GET /api/auth/me — current user from token.
  */
-router.get('/me', requireAuth, (req, res) => {
-  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.sub);
+router.get('/me', requireAuth, async (req, res) => {
+  const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
+  const row = rows[0];
   if (!row) return res.status(404).json({ error: 'User not found' });
   res.json({ user: publicUser(row) });
 });

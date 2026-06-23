@@ -7,26 +7,28 @@ import db, { initSchema } from './database.js';
  * Seed the database with the first admin account and a few sample exercises.
  * Idempotent: skips creation if the admin already exists.
  */
-function seed() {
-  initSchema();
+async function seed() {
+  await initSchema();
 
   const email = process.env.ADMIN_EMAIL || 'admin@justtally.local';
   const password = process.env.ADMIN_PASSWORD || 'admin1234';
   const name = process.env.ADMIN_NAME || 'Admin';
   const now = Date.now();
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-  if (existing) {
+  const { rows: existing } = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+  if (existing[0]) {
     console.log(`Admin "${email}" already exists — skipping seed.`);
+    await db.end();
     return;
   }
 
   const adminId = nanoid();
   const hash = bcrypt.hashSync(password, 10);
-  db.prepare(
+  await db.query(
     `INSERT INTO users (id, name, email, password_hash, role, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'admin', ?, ?)`
-  ).run(adminId, name, email, hash, now, now);
+     VALUES ($1, $2, $3, $4, 'admin', $5, $6)`,
+    [adminId, name, email, hash, now, now]
+  );
   console.log(`Created admin: ${email} / ${password}`);
 
   const samples = [
@@ -62,31 +64,35 @@ function seed() {
     },
   ];
 
-  const insert = db.prepare(
-    `INSERT INTO exercises
-       (id, name, name_de, name_en, category, difficulty, instructions, instructions_de, instructions_en, created_by, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  );
   for (const ex of samples) {
     // Denormalized name/instructions = German-preferred resolved value.
     const name = ex.nameDe || ex.nameEn;
     const instructions = ex.instructionsDe || ex.instructionsEn;
-    insert.run(
-      nanoid(),
-      name,
-      ex.nameDe,
-      ex.nameEn,
-      ex.category,
-      ex.difficulty,
-      instructions,
-      ex.instructionsDe,
-      ex.instructionsEn,
-      adminId,
-      now,
-      now
+    await db.query(
+      `INSERT INTO exercises
+         (id, name, name_de, name_en, category, difficulty, instructions, instructions_de, instructions_en, created_by, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [
+        nanoid(),
+        name,
+        ex.nameDe,
+        ex.nameEn,
+        ex.category,
+        ex.difficulty,
+        instructions,
+        ex.instructionsDe,
+        ex.instructionsEn,
+        adminId,
+        now,
+        now,
+      ]
     );
   }
   console.log(`Inserted ${samples.length} sample exercises.`);
+  await db.end();
 }
 
-seed();
+seed().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

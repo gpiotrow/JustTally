@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkouts } from '../../hooks/useWorkouts';
-import { EmptyState, Spinner } from '../../components/ui';
+import { useOnline } from '../../hooks/useOnline';
+import { EmptyState, ErrorBanner, Spinner } from '../../components/ui';
 import { useLanguage } from '../../i18n';
 
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
@@ -12,15 +14,42 @@ const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 };
 
 export function History() {
-  const { sessions, loaded, deleteSession } = useWorkouts();
+  const { sessions, loaded, deleteSession, sync, syncing, lastSyncedAt } = useWorkouts();
+  const online = useOnline();
   const { lang, t } = useLanguage();
+  const [syncError, setSyncError] = useState<string | null>(null);
   const dateFmt = new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-US', DATE_OPTIONS);
 
   if (!loaded) return <Spinner label={t('common.loading')} />;
 
+  async function handleSync() {
+    setSyncError(null);
+    try {
+      await sync();
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : t('history.syncError'));
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">{t('history.title')}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">{t('history.title')}</h1>
+        <button
+          onClick={handleSync}
+          disabled={!online || syncing}
+          className="btn-ghost px-3 py-1.5 text-sm disabled:opacity-50"
+        >
+          {syncing ? t('history.syncing') : t('history.sync')}
+        </button>
+      </div>
+
+      {syncError && <ErrorBanner message={syncError} />}
+      {!syncError && lastSyncedAt ? (
+        <p className="text-xs text-fg-subtle">
+          {t('history.lastSynced')} {dateFmt.format(lastSyncedAt)}
+        </p>
+      ) : null}
 
       {sessions.length === 0 ? (
         <EmptyState title={t('history.emptyTitle')} hint={t('history.emptyHint')} />

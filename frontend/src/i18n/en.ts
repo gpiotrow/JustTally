@@ -88,6 +88,10 @@ export const en: Record<TKey, string> = {
   'history.sets': 'sets',
   'history.untitled': 'Workout',
   'history.minutes': 'min',
+  'history.sync': 'Sync',
+  'history.syncing': 'Syncing…',
+  'history.syncError': 'Sync failed',
+  'history.lastSynced': 'Last synced:',
 
   // Admin — exercises
   'admin.ex.title': 'Manage exercises',

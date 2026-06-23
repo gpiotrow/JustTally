@@ -1,3 +1,4 @@
+import 'express-async-errors';
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
@@ -8,8 +9,9 @@ import { UPLOADS_DIR } from './services/mediaService.js';
 import authRoutes from './routes/auth.js';
 import exerciseRoutes from './routes/exercises.js';
 import userRoutes from './routes/users.js';
+import workoutRoutes from './routes/workouts.js';
 
-initSchema();
+await initSchema();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -40,6 +42,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/workouts', workoutRoutes);
 
 // Serve frontend static files (production build)
 const frontendDist = path.join(__dirname, '../../frontend/dist');
