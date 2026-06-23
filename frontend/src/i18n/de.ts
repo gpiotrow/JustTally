@@ -73,6 +73,13 @@ export const de = {
   'workout.addSet': '+ Satz',
   'workout.addExercise': '+ Übung hinzufügen',
   'workout.pickTitle': 'Übung wählen',
+  'workout.editTitle': 'Training bearbeiten',
+  'workout.titleLabel': 'Titel',
+  'workout.titlePlaceholder': 'z.B. Push Day',
+  'workout.startedAt': 'Start',
+  'workout.duration': 'Dauer (Min.)',
+  'workout.notes': 'Notizen',
+  'workout.notesPlaceholder': 'Eigene Notizen…',
 
   // History
   'history.title': 'Verlauf',
@@ -80,6 +87,8 @@ export const de = {
   'history.emptyHint': 'Deine gespeicherten Trainings erscheinen hier — nur auf diesem Gerät.',
   'history.exercises': 'Übungen',
   'history.sets': 'Sätze',
+  'history.untitled': 'Training',
+  'history.minutes': 'Min.',
 
   // Admin — exercises
   'admin.ex.title': 'Übungen verwalten',

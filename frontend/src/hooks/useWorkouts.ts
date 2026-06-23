@@ -29,10 +29,16 @@ export function useWorkouts() {
     [sessions, persist]
   );
 
+  const updateSession = useCallback(
+    (session: WorkoutSession) =>
+      persist(sessions.map((s) => (s.id === session.id ? session : s))),
+    [sessions, persist]
+  );
+
   const deleteSession = useCallback(
     (id: string) => persist(sessions.filter((s) => s.id !== id)),
     [sessions, persist]
   );
 
-  return { sessions, loaded, addSession, deleteSession };
+  return { sessions, loaded, addSession, updateSession, deleteSession };
 }

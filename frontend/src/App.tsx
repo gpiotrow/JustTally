@@ -31,6 +31,7 @@ export default function App() {
             <Route path="/" element={<ExerciseList />} />
             <Route path="/exercise/:id" element={<ExerciseDetail />} />
             <Route path="/workout" element={<Workout />} />
+            <Route path="/workout/:id" element={<Workout />} />
             <Route path="/history" element={<History />} />
           </Route>
 

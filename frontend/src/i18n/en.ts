@@ -72,6 +72,13 @@ export const en: Record<TKey, string> = {
   'workout.addSet': '+ Set',
   'workout.addExercise': '+ Add exercise',
   'workout.pickTitle': 'Choose exercise',
+  'workout.editTitle': 'Edit workout',
+  'workout.titleLabel': 'Title',
+  'workout.titlePlaceholder': 'e.g. Push Day',
+  'workout.startedAt': 'Start',
+  'workout.duration': 'Duration (min)',
+  'workout.notes': 'Notes',
+  'workout.notesPlaceholder': 'Your own notes…',
 
   // History
   'history.title': 'History',
@@ -79,6 +86,8 @@ export const en: Record<TKey, string> = {
   'history.emptyHint': 'Your saved workouts appear here — on this device only.',
   'history.exercises': 'exercises',
   'history.sets': 'sets',
+  'history.untitled': 'Workout',
+  'history.minutes': 'min',
 
   // Admin — exercises
   'admin.ex.title': 'Manage exercises',

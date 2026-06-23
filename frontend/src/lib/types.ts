@@ -48,7 +48,16 @@ export interface WorkoutEntry {
 
 export interface WorkoutSession {
   id: string;
+  /** Save timestamp (epoch ms) — kept for sorting and backward compatibility. */
   date: number;
+  /** Optional workout title. */
+  title?: string;
+  /** User-chosen start date/time (epoch ms); defaults to now when not set. */
+  startedAt?: number;
+  /** Manually entered duration in minutes. */
+  durationMin?: number;
+  /** Free-text notes for the session. */
+  notes?: string;
   entries: WorkoutEntry[];
 }
 
