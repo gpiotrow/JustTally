@@ -11,6 +11,7 @@ function resolve(de, en) {
 /**
  * Parse and validate a CSV buffer of exercises.
  *
+ * Uses `;` as the column delimiter (Excel default in German locales).
  * Expected header columns:
  *   name_de, name_en, instructions_de, instructions_en, category, difficulty
  *
@@ -22,6 +23,7 @@ export function parseExercisesCsv(buffer) {
   try {
     records = parse(buffer, {
       columns: true,
+      delimiter: ';',
       skip_empty_lines: true,
       trim: true,
       bom: true,

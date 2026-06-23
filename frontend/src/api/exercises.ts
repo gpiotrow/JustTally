@@ -65,7 +65,7 @@ export function importExercises(file: File) {
   return api<ImportResult>('/exercises/import', { method: 'POST', formData: fd });
 }
 
-/** A ready-to-edit CSV template (header + one bilingual example row). */
+/** A ready-to-edit CSV template (header + one bilingual example row); `;`-delimited. */
 export function csvTemplate(): string {
   const example = [
     'Schulterdrücken',
@@ -75,5 +75,5 @@ export function csvTemplate(): string {
     'shoulders',
     'intermediate',
   ];
-  return `${CSV_COLUMNS.join(',')}\n${example.map((v) => `"${v}"`).join(',')}\n`;
+  return `${CSV_COLUMNS.join(';')}\n${example.map((v) => `"${v}"`).join(';')}\n`;
 }
