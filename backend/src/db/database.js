@@ -81,6 +81,27 @@ export async function initSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_workouts_user ON workouts(user_id);
   `);
+
+  // Idempotent migrations for columns added after the initial release.
+  // Bilingual execution tips (separate from instructions).
+  await pool.query(`
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS tips_de TEXT NOT NULL DEFAULT '';
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS tips_en TEXT NOT NULL DEFAULT '';
+  `);
+
+  // Human-visible sequential reference number used for filename-based media matching.
+  await pool.query(`CREATE SEQUENCE IF NOT EXISTS exercise_ref_seq;`);
+  await pool.query(`ALTER TABLE exercises ADD COLUMN IF NOT EXISTS ref INTEGER;`);
+  // Backfill any rows still missing a number, then advance the sequence past the max.
+  await pool.query(
+    `UPDATE exercises SET ref = nextval('exercise_ref_seq') WHERE ref IS NULL;`
+  );
+  await pool.query(
+    `SELECT setval('exercise_ref_seq', GREATEST((SELECT COALESCE(MAX(ref), 0) FROM exercises), 1));`
+  );
+  await pool.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_ref ON exercises(ref);`
+  );
 }
 
 export default pool;

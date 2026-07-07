@@ -21,7 +21,7 @@ export function ExerciseDetail() {
     );
   }
 
-  const { name, instructions } = localizedExercise(exercise, lang);
+  const { name, instructions, tips } = localizedExercise(exercise, lang);
   const images = exercise.media.filter((m) => m.mediaType === 'image');
   const videos = exercise.media.filter((m) => m.mediaType === 'video');
 
@@ -71,6 +71,15 @@ export function ExerciseDetail() {
           <p className="text-fg-subtle">{t('detail.noInstructions')}</p>
         )}
       </section>
+
+      {tips && (
+        <section className="card p-4">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-muted">
+            {t('detail.tips')}
+          </h2>
+          <p className="whitespace-pre-wrap leading-relaxed text-fg">{tips}</p>
+        </section>
+      )}
 
       <Link to="/workout" className="btn-primary w-full">
         {t('detail.addToWorkout')}

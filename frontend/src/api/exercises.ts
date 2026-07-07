@@ -11,8 +11,12 @@ export interface ExerciseInput {
   nameEn: string;
   instructionsDe: string;
   instructionsEn: string;
+  tipsDe: string;
+  tipsEn: string;
   category: string;
   difficulty: Difficulty;
+  /** Optional reference number; leave undefined to auto-assign. */
+  ref?: number;
 }
 
 export interface ImportResult {
@@ -22,7 +26,22 @@ export interface ImportResult {
   exercises: Exercise[];
 }
 
-const CSV_COLUMNS = ['name_de', 'name_en', 'instructions_de', 'instructions_en', 'category', 'difficulty'];
+export interface MediaBulkResult {
+  assigned: { filename: string; ref: number; exerciseId: string }[];
+  unmatched: { filename: string; reason: string }[];
+}
+
+const CSV_COLUMNS = [
+  'name_de',
+  'name_en',
+  'instructions_de',
+  'instructions_en',
+  'tips_de',
+  'tips_en',
+  'category',
+  'difficulty',
+  'ref',
+];
 
 export function listExercises() {
   return api<ExercisesResponse>('/exercises');
@@ -65,6 +84,24 @@ export function importExercises(file: File) {
   return api<ImportResult>('/exercises/import', { method: 'POST', formData: fd });
 }
 
+/** Delete several exercises (and their media) in one request. */
+export function bulkDeleteExercises(ids: string[]) {
+  return api<{ deleted: number }>('/exercises/bulk-delete', {
+    method: 'POST',
+    body: { ids },
+  });
+}
+
+/**
+ * Upload many media files at once. Each file is auto-assigned to the exercise
+ * whose `ref` matches the file's leading digit run (e.g. "42_front.jpg" → ref 42).
+ */
+export function bulkUploadMedia(files: File[]) {
+  const fd = new FormData();
+  for (const file of files) fd.append('files', file);
+  return api<MediaBulkResult>('/exercises/media/bulk', { method: 'POST', formData: fd });
+}
+
 /** A ready-to-edit CSV template (header + one bilingual example row); `;`-delimited. */
 export function csvTemplate(): string {
   const example = [
@@ -72,8 +109,13 @@ export function csvTemplate(): string {
     'Overhead Press',
     'Stange über Kopf drücken.',
     'Press the bar overhead.',
+    'Ellbogen leicht vor der Stange halten.',
+    'Keep elbows slightly in front of the bar.',
     'shoulders',
     'intermediate',
+    // Left blank on purpose: any existing ref value here risks colliding with a
+    // real exercise, since ref is optional and auto-assigned when omitted.
+    '',
   ];
   return `${CSV_COLUMNS.join(';')}\n${example.map((v) => `"${v}"`).join(';')}\n`;
 }

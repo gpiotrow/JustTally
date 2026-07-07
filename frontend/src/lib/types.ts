@@ -20,6 +20,8 @@ export interface Media {
 
 export interface Exercise {
   id: string;
+  /** Human-visible sequential number used for filename-based media matching. */
+  ref: number;
   /** German-preferred resolved name (server-side fallback). */
   name: string;
   /** German-preferred resolved instructions (server-side fallback). */
@@ -28,6 +30,8 @@ export interface Exercise {
   nameEn: string;
   instructionsDe: string;
   instructionsEn: string;
+  tipsDe: string;
+  tipsEn: string;
   category: string;
   difficulty: Difficulty;
   createdAt: number;

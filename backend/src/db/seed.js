@@ -41,6 +41,8 @@ async function seed() {
         'Flach auf die Bank legen. Die Stange etwas weiter als schulterbreit greifen. Die Stange zur Brustmitte absenken, dann nach oben drücken, bis die Arme gestreckt sind.',
       instructionsEn:
         'Lie flat on the bench. Grip the bar slightly wider than shoulder width. Lower the bar to mid-chest, then press up until arms are extended.',
+      tipsDe: 'Schulterblätter zusammenziehen und die Füße fest auf dem Boden halten.',
+      tipsEn: 'Retract your shoulder blades and keep your feet planted firmly.',
     },
     {
       nameDe: 'Kniebeuge (Körpergewicht)',
@@ -51,6 +53,8 @@ async function seed() {
         'Schulterbreit hinstellen. Die Hüfte nach hinten und unten absenken, bis die Oberschenkel parallel zum Boden sind. Über die Fersen wieder hochdrücken.',
       instructionsEn:
         'Stand with feet shoulder-width apart. Lower your hips back and down until thighs are parallel to the floor. Drive through your heels to stand.',
+      tipsDe: 'Die Knie in Richtung der Zehen drücken und den Rücken gerade halten.',
+      tipsEn: 'Push your knees out in line with your toes and keep your back straight.',
     },
     {
       nameDe: 'Klimmzug',
@@ -61,6 +65,8 @@ async function seed() {
         'Im Obergriff an der Stange hängen. Die Brust zur Stange ziehen, indem die Ellenbogen nach unten gedrückt werden. Kontrolliert ablassen.',
       instructionsEn:
         'Hang from the bar with an overhand grip. Pull your chest toward the bar by driving your elbows down. Lower under control.',
+      tipsDe: 'Ohne Schwung arbeiten und die Schultern vom Ohr wegziehen.',
+      tipsEn: 'Avoid swinging and keep your shoulders down away from your ears.',
     },
   ];
 
@@ -70,8 +76,10 @@ async function seed() {
     const instructions = ex.instructionsDe || ex.instructionsEn;
     await db.query(
       `INSERT INTO exercises
-         (id, name, name_de, name_en, category, difficulty, instructions, instructions_de, instructions_en, created_by, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+         (id, ref, name, name_de, name_en, category, difficulty,
+          instructions, instructions_de, instructions_en, tips_de, tips_en,
+          created_by, created_at, updated_at)
+       VALUES ($1, nextval('exercise_ref_seq'), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         nanoid(),
         name,
@@ -82,6 +90,8 @@ async function seed() {
         instructions,
         ex.instructionsDe,
         ex.instructionsEn,
+        ex.tipsDe,
+        ex.tipsEn,
         adminId,
         now,
         now,

@@ -13,7 +13,8 @@ function resolve(de, en) {
  *
  * Uses `;` as the column delimiter (Excel default in German locales).
  * Expected header columns:
- *   name_de, name_en, instructions_de, instructions_en, category, difficulty
+ *   name_de, name_en, instructions_de, instructions_en, tips_de, tips_en, category, difficulty, ref
+ * `ref` is optional; when omitted the exercise gets the next auto number.
  *
  * @param {Buffer} buffer Raw uploaded CSV file content.
  * @returns {{ rows: Array, errors: Array<{ row: number, message: string }> }}
@@ -61,13 +62,28 @@ export function parseExercisesCsv(buffer) {
     }
     if (!difficulty) difficulty = 'beginner';
 
+    const refRaw = (rec.ref || '').trim();
+    let ref = null;
+    if (refRaw) {
+      const n = Number(refRaw);
+      if (!Number.isInteger(n) || n <= 0) {
+        errors.push({ row: rowNumber, message: `Invalid ref "${refRaw}" (positive integer required)` });
+        return;
+      }
+      ref = n;
+    }
+
     rows.push({
+      rowNumber,
       nameDe,
       nameEn,
       instructionsDe: (rec.instructions_de || '').trim(),
       instructionsEn: (rec.instructions_en || '').trim(),
+      tipsDe: (rec.tips_de || '').trim(),
+      tipsEn: (rec.tips_en || '').trim(),
       category: (rec.category || '').trim() || 'other',
       difficulty,
+      ref,
     });
   });
 

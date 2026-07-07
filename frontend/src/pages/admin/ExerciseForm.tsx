@@ -32,6 +32,9 @@ export function ExerciseForm({
   const [difficulty, setDifficulty] = useState<Difficulty>(initial?.difficulty ?? 'beginner');
   const [instructionsDe, setInstructionsDe] = useState(initial?.instructionsDe ?? '');
   const [instructionsEn, setInstructionsEn] = useState(initial?.instructionsEn ?? '');
+  const [tipsDe, setTipsDe] = useState(initial?.tipsDe ?? '');
+  const [tipsEn, setTipsEn] = useState(initial?.tipsEn ?? '');
+  const [ref, setRef] = useState(initial?.ref != null ? String(initial.ref) : '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -50,8 +53,11 @@ export function ExerciseForm({
       nameEn: nameEn.trim(),
       instructionsDe,
       instructionsEn,
+      tipsDe,
+      tipsEn,
       category,
       difficulty,
+      ref: ref.trim() ? Number(ref) : undefined,
     };
     try {
       const res = current
@@ -121,6 +127,19 @@ export function ExerciseForm({
             />
           </div>
         </div>
+        <div>
+          <label className="label" htmlFor="ex-ref">{t('form.refNumber')}</label>
+          <input
+            id="ex-ref"
+            type="number"
+            min={1}
+            className="input"
+            value={ref}
+            onChange={(e) => setRef(e.target.value)}
+            placeholder={t('form.refNumberPlaceholder')}
+          />
+          <p className="mt-1 text-xs text-fg-subtle">{t('form.refNumberHint')}</p>
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label" htmlFor="ex-cat">{t('form.category')}</label>
@@ -167,6 +186,26 @@ export function ExerciseForm({
             value={instructionsEn}
             onChange={(e) => setInstructionsEn(e.target.value)}
             placeholder={t('form.instructionsPlaceholder')}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="ex-tips-de">{t('form.tipsDe')}</label>
+          <textarea
+            id="ex-tips-de"
+            className="input min-h-24 resize-y"
+            value={tipsDe}
+            onChange={(e) => setTipsDe(e.target.value)}
+            placeholder={t('form.tipsPlaceholder')}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="ex-tips-en">{t('form.tipsEn')}</label>
+          <textarea
+            id="ex-tips-en"
+            className="input min-h-24 resize-y"
+            value={tipsEn}
+            onChange={(e) => setTipsEn(e.target.value)}
+            placeholder={t('form.tipsPlaceholder')}
           />
         </div>
         <button type="submit" className="btn-primary w-full" disabled={saving}>

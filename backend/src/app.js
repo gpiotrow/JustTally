@@ -67,6 +67,14 @@ app.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({ error: 'File too large (max 200 MB)' });
   }
+  if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') {
+    return res.status(400).json({ error: 'Too many files in one upload' });
+  }
+  // Deliberate client errors (e.g. ref validation/collision) carry a status + safe message.
+  const status = err.status || err.statusCode;
+  if (status && status >= 400 && status < 500) {
+    return res.status(status).json({ error: err.message });
+  }
   res.status(500).json({ error: 'Internal server error' });
 });
 
