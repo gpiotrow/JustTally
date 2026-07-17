@@ -242,7 +242,9 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 
 /**
  * POST /api/exercises/import — bulk-import exercises from a CSV file (admin only).
- * Skips rows whose name already exists (case-insensitive, either language).
+ * By default, skips rows whose name already exists (case-insensitive, either language).
+ * With `overwrite=true` in the form body, a row matching an existing exercise (by ref,
+ * else by name) updates that exercise in place instead of being skipped.
  */
 router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -251,6 +253,7 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
     req.file.mimetype === 'application/vnd.ms-excel' ||
     /\.csv$/i.test(req.file.originalname || '');
   if (!isCsv) return res.status(400).json({ error: 'Only CSV files are allowed' });
+  const overwrite = req.body?.overwrite === 'true';
 
   let parsed;
   try {
@@ -259,41 +262,65 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
     return res.status(400).json({ error: err instanceof Error ? err.message : 'Invalid CSV' });
   }
 
-  // Existing names (both languages, lowercased) and ref numbers, to detect duplicates
-  // up front rather than discovering them mid-transaction.
-  const { rows: existingRows } = await db.query('SELECT name_de, name_en, ref FROM exercises');
-  const existingNames = new Set();
-  const existingRefs = new Set();
+  // Existing rows, to detect duplicates up front and (in overwrite mode) find the
+  // exercise a CSV row refers to, rather than discovering it mid-transaction.
+  const { rows: existingRows } = await db.query('SELECT id, name_de, name_en, ref FROM exercises');
+  const byId = new Map(existingRows.map((r) => [r.id, r]));
+  const byRef = new Map();
+  const byName = new Map();
   for (const r of existingRows) {
-    if (r.name_de) existingNames.add(r.name_de.trim().toLowerCase());
-    if (r.name_en) existingNames.add(r.name_en.trim().toLowerCase());
-    if (r.ref != null) existingRefs.add(r.ref);
+    if (r.ref != null) byRef.set(r.ref, r);
+    if (r.name_de) byName.set(r.name_de.trim().toLowerCase(), r);
+    if (r.name_en) byName.set(r.name_en.trim().toLowerCase(), r);
+  }
+
+  /** Find the existing exercise a CSV row refers to: by ref first, else by either name. */
+  function findExistingMatch(row) {
+    if (row.ref != null && byRef.has(row.ref)) return byRef.get(row.ref);
+    if (row.nameDe && byName.has(row.nameDe.toLowerCase())) return byName.get(row.nameDe.toLowerCase());
+    if (row.nameEn && byName.has(row.nameEn.toLowerCase())) return byName.get(row.nameEn.toLowerCase());
+    return null;
   }
 
   const errors = [...parsed.errors];
   const toInsert = [];
+  const toUpdate = [];
   const usedRefsInBatch = new Set();
+  const reservedNames = new Set(); // names about to be inserted, to catch intra-file duplicates
+  const matchedIdsInBatch = new Set();
   let skipped = 0;
   for (const row of parsed.rows) {
+    const existing = findExistingMatch(row);
+    if (existing) {
+      if (!overwrite || matchedIdsInBatch.has(existing.id)) {
+        skipped += 1;
+        continue;
+      }
+      matchedIdsInBatch.add(existing.id);
+      toUpdate.push({ row, existingId: existing.id });
+      continue;
+    }
+
     const keys = [row.nameDe, row.nameEn].filter(Boolean).map((n) => n.toLowerCase());
-    if (keys.some((k) => existingNames.has(k))) {
-      skipped += 1;
+    if (keys.some((k) => reservedNames.has(k))) {
+      skipped += 1; // duplicate within this file
       continue;
     }
     // A colliding explicit ref is a per-row error, not a batch-ending failure —
     // mirrors how duplicate names are skipped rather than aborting the import.
     if (row.ref != null) {
-      if (existingRefs.has(row.ref) || usedRefsInBatch.has(row.ref)) {
+      if (byRef.has(row.ref) || usedRefsInBatch.has(row.ref)) {
         errors.push({ row: row.rowNumber, message: `Reference number ${row.ref} is already in use` });
         continue;
       }
       usedRefsInBatch.add(row.ref);
     }
-    keys.forEach((k) => existingNames.add(k)); // prevent duplicates within the same file
+    keys.forEach((k) => reservedNames.add(k));
     toInsert.push(row);
   }
 
   const createdIds = [];
+  const updatedIds = [];
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -345,6 +372,47 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
         });
       }
     }
+    for (const { row, existingId } of toUpdate) {
+      await client.query('SAVEPOINT row_update');
+      let refNumber;
+      try {
+        const name = row.nameDe || row.nameEn;
+        const instructions = row.instructionsDe || row.instructionsEn;
+        refNumber =
+          row.ref != null ? await resolveRef(client, row.ref, existingId) : byId.get(existingId).ref;
+        await client.query(
+          `UPDATE exercises
+             SET ref = $1, name = $2, name_de = $3, name_en = $4, category = $5, difficulty = $6,
+                 instructions = $7, instructions_de = $8, instructions_en = $9,
+                 tips_de = $10, tips_en = $11, updated_at = $12
+           WHERE id = $13`,
+          [
+            refNumber,
+            name,
+            row.nameDe,
+            row.nameEn,
+            row.category,
+            row.difficulty,
+            instructions,
+            row.instructionsDe,
+            row.instructionsEn,
+            row.tipsDe,
+            row.tipsEn,
+            now,
+            existingId,
+          ]
+        );
+        await client.query('RELEASE SAVEPOINT row_update');
+        updatedIds.push(existingId);
+      } catch (err) {
+        await client.query('ROLLBACK TO SAVEPOINT row_update');
+        const friendly = toFriendlyRefError(err, refNumber);
+        errors.push({
+          row: row.rowNumber,
+          message: friendly instanceof Error ? friendly.message : 'Update failed',
+        });
+      }
+    }
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -354,11 +422,17 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
   }
 
   const exercises = [];
-  for (const id of createdIds) {
+  for (const id of [...createdIds, ...updatedIds]) {
     const { rows } = await db.query('SELECT * FROM exercises WHERE id = $1', [id]);
     exercises.push(await withMedia(rows[0]));
   }
-  res.status(201).json({ imported: exercises.length, skipped, errors, exercises });
+  res.status(201).json({
+    imported: createdIds.length,
+    updated: updatedIds.length,
+    skipped,
+    errors,
+    exercises,
+  });
 });
 
 /**
@@ -460,6 +534,9 @@ router.post('/:id/media', requireAuth, requireAdmin, upload.single('file'), asyn
  * POST /api/exercises/media/bulk — upload many files at once; each is auto-assigned
  * to the exercise whose `ref` number matches the file's leading digit run (admin only).
  * Example: "42_front.jpg" and "42-2.mp4" both attach to the exercise with ref 42.
+ * With `overwrite=true` in the form body, an exercise's existing media is deleted the
+ * first time a file in this request matches it, so re-uploading replaces rather than
+ * adds to its media.
  */
 router.post(
   '/media/bulk',
@@ -469,10 +546,12 @@ router.post(
   async (req, res) => {
     const files = req.files || [];
     if (files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
+    const overwrite = req.body?.overwrite === 'true';
 
     const assigned = [];
     const unmatched = [];
     const touched = new Set();
+    const clearedExerciseIds = new Set();
 
     for (const file of files) {
       const match = /^(\d+)(?=\D|$)/.exec(file.originalname || '');
@@ -486,10 +565,19 @@ router.post(
         unmatched.push({ filename: file.originalname, reason: 'no_exercise_for_number' });
         continue;
       }
+      const exerciseId = rows[0].id;
+      if (overwrite && !clearedExerciseIds.has(exerciseId)) {
+        const { rows: mediaRows } = await db.query('SELECT * FROM media WHERE exercise_id = $1', [
+          exerciseId,
+        ]);
+        for (const m of mediaRows) await deleteMediaFiles(m);
+        await db.query('DELETE FROM media WHERE exercise_id = $1', [exerciseId]);
+        clearedExerciseIds.add(exerciseId);
+      }
       try {
-        await insertMediaForExercise(db, rows[0].id, file);
-        touched.add(rows[0].id);
-        assigned.push({ filename: file.originalname, ref, exerciseId: rows[0].id });
+        await insertMediaForExercise(db, exerciseId, file);
+        touched.add(exerciseId);
+        assigned.push({ filename: file.originalname, ref, exerciseId });
       } catch (err) {
         unmatched.push({
           filename: file.originalname,
@@ -505,7 +593,7 @@ router.post(
       ]);
     }
 
-    res.status(201).json({ assigned, unmatched });
+    res.status(201).json({ assigned, unmatched, clearedExerciseIds: [...clearedExerciseIds] });
   }
 );
 

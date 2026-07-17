@@ -105,6 +105,9 @@ export const de = {
   'admin.ex.bulkUploading': 'Hochladen…',
   'admin.ex.bulkUploadHint': 'Dateien, deren Name mit der Nummer der Übung beginnt (z.B. „42_front.jpg"), werden automatisch zugeordnet. Maximal 20 Dateien pro Durchgang.',
   'admin.ex.bulkUploadError': 'Bulk-Upload fehlgeschlagen',
+  'admin.ex.overwriteMedia': 'Vorhandene Medien beim Hochladen überschreiben',
+  'admin.ex.overwriteImport': 'Vorhandene Übungen beim Import überschreiben',
+  'admin.ex.mediaOverwritten': 'Vorhandene Medien wurden bei {count} Übung(en) ersetzt.',
   'admin.ex.template': 'Vorlage herunterladen',
   'admin.ex.colRef': 'Nr.',
   'admin.ex.colCategory': 'Kategorie',
@@ -133,6 +136,7 @@ export const de = {
   // Admin — CSV import result
   'import.resultTitle': 'Import-Ergebnis',
   'import.imported': '{count} importiert',
+  'import.updated': '{count} aktualisiert',
   'import.skipped': '{count} übersprungen (Duplikate)',
   'import.errorsTitle': 'Fehler',
   'import.rowError': 'Zeile {row}: {message}',

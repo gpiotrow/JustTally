@@ -40,8 +40,10 @@ export function ExerciseManager() {
   const [deletingBulk, setDeletingBulk] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [overwriteImport, setOverwriteImport] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [mediaResult, setMediaResult] = useState<MediaBulkResult | null>(null);
+  const [overwriteMedia, setOverwriteMedia] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const mediaRef = useRef<HTMLInputElement>(null);
 
@@ -124,7 +126,7 @@ export function ExerciseManager() {
     setError(null);
     setImporting(true);
     try {
-      const result = await importExercises(file);
+      const result = await importExercises(file, overwriteImport);
       setImportResult(result);
       await load();
     } catch (err) {
@@ -141,7 +143,7 @@ export function ExerciseManager() {
     setError(null);
     setUploadingMedia(true);
     try {
-      const result = await bulkUploadMedia(files);
+      const result = await bulkUploadMedia(files, overwriteMedia);
       setMediaResult(result);
       await load();
     } catch (err) {
@@ -209,7 +211,7 @@ export function ExerciseManager() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-4">
         <button
           type="button"
           onClick={downloadTemplate}
@@ -218,6 +220,25 @@ export function ExerciseManager() {
           {t('admin.ex.template')}
         </button>
         <span className="text-xs text-fg-subtle">{t('admin.ex.bulkUploadHint')}</span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4 text-xs text-fg-muted">
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={overwriteMedia}
+            onChange={(e) => setOverwriteMedia(e.target.checked)}
+          />
+          {t('admin.ex.overwriteMedia')}
+        </label>
+        <label className="flex items-center gap-1.5">
+          <input
+            type="checkbox"
+            checked={overwriteImport}
+            onChange={(e) => setOverwriteImport(e.target.checked)}
+          />
+          {t('admin.ex.overwriteImport')}
+        </label>
       </div>
 
       {error && <ErrorBanner message={error} />}
@@ -314,6 +335,11 @@ export function ExerciseManager() {
               <span className="chip bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                 {t('import.imported', { count: importResult.imported })}
               </span>
+              {importResult.updated > 0 && (
+                <span className="chip bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
+                  {t('import.updated', { count: importResult.updated })}
+                </span>
+              )}
               {importResult.skipped > 0 && (
                 <span className="chip bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
                   {t('import.skipped', { count: importResult.skipped })}
@@ -347,6 +373,11 @@ export function ExerciseManager() {
                 </span>
               )}
             </div>
+            {mediaResult.clearedExerciseIds.length > 0 && (
+              <p className="text-fg-muted">
+                {t('admin.ex.mediaOverwritten', { count: mediaResult.clearedExerciseIds.length })}
+              </p>
+            )}
             {mediaResult.unmatched.length > 0 && (
               <div>
                 <p className="mb-1 font-semibold text-fg">{t('admin.ex.unmatchedTitle')}</p>

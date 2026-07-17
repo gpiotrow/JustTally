@@ -21,6 +21,7 @@ export interface ExerciseInput {
 
 export interface ImportResult {
   imported: number;
+  updated: number;
   skipped: number;
   errors: { row: number; message: string }[];
   exercises: Exercise[];
@@ -29,6 +30,7 @@ export interface ImportResult {
 export interface MediaBulkResult {
   assigned: { filename: string; ref: number; exerciseId: string }[];
   unmatched: { filename: string; reason: string }[];
+  clearedExerciseIds: string[];
 }
 
 const CSV_COLUMNS = [
@@ -78,9 +80,10 @@ export function deleteMedia(exerciseId: string, mediaId: string) {
   });
 }
 
-export function importExercises(file: File) {
+export function importExercises(file: File, overwrite = false) {
   const fd = new FormData();
   fd.append('file', file);
+  fd.append('overwrite', String(overwrite));
   return api<ImportResult>('/exercises/import', { method: 'POST', formData: fd });
 }
 
@@ -96,9 +99,10 @@ export function bulkDeleteExercises(ids: string[]) {
  * Upload many media files at once. Each file is auto-assigned to the exercise
  * whose `ref` matches the file's leading digit run (e.g. "42_front.jpg" → ref 42).
  */
-export function bulkUploadMedia(files: File[]) {
+export function bulkUploadMedia(files: File[], overwrite = false) {
   const fd = new FormData();
   for (const file of files) fd.append('files', file);
+  fd.append('overwrite', String(overwrite));
   return api<MediaBulkResult>('/exercises/media/bulk', { method: 'POST', formData: fd });
 }
 
