@@ -9,12 +9,18 @@ primary_region = 'fra'
 [build]
   dockerfile = 'Dockerfile'
 
+  [build.args]
+    # Baked into the frontend's service worker at build time — matches
+    # MEDIA_PUBLIC_BASE_URL, the R2 secret set via `fly secrets set`.
+    VITE_MEDIA_ORIGIN = 'https://media.justtally.org'
+
 [deploy]
   release_command = 'node src/db/seed.js'
 
 [env]
   ALLOW_REGISTRATION = 'off'
-  MEDIA_DRIVER = 'local'
+  # MEDIA_DRIVER is set via `fly secrets set`, not here — keeping it in only
+  # one place avoids relying on undocumented precedence if both were set.
   NODE_ENV = 'production'
   PORT = '4000'
   UPLOADS_DIR = '/data/uploads'
