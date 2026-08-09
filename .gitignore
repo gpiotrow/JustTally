@@ -5,6 +5,10 @@ dist/
 # Build caches
 *.tsbuildinfo
 
+# Emitted by `tsc -b` next to the source (tsconfig.node.json is composite)
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
 # Env
 .env
 backend/.env

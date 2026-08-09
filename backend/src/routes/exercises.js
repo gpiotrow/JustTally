@@ -3,7 +3,12 @@ import multer from 'multer';
 import { nanoid } from 'nanoid';
 import db from '../db/database.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
-import { processImage, processVideo, deleteMediaFiles } from '../services/mediaService.js';
+import {
+  processImage,
+  processVideo,
+  deleteMediaFiles,
+  mediaUrl,
+} from '../services/mediaService.js';
 import { parseExercisesCsv } from '../services/csvImport.js';
 
 const router = Router();
@@ -31,12 +36,24 @@ function resolve(de, en) {
   return d || e;
 }
 
-/** Attach media list to an exercise row and expose bilingual + resolved fields. */
-async function withMedia(exercise) {
-  const { rows: media } = await db.query(
-    'SELECT * FROM media WHERE exercise_id = $1 ORDER BY position, created_at',
-    [exercise.id]
-  );
+/**
+ * Map a media row to the API shape.
+ *
+ * `mediaUrl` prefers the object key and only falls back to the stored path for
+ * rows written before media moved behind a storage driver.
+ */
+function serializeMedia(m) {
+  return {
+    id: m.id,
+    mediaType: m.media_type,
+    url: mediaUrl(m.object_key, m.storage, m.url),
+    thumbnailUrl: mediaUrl(m.thumb_key, m.storage, m.thumbnail_url),
+    originalName: m.original_name,
+  };
+}
+
+/** Expose bilingual + resolved fields for an exercise row with its media. */
+function serializeExercise(exercise, media) {
   return {
     id: exercise.id,
     // Human-visible sequential number used for filename-based media matching.
@@ -55,14 +72,42 @@ async function withMedia(exercise) {
     difficulty: exercise.difficulty,
     createdAt: exercise.created_at,
     updatedAt: exercise.updated_at,
-    media: media.map((m) => ({
-      id: m.id,
-      mediaType: m.media_type,
-      url: m.url,
-      thumbnailUrl: m.thumbnail_url,
-      originalName: m.original_name,
-    })),
+    media: media.map(serializeMedia),
   };
+}
+
+/** Attach media to a single exercise row. */
+async function withMedia(exercise) {
+  const { rows: media } = await db.query(
+    'SELECT * FROM media WHERE exercise_id = $1 ORDER BY position, created_at',
+    [exercise.id]
+  );
+  return serializeExercise(exercise, media);
+}
+
+/**
+ * Batch variant of `withMedia`: two queries regardless of catalog size.
+ *
+ * Calling `withMedia` per row turned a 500-exercise listing into 501 round
+ * trips squeezed through a pool of 10 — several seconds once the database
+ * sits in a different region than the app.
+ */
+async function withMediaMany(exercises) {
+  if (exercises.length === 0) return [];
+
+  const { rows: media } = await db.query(
+    'SELECT * FROM media WHERE exercise_id = ANY($1) ORDER BY position, created_at',
+    [exercises.map((e) => e.id)]
+  );
+
+  const byExercise = new Map();
+  for (const m of media) {
+    const list = byExercise.get(m.exercise_id);
+    if (list) list.push(m);
+    else byExercise.set(m.exercise_id, [m]);
+  }
+
+  return exercises.map((e) => serializeExercise(e, byExercise.get(e.id) ?? []));
 }
 
 /**
@@ -142,15 +187,20 @@ async function insertMediaForExercise(runner, exerciseId, file) {
   );
   const maxPos = maxRows[0]?.p ?? -1;
 
+  // url / thumbnail_url stay NULL: rows with an object_key resolve their URL at
+  // read time, so a stored absolute URL would only go stale.
   await runner.query(
-    `INSERT INTO media (id, exercise_id, media_type, url, thumbnail_url, original_name, size_bytes, position, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    `INSERT INTO media
+       (id, exercise_id, media_type, storage, object_key, thumb_key,
+        original_name, size_bytes, position, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       id,
       exerciseId,
       processed.mediaType,
-      processed.url,
-      processed.thumbnailUrl,
+      processed.storage,
+      processed.objectKey,
+      processed.thumbKey,
       processed.originalName,
       file.size,
       maxPos + 1,
@@ -179,7 +229,7 @@ router.get('/', requireAuth, async (req, res) => {
   } else {
     ({ rows } = await db.query('SELECT * FROM exercises ORDER BY name'));
   }
-  res.json({ exercises: await Promise.all(rows.map(withMedia)), serverTime: Date.now() });
+  res.json({ exercises: await withMediaMany(rows), serverTime: Date.now() });
 });
 
 /**
@@ -421,11 +471,14 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
     client.release();
   }
 
-  const exercises = [];
-  for (const id of [...createdIds, ...updatedIds]) {
-    const { rows } = await db.query('SELECT * FROM exercises WHERE id = $1', [id]);
-    exercises.push(await withMedia(rows[0]));
-  }
+  // Re-read in one query: the previous per-id loop cost two round trips per
+  // imported row, which on a full-catalog import dwarfed the import itself.
+  const touchedIds = [...createdIds, ...updatedIds];
+  const { rows: touchedRows } = touchedIds.length
+    ? await db.query('SELECT * FROM exercises WHERE id = ANY($1) ORDER BY name', [touchedIds])
+    : { rows: [] };
+  const exercises = await withMediaMany(touchedRows);
+
   res.status(201).json({
     imported: createdIds.length,
     updated: updatedIds.length,

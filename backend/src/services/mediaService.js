@@ -1,80 +1,104 @@
 import sharp from 'sharp';
-import { mkdirSync } from 'node:fs';
-import { unlink } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { nanoid } from 'nanoid';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-export const UPLOADS_DIR = join(__dirname, '..', '..', 'uploads');
-const IMAGES_DIR = join(UPLOADS_DIR, 'images');
-const THUMBS_DIR = join(UPLOADS_DIR, 'thumbnails');
-const VIDEOS_DIR = join(UPLOADS_DIR, 'videos');
-
-for (const dir of [IMAGES_DIR, THUMBS_DIR, VIDEOS_DIR]) {
-  mkdirSync(dir, { recursive: true });
-}
+import { storage, driverFor } from './storage/index.js';
 
 const MAX_IMAGE_WIDTH = 1280;
 const THUMB_WIDTH = 320;
 
 /**
- * Process an uploaded image: compress to WebP + generate a thumbnail.
- * Returns relative URLs served under /uploads.
+ * @typedef {object} ProcessedMedia
+ * @property {'image'|'video'} mediaType
+ * @property {string} storage        Driver that holds the object (media.storage).
+ * @property {string} objectKey
+ * @property {string|null} thumbKey
+ * @property {string} originalName
+ */
+
+/**
+ * Compress an uploaded image to WebP and generate a thumbnail.
+ *
+ * Both variants are produced sequentially rather than in parallel: sharp holds
+ * the decoded bitmap in memory, and a 512 MB fly machine has no room for two
+ * large decodes at once.
+ *
+ * @returns {Promise<ProcessedMedia>}
  */
 export async function processImage(buffer, originalName) {
   const id = nanoid();
-  const fileName = `${id}.webp`;
-  const thumbName = `${id}.thumb.webp`;
+  const objectKey = `img/${id}.webp`;
+  const thumbKey = `img/${id}.thumb.webp`;
 
-  await sharp(buffer)
+  const full = await sharp(buffer)
     .rotate()
     .resize({ width: MAX_IMAGE_WIDTH, withoutEnlargement: true })
     .webp({ quality: 82 })
-    .toFile(join(IMAGES_DIR, fileName));
+    .toBuffer();
+  await storage.put(objectKey, full, 'image/webp');
 
-  await sharp(buffer)
+  const thumb = await sharp(buffer)
     .rotate()
     .resize({ width: THUMB_WIDTH, withoutEnlargement: true })
     .webp({ quality: 70 })
-    .toFile(join(THUMBS_DIR, thumbName));
+    .toBuffer();
+  await storage.put(thumbKey, thumb, 'image/webp');
 
-  return {
-    mediaType: 'image',
-    url: `/uploads/images/${fileName}`,
-    thumbnailUrl: `/uploads/thumbnails/${thumbName}`,
-    originalName,
-  };
+  return { mediaType: 'image', storage: storage.name, objectKey, thumbKey, originalName };
 }
 
 /**
- * Store an uploaded video as-is (no transcoding to keep deps light).
+ * Store an uploaded video as-is (no transcoding, to keep dependencies light).
+ * @returns {Promise<ProcessedMedia>}
  */
 export async function processVideo(buffer, originalName, mimeType) {
   const id = nanoid();
   const ext = mimeType === 'video/webm' ? 'webm' : 'mp4';
-  const fileName = `${id}.${ext}`;
-  const { writeFile } = await import('node:fs/promises');
-  await writeFile(join(VIDEOS_DIR, fileName), buffer);
+  const objectKey = `vid/${id}.${ext}`;
 
-  return {
-    mediaType: 'video',
-    url: `/uploads/videos/${fileName}`,
-    thumbnailUrl: null,
-    originalName,
-  };
+  await storage.put(objectKey, buffer, mimeType);
+
+  return { mediaType: 'video', storage: storage.name, objectKey, thumbKey: null, originalName };
 }
 
 /**
- * Delete the files backing a media row. Best-effort.
+ * Public URL for a media row.
+ *
+ * Three generations of rows have to resolve here:
+ *  - pre-object-key rows, which only ever had a stored `/uploads/...` path
+ *  - local rows, served by this app from UPLOADS_DIR
+ *  - object-store rows, served from the CDN base URL
+ *
+ * @param {string|null} objectKey
+ * @param {string} storageName
+ * @param {string|null} storedUrl Legacy media.url / media.thumbnail_url.
+ */
+export function mediaUrl(objectKey, storageName, storedUrl = null) {
+  if (!objectKey) return storedUrl;
+  const driver = driverFor(storageName);
+  if (!driver) return storedUrl;
+  return driver.publicUrl(objectKey);
+}
+
+/**
+ * Delete the objects backing a media row. Best-effort: a missing object is the
+ * desired end state. Routed through the row's own driver, not the active one.
  */
 export async function deleteMediaFiles(media) {
-  const toDelete = [media.url, media.thumbnail_url].filter(Boolean);
-  for (const rel of toDelete) {
+  const driver = driverFor(media.storage);
+  if (!driver) return;
+
+  const keys = [media.object_key, media.thumb_key].filter(Boolean);
+  if (keys.length === 0) {
+    // Legacy rows predate object keys — recover them from the stored path.
+    for (const rel of [media.url, media.thumbnail_url].filter(Boolean)) {
+      keys.push(rel.replace(/^\/uploads\//, ''));
+    }
+  }
+
+  for (const key of keys) {
     try {
-      await unlink(join(UPLOADS_DIR, rel.replace(/^\/uploads\//, '')));
+      await driver.remove(key);
     } catch {
-      // ignore missing files
+      // Never let cleanup failures block the delete of the row itself.
     }
   }
 }

@@ -12,15 +12,17 @@ Ein lokal lauffähiger Gym-Tracker als **Progressive Web App (PWA)** für iPhone
 | Bereich   | Technologie |
 |-----------|-------------|
 | Frontend  | React 18 · TypeScript · Vite · Tailwind · vite-plugin-pwa |
-| Backend   | Node.js · Express · `node:sqlite` (eingebaut, keine native Kompilierung) |
+| Backend   | Node.js · Express · Postgres (`pg`, z. B. Neon) |
 | Auth      | JWT · bcryptjs |
-| Medien    | `sharp` (Bild-Komprimierung → WebP + Thumbnails), Videos im Dateisystem |
+| Medien    | `sharp` (Bild-Komprimierung → WebP + Thumbnails) hinter einem Storage-Driver |
+| Hosting   | fly.io (Docker + persistentes Volume) |
 | Offline   | Service Worker (Workbox) · IndexedDB (`idb-keyval`) |
 
 ## Voraussetzungen
 
-- **Node.js ≥ 22** (für `node:sqlite`; getestet mit Node 24)
+- **Node.js ≥ 22** (getestet mit Node 24)
 - npm
+- Eine Postgres-Datenbank (`DATABASE_URL`) — z. B. ein kostenloses [Neon](https://neon.tech)-Projekt
 
 ## Setup
 
@@ -62,18 +64,64 @@ Der Vite-Dev-Server proxyt `/api` und `/uploads` automatisch ans Backend (Port 4
 
 ```bash
 cd frontend && npm run build      # erzeugt frontend/dist
-cd backend && npm start           # API + kann dist statisch ausliefern (optional erweitern)
+cd backend && npm start           # API + liefert frontend/dist statisch aus
 ```
+
+## Deployment (fly.io)
+
+Einmalig:
+
+```bash
+fly launch --no-deploy --name justtally --region fra
+```
+
+```bash
+fly volumes create justtally_data --region fra --size 3
+```
+
+```bash
+fly secrets set DATABASE_URL="postgres://…" JWT_SECRET="$(openssl rand -base64 48)" ADMIN_EMAIL="…" ADMIN_PASSWORD="…" ADMIN_NAME="…"
+```
+
+Danach bei jedem Release:
+
+```bash
+fly deploy
+```
+
+`fly deploy` baut standardmäßig auf den Buildern von fly — ein lokaler Docker-Daemon
+ist nicht nötig. Für einen lokalen Build stattdessen `fly deploy --local-only`.
+
+**Wichtig:**
+
+- **Nur eine Machine**, solange `MEDIA_DRIVER=local` gilt. Ein fly-Volume hängt an
+  genau einer Machine; eine zweite bekäme ihr eigenes, leeres Volume und würde
+  Bilder je nach Zufall ausliefern oder nicht.
+- **Neon in dieselbe Region** wie die fly-App (`fra` → `eu-central-1`). Sonst zahlt
+  jede Query einen interkontinentalen Roundtrip.
+- Nach dem ersten Deploy prüfen, dass Medien einen Deploy überleben: Foto hochladen,
+  `fly deploy`, Foto muss noch da sein.
+
+### Medien-Storage
+
+Uploads laufen über einen austauschbaren Driver (`backend/src/services/storage/`):
+
+| `MEDIA_DRIVER` | Ablage | Einsatz |
+|---|---|---|
+| `local` | Dateisystem unter `UPLOADS_DIR` | lokal (`backend/uploads`) und fly-Volume (`/data/uploads`) |
+
+Ein `r2`-Driver für Cloudflare R2 ist vorbereitet — siehe
+[docs/media-and-catalog-plan.md](docs/media-and-catalog-plan.md).
 
 ## Projektstruktur
 
 ```
 just-tally/
-├── backend/          Express-API + SQLite + Medien-Upload
+├── backend/          Express-API + Postgres + Medien-Upload
 │   └── src/
-│       ├── routes/   auth · exercises · users
+│       ├── routes/   auth · exercises · users · workouts
 │       ├── middleware/auth.js (JWT)
-│       ├── services/ mediaService.js (sharp)
+│       ├── services/ mediaService.js (sharp) · storage/ (Driver) · csvImport.js
 │       └── db/       database.js · seed.js
 └── frontend/         React-PWA (mobile + admin)
     └── src/
@@ -85,6 +133,10 @@ just-tally/
 
 ## Sicherheit / Produktion
 
-- **`JWT_SECRET` in `.env` unbedingt ändern.**
-- Hinter HTTPS betreiben (Reverse-Proxy wie Nginx/Caddy).
+- **`JWT_SECRET` unbedingt setzen und ändern.** Fehlt die Variable, fällt
+  `auth.js` derzeit still auf einen im Repo stehenden Wert zurück — offener Punkt,
+  siehe Phase 2 in [docs/media-and-catalog-plan.md](docs/media-and-catalog-plan.md).
+- **`POST /api/auth/register` ist aktuell offen.** Auf einer öffentlich
+  erreichbaren URL kann sich jeder ein Konto anlegen. Ebenfalls Phase 2.
+- Hinter HTTPS betreiben — auf fly.io erledigt das `force_https` in `fly.toml`.
 - `.env` und `backend/data/`, `backend/uploads/` sind in `.gitignore`.

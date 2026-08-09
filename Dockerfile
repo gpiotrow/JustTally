@@ -1,0 +1,28 @@
+# ---- Frontend build ----
+FROM node:22-slim AS frontend
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+# Baked into the service worker at build time; only used once media moves to a
+# CDN origin. Empty means "same origin", which is the current setup.
+ARG VITE_MEDIA_ORIGIN=""
+ENV VITE_MEDIA_ORIGIN=$VITE_MEDIA_ORIGIN
+RUN npm run build
+
+# ---- Runtime ----
+# Debian (glibc) rather than Alpine: sharp ships prebuilt binaries with bundled
+# libvips for glibc, so there is no native build step here.
+FROM node:22-slim AS runtime
+ENV NODE_ENV=production
+
+WORKDIR /app/backend
+COPY backend/package*.json ./
+RUN npm ci --omit=dev
+COPY backend/ ./
+
+# app.js resolves the SPA at ../../frontend/dist — keep the layout intact.
+COPY --from=frontend /app/frontend/dist /app/frontend/dist
+
+EXPOSE 4000
+CMD ["node", "src/app.js"]

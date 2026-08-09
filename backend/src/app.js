@@ -5,7 +5,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initSchema } from './db/database.js';
-import { UPLOADS_DIR } from './services/mediaService.js';
+import { UPLOADS_DIR } from './services/storage/index.js';
 import authRoutes from './routes/auth.js';
 import exerciseRoutes from './routes/exercises.js';
 import userRoutes from './routes/users.js';
@@ -48,16 +48,22 @@ app.use('/api/workouts', workoutRoutes);
 const frontendDist = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDist));
 
-// SPA fallback: serve index.html for all non-API routes
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
-    res.sendFile(path.join(frontendDist, 'index.html'));
-  }
+// Media that no longer exists must fail fast. Without this the request falls
+// through to the SPA catch-all, which answers nothing at all for /uploads — the
+// connection then hangs until the client gives up, and a handful of dead image
+// links is enough to exhaust a browser's per-origin connection limit.
+app.use('/uploads', (req, res) => {
+  res.status(404).json({ error: 'Media not found' });
 });
 
-// 404
+// Must be registered before the catch-all: app.get('*') matches GET /api/... too.
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not found' });
+});
+
+// SPA fallback: everything else is a client-side route.
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
 // Central error handler

@@ -1,0 +1,41 @@
+# fly.toml app configuration file generated for justtally on 2026-08-09T12:36:08+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'justtally'
+primary_region = 'fra'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  release_command = 'node src/db/seed.js'
+
+[env]
+  MEDIA_DRIVER = 'local'
+  NODE_ENV = 'production'
+  PORT = '4000'
+  UPLOADS_DIR = '/data/uploads'
+
+[[mounts]]
+  source = 'justtally_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/api/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

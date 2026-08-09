@@ -13,9 +13,29 @@ if (!connectionString) {
   );
 }
 
+/**
+ * Hosted Postgres (Neon and friends) requires TLS, a local container usually
+ * offers none. `?sslmode=disable` in the URL opts out; anything else keeps TLS,
+ * so the production connection string behaves exactly as before.
+ */
+function sslOption(url) {
+  let mode = null;
+  try {
+    mode = new URL(url).searchParams.get('sslmode');
+  } catch {
+    // Not a parseable URL (e.g. a libpq key=value string) — keep TLS on.
+  }
+  if (mode === 'disable') return false;
+
+  // Certificates are not verified. Neon presents a publicly trusted cert, so
+  // this could be tightened to `true` — but that has to be confirmed against
+  // the real database first, since a wrong guess breaks every connection.
+  return { rejectUnauthorized: false };
+}
+
 const pool = new Pool({
   connectionString,
-  ssl: { rejectUnauthorized: false },
+  ssl: sslOption(connectionString),
 });
 
 /**
@@ -88,6 +108,18 @@ export async function initSchema() {
     ALTER TABLE exercises ADD COLUMN IF NOT EXISTS tips_de TEXT NOT NULL DEFAULT '';
     ALTER TABLE exercises ADD COLUMN IF NOT EXISTS tips_en TEXT NOT NULL DEFAULT '';
   `);
+
+  // Storage backend + object keys, added when media moved off the app's own
+  // filesystem. Rows written before this keep storage='local' with a NULL
+  // object_key and are resolved from their stored url instead.
+  await pool.query(`
+    ALTER TABLE media ADD COLUMN IF NOT EXISTS storage    TEXT NOT NULL DEFAULT 'local';
+    ALTER TABLE media ADD COLUMN IF NOT EXISTS object_key TEXT;
+    ALTER TABLE media ADD COLUMN IF NOT EXISTS thumb_key  TEXT;
+  `);
+  // Rows carrying an object_key derive their URL at read time, so url stays
+  // empty for them and now means exactly one thing: a legacy /uploads path.
+  await pool.query(`ALTER TABLE media ALTER COLUMN url DROP NOT NULL;`);
 
   // Human-visible sequential reference number used for filename-based media matching.
   await pool.query(`CREATE SEQUENCE IF NOT EXISTS exercise_ref_seq;`);
