@@ -172,6 +172,21 @@ export async function initSchema() {
     ALTER TABLE exercises DROP COLUMN IF EXISTS tips_de;
     ALTER TABLE exercises DROP COLUMN IF EXISTS tips_en;
   `);
+
+  // Per-user favorite exercises. Both foreign keys cascade: deleting a user or
+  // an exercise must not leave a favorite pointing at nothing. The composite
+  // primary key is what makes marking a favorite twice a no-op rather than a
+  // duplicate row.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS favorites (
+      user_id     TEXT NOT NULL REFERENCES users(id)     ON DELETE CASCADE,
+      exercise_id TEXT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+      created_at  BIGINT NOT NULL,
+      PRIMARY KEY (user_id, exercise_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id);
+  `);
 }
 
 /**

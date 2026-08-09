@@ -1,15 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
+import { useFavorites } from '../../hooks/useFavorites';
 import { getExercise } from '../../api/exercises';
-import { CategoryBadge, DifficultyBadge, Spinner, EmptyState } from '../../components/ui';
+import { CategoryBadge, DifficultyBadge, Spinner, EmptyState, ErrorBanner } from '../../components/ui';
 import { useLanguage } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
+import { FavoriteButton } from '../../components/FavoriteButton';
 import type { Exercise } from '../../lib/types';
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
   const { exercises, loading } = useExercises();
+  const {
+    isFavorite,
+    toggle: toggleFavorite,
+    canToggle,
+    isPending,
+    error: favoriteError,
+  } = useFavorites();
   const { lang, t } = useLanguage();
   const fromList = useMemo(() => exercises.find((e) => e.id === id), [exercises, id]);
 
@@ -56,17 +65,28 @@ export function ExerciseDetail() {
     <div className="space-y-5">
       <BackLink />
 
-      <div>
-        <h1 className="text-2xl font-bold">{name}</h1>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <CategoryBadge category={exercise.category} />
-          <DifficultyBadge difficulty={exercise.difficulty} />
-          {exercise.archived && (
-            <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted">
-              {t('detail.archived')}
-            </span>
-          )}
+      {favoriteError && <ErrorBanner message={favoriteError} />}
+
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold">{name}</h1>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <CategoryBadge category={exercise.category} />
+            <DifficultyBadge difficulty={exercise.difficulty} />
+            {exercise.archived && (
+              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted">
+                {t('detail.archived')}
+              </span>
+            )}
+          </div>
         </div>
+        <FavoriteButton
+          favorite={isFavorite(exercise.id)}
+          disabled={!canToggle || isPending(exercise.id)}
+          title={!canToggle ? t('favorites.offlineHint') : undefined}
+          label={isFavorite(exercise.id) ? t('favorites.remove') : t('favorites.add')}
+          onClick={() => toggleFavorite(exercise.id)}
+        />
       </div>
 
       {images.length > 0 && (

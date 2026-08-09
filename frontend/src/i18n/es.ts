@@ -57,6 +57,15 @@ export const es: Record<TKey, string> = {
   'exercises.emptyHint': 'Ajusta la búsqueda o el filtro.',
   'exercises.loadError': 'Error al cargar',
 
+  // Favorites
+  'favorites.filter': 'Favoritos',
+  'favorites.add': 'Añadir a favoritos',
+  'favorites.remove': 'Quitar de favoritos',
+  'favorites.emptyTitle': 'Aún no hay favoritos',
+  'favorites.emptyHint': 'Toca el corazón de un ejercicio para reunirlo aquí.',
+  'favorites.offlineHint': 'Sin conexión — los favoritos no se pueden cambiar ahora.',
+  'favorites.error': 'No se pudo guardar el favorito',
+
   // Exercise detail
   'detail.notFound': 'Ejercicio no encontrado',
   'detail.back': 'Atrás',

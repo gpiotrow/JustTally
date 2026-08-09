@@ -58,6 +58,15 @@ export const de = {
   'exercises.emptyHint': 'Passe Suche oder Filter an.',
   'exercises.loadError': 'Laden fehlgeschlagen',
 
+  // Favorites
+  'favorites.filter': 'Favoriten',
+  'favorites.add': 'Zu Favoriten hinzufügen',
+  'favorites.remove': 'Aus Favoriten entfernen',
+  'favorites.emptyTitle': 'Noch keine Favoriten',
+  'favorites.emptyHint': 'Tippe das Herz bei einer Übung, um sie hier zu sammeln.',
+  'favorites.offlineHint': 'Offline — Favoriten lassen sich gerade nicht ändern.',
+  'favorites.error': 'Favorit konnte nicht gespeichert werden',
+
   // Exercise detail
   'detail.notFound': 'Übung nicht gefunden',
   'detail.back': 'Zurück',

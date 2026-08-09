@@ -57,6 +57,15 @@ export const en: Record<TKey, string> = {
   'exercises.emptyHint': 'Adjust your search or filter.',
   'exercises.loadError': 'Failed to load',
 
+  // Favorites
+  'favorites.filter': 'Favorites',
+  'favorites.add': 'Add to favorites',
+  'favorites.remove': 'Remove from favorites',
+  'favorites.emptyTitle': 'No favorites yet',
+  'favorites.emptyHint': 'Tap the heart on an exercise to collect it here.',
+  'favorites.offlineHint': 'Offline — favorites cannot be changed right now.',
+  'favorites.error': 'Could not save favorite',
+
   // Exercise detail
   'detail.notFound': 'Exercise not found',
   'detail.back': 'Back',

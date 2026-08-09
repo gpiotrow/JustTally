@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.js';
 import exerciseRoutes from './routes/exercises.js';
 import userRoutes from './routes/users.js';
 import workoutRoutes from './routes/workouts.js';
+import favoriteRoutes from './routes/favorites.js';
 
 await initSchema();
 
@@ -43,6 +44,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/workouts', workoutRoutes);
+app.use('/api/favorites', favoriteRoutes);
 
 // Serve frontend static files (production build)
 const frontendDist = path.join(__dirname, '../../frontend/dist');
