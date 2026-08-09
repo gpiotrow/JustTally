@@ -10,6 +10,7 @@ import {
   mediaUrl,
 } from '../services/mediaService.js';
 import { parseExercisesCsv } from '../services/csvImport.js';
+import { countExerciseUsage } from '../services/exerciseUsage.js';
 
 const router = Router();
 
@@ -72,6 +73,10 @@ function serializeExercise(exercise, media) {
     difficulty: exercise.difficulty,
     createdAt: exercise.created_at,
     updatedAt: exercise.updated_at,
+    // Archived exercises stay readable so past workouts still resolve a name;
+    // they are only hidden from the pickable catalog.
+    archived: exercise.archived_at != null,
+    archivedAt: exercise.archived_at ?? null,
     media: media.map(serializeMedia),
   };
 }
@@ -211,24 +216,34 @@ async function insertMediaForExercise(runner, exerciseId, file) {
 }
 
 /**
- * GET /api/exercises — list all exercises with media (any authenticated user).
- * Supports ?category= and ?since= (epoch ms) for incremental sync.
+ * GET /api/exercises — list exercises with media (any authenticated user).
+ * Supports ?category=, ?since= (epoch ms) for incremental sync, and
+ * ?includeArchived=1 for the admin catalog view.
+ *
+ * Archived exercises are hidden by default but always included in a `since`
+ * sync: a client that already holds one has to be told it was archived, and
+ * a filtered-out row is indistinguishable from an unchanged one.
  */
 router.get('/', requireAuth, async (req, res) => {
-  const { category, since } = req.query;
-  let rows;
+  const { category, since, includeArchived } = req.query;
+
+  const conditions = [];
+  const params = [];
   if (category) {
-    ({ rows } = await db.query('SELECT * FROM exercises WHERE category = $1 ORDER BY name', [
-      category,
-    ]));
-  } else if (since) {
-    ({ rows } = await db.query(
-      'SELECT * FROM exercises WHERE updated_at > $1 ORDER BY name',
-      [Number(since) || 0]
-    ));
-  } else {
-    ({ rows } = await db.query('SELECT * FROM exercises ORDER BY name'));
+    params.push(category);
+    conditions.push(`category = $${params.length}`);
   }
+  if (since !== undefined) {
+    params.push(Number(since) || 0);
+    conditions.push(`updated_at > $${params.length}`);
+  }
+  const wantsArchived =
+    since !== undefined || includeArchived === '1' || includeArchived === 'true';
+  if (!wantsArchived) conditions.push('archived_at IS NULL');
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const { rows } = await db.query(`SELECT * FROM exercises ${where} ORDER BY name`, params);
+
   res.json({ exercises: await withMediaMany(rows), serverTime: Date.now() });
 });
 
@@ -430,11 +445,14 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
         const instructions = row.instructionsDe || row.instructionsEn;
         refNumber =
           row.ref != null ? await resolveRef(client, row.ref, existingId) : byId.get(existingId).ref;
+        // archived_at is cleared: a row present in the imported catalog is part
+        // of the catalog again. Without this an overwrite import would update an
+        // archived exercise and leave it invisible, with nothing to explain why.
         await client.query(
           `UPDATE exercises
              SET ref = $1, name = $2, name_de = $3, name_en = $4, category = $5, difficulty = $6,
                  instructions = $7, instructions_de = $8, instructions_en = $9,
-                 tips_de = $10, tips_en = $11, updated_at = $12
+                 tips_de = $10, tips_en = $11, updated_at = $12, archived_at = NULL
            WHERE id = $13`,
           [
             refNumber,
@@ -549,21 +567,82 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
 });
 
 /**
- * DELETE /api/exercises/:id — delete exercise + its media files (admin only).
+ * Remove an exercise for good, including its media objects.
+ * Only ever called for exercises no live workout references.
+ */
+async function hardDeleteExercises(ids) {
+  const { rows: mediaRows } = await db.query('SELECT * FROM media WHERE exercise_id = ANY($1)', [
+    ids,
+  ]);
+  for (const m of mediaRows) await deleteMediaFiles(m);
+  // The media FK cascades; this clears their rows along with the exercises.
+  const { rowCount } = await db.query('DELETE FROM exercises WHERE id = ANY($1)', [ids]);
+  return rowCount;
+}
+
+/**
+ * Archive exercises in place. `updated_at` moves too, otherwise clients syncing
+ * with `?since=` would never be told and would keep offering them.
+ */
+async function archiveExercises(ids) {
+  const now = Date.now();
+  const { rowCount } = await db.query(
+    `UPDATE exercises SET archived_at = $1, updated_at = $1
+      WHERE id = ANY($2) AND archived_at IS NULL`,
+    [now, ids]
+  );
+  return rowCount;
+}
+
+/**
+ * DELETE /api/exercises/:id — remove an exercise (admin only).
+ *
+ * Invariant I3: an exercise some workout still points at is archived, not
+ * deleted. Deleting it would blank the exercise name in every set that
+ * references it — including in other people's history, which the admin cannot
+ * see from here. Unreferenced exercises are deleted outright, media included.
  */
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   const { rows: existingRows } = await db.query('SELECT * FROM exercises WHERE id = $1', [
     req.params.id,
   ]);
-  if (!existingRows[0]) return res.status(404).json({ error: 'Exercise not found' });
+  const existing = existingRows[0];
+  if (!existing) return res.status(404).json({ error: 'Exercise not found' });
 
-  const { rows: mediaRows } = await db.query('SELECT * FROM media WHERE exercise_id = $1', [
-    req.params.id,
-  ]);
-  for (const m of mediaRows) await deleteMediaFiles(m);
+  const usage = (await countExerciseUsage(db, [existing.id])).get(existing.id);
 
-  await db.query('DELETE FROM exercises WHERE id = $1', [req.params.id]);
-  res.json({ ok: true });
+  if (usage.workouts > 0) {
+    await archiveExercises([existing.id]);
+    return res.json({ ok: true, archived: true, deleted: false, usage });
+  }
+
+  await hardDeleteExercises([existing.id]);
+  res.json({ ok: true, archived: false, deleted: true, usage });
+});
+
+/**
+ * POST /api/exercises/:id/unarchive — return an archived exercise to the
+ * catalog (admin only).
+ */
+router.post('/:id/unarchive', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await db.query(
+    `UPDATE exercises SET archived_at = NULL, updated_at = $1 WHERE id = $2 RETURNING *`,
+    [Date.now(), req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Exercise not found' });
+  res.json({ exercise: await withMedia(rows[0]) });
+});
+
+/**
+ * GET /api/exercises/:id/usage — how many workouts and users reference this
+ * exercise (admin only). Lets the UI warn before a destructive action instead
+ * of reporting the consequence afterwards.
+ */
+router.get('/:id/usage', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await db.query('SELECT id FROM exercises WHERE id = $1', [req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'Exercise not found' });
+  const usage = (await countExerciseUsage(db, [req.params.id])).get(req.params.id);
+  res.json({ usage });
 });
 
 /**
@@ -651,22 +730,31 @@ router.post(
 );
 
 /**
- * POST /api/exercises/bulk-delete — delete several exercises and their media at once
- * (admin only). Body: { ids: string[] }.
+ * POST /api/exercises/bulk-delete — remove several exercises at once (admin only).
+ * Body: { ids: string[] }.
+ *
+ * Same rule as the single delete (I3), applied per exercise: referenced ones are
+ * archived, the rest deleted. A mixed selection is therefore normal, which is why
+ * the response reports both counts rather than one total.
  */
 router.post('/bulk-delete', requireAuth, requireAdmin, async (req, res) => {
   const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id) => typeof id === 'string') : [];
   if (ids.length === 0) return res.status(400).json({ error: 'No exercise ids provided' });
 
-  const { rows: mediaRows } = await db.query(
-    'SELECT * FROM media WHERE exercise_id = ANY($1)',
-    [ids]
-  );
-  for (const m of mediaRows) await deleteMediaFiles(m);
+  // Restrict to ids that actually exist, so the counts reported back describe
+  // real work rather than echoing whatever the client sent.
+  const { rows: existing } = await db.query('SELECT id FROM exercises WHERE id = ANY($1)', [ids]);
+  const existingIds = existing.map((r) => r.id);
+  if (existingIds.length === 0) return res.json({ archived: 0, deleted: 0 });
 
-  // Cascade on media FK removes their rows; delete the exercises themselves.
-  const { rowCount } = await db.query('DELETE FROM exercises WHERE id = ANY($1)', [ids]);
-  res.json({ deleted: rowCount });
+  const usage = await countExerciseUsage(db, existingIds);
+  const toArchive = existingIds.filter((id) => usage.get(id).workouts > 0);
+  const toDelete = existingIds.filter((id) => usage.get(id).workouts === 0);
+
+  const archived = toArchive.length ? await archiveExercises(toArchive) : 0;
+  const deleted = toDelete.length ? await hardDeleteExercises(toDelete) : 0;
+
+  res.json({ archived, deleted });
 });
 
 /**

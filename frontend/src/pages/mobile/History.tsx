@@ -88,7 +88,14 @@ export function History() {
                 <ul className="space-y-1.5">
                   {s.entries.map((e, i) => (
                     <li key={i} className="text-sm text-fg-muted">
-                      <span className="font-medium text-fg">{e.exerciseName}</span>{' '}
+                      {/* History is the only way back to an archived exercise —
+                          it is gone from the catalog list but still linkable. */}
+                      <Link
+                        to={`/exercise/${e.exerciseId}`}
+                        className="font-medium text-fg hover:text-accent"
+                      >
+                        {e.exerciseName}
+                      </Link>{' '}
                       <span className="text-fg-subtle">
                         {e.sets
                           .map((set) => `${set.reps}${set.weight ? `×${set.weight}kg` : ''}`)

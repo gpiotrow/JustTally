@@ -4,7 +4,13 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-/** Convert a workouts row to the camelCase WorkoutSession shape the client uses. */
+/**
+ * Convert a workouts row to the camelCase WorkoutSession shape the client uses.
+ *
+ * `entries` is jsonb, so pg hands back a parsed array — no JSON.parse here.
+ * Parsing anyway would not merely be redundant: `JSON.parse([])` stringifies
+ * the array to '' first and throws, so every read would fail.
+ */
 function serialize(row) {
   return {
     id: row.id,
@@ -13,7 +19,7 @@ function serialize(row) {
     startedAt: row.started_at ?? undefined,
     durationMin: row.duration_min ?? undefined,
     notes: row.notes ?? undefined,
-    entries: JSON.parse(row.entries || '[]'),
+    entries: row.entries ?? [],
     updatedAt: row.updated_at,
   };
 }
@@ -26,6 +32,11 @@ function isValidEntries(entries) {
         e &&
         typeof e.exerciseId === 'string' &&
         typeof e.exerciseName === 'string' &&
+        // Optional: recorded so an entry can be re-linked by reference number
+        // if its exercise id ever goes missing. Garbage here would mislink
+        // during recovery, so reject it rather than store it.
+        (e.exerciseRef === undefined ||
+          (Number.isInteger(e.exerciseRef) && e.exerciseRef > 0)) &&
         Array.isArray(e.sets) &&
         e.sets.every((s) => s && typeof s.reps === 'number')
     )
@@ -65,13 +76,16 @@ router.post('/sync', requireAuth, async (req, res) => {
       const existing = existingRows[0];
       if (existing && incomingUpdatedAt < Number(existing.updated_at)) continue; // stale write, ignore
 
+      // Stringified deliberately: handed the array itself, pg would encode it as
+      // a Postgres array literal rather than JSON. The ::jsonb casts below turn
+      // that text back into jsonb on the way in.
       const entriesJson = JSON.stringify(session.entries);
       const date = Number(session.date) || incomingUpdatedAt;
 
       if (existing) {
         await client.query(
           `UPDATE workouts
-             SET title = $1, started_at = $2, duration_min = $3, notes = $4, entries = $5, date = $6, updated_at = $7, deleted_at = NULL
+             SET title = $1, started_at = $2, duration_min = $3, notes = $4, entries = $5::jsonb, date = $6, updated_at = $7, deleted_at = NULL
            WHERE id = $8 AND user_id = $9`,
           [
             session.title ?? null,
@@ -89,7 +103,7 @@ router.post('/sync', requireAuth, async (req, res) => {
         await client.query(
           `INSERT INTO workouts
              (id, user_id, title, started_at, duration_min, notes, entries, date, created_at, updated_at, deleted_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, NULL)`,
           [
             session.id,
             userId,

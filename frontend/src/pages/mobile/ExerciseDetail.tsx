@@ -1,17 +1,44 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
+import { getExercise } from '../../api/exercises';
 import { CategoryBadge, DifficultyBadge, Spinner, EmptyState } from '../../components/ui';
 import { useLanguage } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
+import type { Exercise } from '../../lib/types';
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
   const { exercises, loading } = useExercises();
   const { lang, t } = useLanguage();
-  const exercise = useMemo(() => exercises.find((e) => e.id === id), [exercises, id]);
+  const fromList = useMemo(() => exercises.find((e) => e.id === id), [exercises, id]);
 
-  if (loading) return <Spinner label={t('common.loading')} />;
+  // Archived exercises are absent from the catalog listing, but history still
+  // links to them — fetch by id so those links keep resolving.
+  const [fetched, setFetched] = useState<Exercise | null>(null);
+  const [fetching, setFetching] = useState(false);
+  useEffect(() => {
+    if (loading || fromList || !id) return;
+    let cancelled = false;
+    setFetching(true);
+    getExercise(id)
+      .then((res) => {
+        if (!cancelled) setFetched(res.exercise);
+      })
+      .catch(() => {
+        if (!cancelled) setFetched(null);
+      })
+      .finally(() => {
+        if (!cancelled) setFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, loading, fromList]);
+
+  const exercise = fromList ?? fetched;
+
+  if (loading || fetching) return <Spinner label={t('common.loading')} />;
   if (!exercise) {
     return (
       <div className="space-y-4">
@@ -34,6 +61,11 @@ export function ExerciseDetail() {
         <div className="mt-2 flex flex-wrap gap-1.5">
           <CategoryBadge category={exercise.category} />
           <DifficultyBadge difficulty={exercise.difficulty} />
+          {exercise.archived && (
+            <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted">
+              {t('detail.archived')}
+            </span>
+          )}
         </div>
       </div>
 

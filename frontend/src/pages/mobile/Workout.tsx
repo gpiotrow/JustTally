@@ -59,10 +59,12 @@ function WorkoutEditor({ initial }: { initial: WorkoutSession | null }) {
 
   if (loading) return <Spinner label={t('common.loading')} />;
 
-  function addExercise(exerciseId: string, exerciseName: string) {
+  // exerciseRef is recorded alongside the id: if the id link is ever lost, the
+  // reference number is what lets the entry be reattached to its exercise.
+  function addExercise(exerciseId: string, exerciseName: string, exerciseRef: number) {
     setEntries((prev) => [
       ...prev,
-      { exerciseId, exerciseName, sets: [{ reps: 10, weight: undefined }] },
+      { exerciseId, exerciseRef, exerciseName, sets: [{ reps: 10, weight: undefined }] },
     ]);
     setPicking(false);
   }
@@ -242,7 +244,7 @@ function WorkoutEditor({ initial }: { initial: WorkoutSession | null }) {
               return (
                 <li key={ex.id}>
                   <button
-                    onClick={() => addExercise(ex.id, name)}
+                    onClick={() => addExercise(ex.id, name, ex.ref)}
                     className="flex w-full items-center justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3 text-left text-fg hover:bg-border"
                   >
                     <span>{name}</span>

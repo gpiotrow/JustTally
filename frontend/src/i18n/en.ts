@@ -61,6 +61,7 @@ export const en: Record<TKey, string> = {
   'detail.noInstructions': 'No instructions provided.',
   'detail.tips': 'Execution tips',
   'detail.addToWorkout': 'Add to workout',
+  'detail.archived': 'Archived',
 
   // Workout
   'workout.title': 'Workout',
@@ -131,6 +132,13 @@ export const en: Record<TKey, string> = {
   'admin.ex.newTitle': 'New exercise',
   'admin.ex.loadError': 'Failed to load',
   'admin.ex.deleteError': 'Failed to delete',
+  'admin.ex.archived': 'Archived',
+  'admin.ex.unarchive': 'Restore',
+  'admin.ex.unarchiveError': 'Failed to restore',
+  'admin.ex.archivedInstead':
+    '"{name}" was archived instead of deleted: {workouts} workout(s) from {users} user(s) reference it. It stays visible in history but no longer appears in the exercise list.',
+  'admin.ex.bulkArchivedInstead':
+    '{archived} exercise(s) archived (still used in workouts), {deleted} deleted.',
 
   // Admin — CSV import result
   'import.resultTitle': 'Import result',

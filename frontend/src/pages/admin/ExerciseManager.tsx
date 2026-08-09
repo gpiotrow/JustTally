@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   listExercises,
   deleteExercise,
+  unarchiveExercise,
   bulkDeleteExercises,
   bulkUploadMedia,
   importExercises,
@@ -35,6 +36,8 @@ export function ExerciseManager() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Non-error feedback, e.g. "archived instead of deleted, still in use". */
+  const [notice, setNotice] = useState<string | null>(null);
   const [editing, setEditing] = useState<Exercise | null | undefined>(undefined); // undefined = closed
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deletingBulk, setDeletingBulk] = useState(false);
@@ -50,7 +53,9 @@ export function ExerciseManager() {
   async function load() {
     setLoading(true);
     try {
-      const res = await listExercises();
+      // Archived exercises are part of the admin view — they are hidden from the
+      // app's catalog, not from the person managing it.
+      const res = await listExercises(true);
       setExercises(res.exercises);
       setSelectedIds(new Set());
     } catch (err) {
@@ -90,8 +95,23 @@ export function ExerciseManager() {
   async function handleDelete(ex: Exercise) {
     const name = localizedExercise(ex, lang).name;
     if (!confirm(t('admin.ex.deleteConfirm', { name }))) return;
+    setError(null);
+    setNotice(null);
     try {
-      await deleteExercise(ex.id);
+      const res = await deleteExercise(ex.id);
+      if (res.archived) {
+        // Still referenced, so it was archived rather than removed. Reload
+        // instead of dropping the row: it is still there, just archived now.
+        setNotice(
+          t('admin.ex.archivedInstead', {
+            name,
+            workouts: res.usage.workouts,
+            users: res.usage.users,
+          })
+        );
+        await load();
+        return;
+      }
       setExercises((prev) => prev.filter((e) => e.id !== ex.id));
       setSelectedIds((prev) => {
         const next = new Set(prev);
@@ -103,16 +123,32 @@ export function ExerciseManager() {
     }
   }
 
+  async function handleUnarchive(ex: Exercise) {
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await unarchiveExercise(ex.id);
+      handleSaved(res.exercise);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.ex.unarchiveError'));
+    }
+  }
+
   async function handleBulkDelete() {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
     if (!confirm(t('admin.ex.bulkDeleteConfirm', { count: ids.length }))) return;
     setDeletingBulk(true);
     setError(null);
+    setNotice(null);
     try {
-      await bulkDeleteExercises(ids);
-      setExercises((prev) => prev.filter((e) => !selectedIds.has(e.id)));
-      setSelectedIds(new Set());
+      const res = await bulkDeleteExercises(ids);
+      if (res.archived > 0) {
+        setNotice(t('admin.ex.bulkArchivedInstead', { archived: res.archived, deleted: res.deleted }));
+      }
+      // Archived ones stay in the list (flagged), so re-read rather than assuming
+      // every selected exercise is gone.
+      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('admin.ex.deleteError'));
     } finally {
@@ -242,6 +278,11 @@ export function ExerciseManager() {
       </div>
 
       {error && <ErrorBanner message={error} />}
+      {notice && (
+        <div className="rounded-xl border border-border bg-surface-2 px-4 py-3 text-sm text-fg-muted">
+          {notice}
+        </div>
+      )}
 
       {selectedIds.size > 0 && (
         <div className="flex items-center justify-between rounded-xl border border-border bg-surface-2 px-4 py-2">
@@ -298,6 +339,11 @@ export function ExerciseManager() {
                   <td className="px-4 py-3 font-mono text-fg-muted">{ex.ref}</td>
                   <td className="px-4 py-3 font-medium text-fg">
                     {localizedExercise(ex, lang).name}
+                    {ex.archived && (
+                      <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-normal text-fg-muted">
+                        {t('admin.ex.archived')}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3"><CategoryBadge category={ex.category} /></td>
                   <td className="px-4 py-3"><DifficultyBadge difficulty={ex.difficulty} /></td>
@@ -307,9 +353,21 @@ export function ExerciseManager() {
                       <button onClick={() => setEditing(ex)} className="btn-ghost px-3 py-1.5 text-xs">
                         {t('common.edit')}
                       </button>
-                      <button onClick={() => handleDelete(ex)} className="btn-danger px-3 py-1.5 text-xs">
-                        {t('common.delete')}
-                      </button>
+                      {ex.archived ? (
+                        <button
+                          onClick={() => handleUnarchive(ex)}
+                          className="btn-ghost px-3 py-1.5 text-xs"
+                        >
+                          {t('admin.ex.unarchive')}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleDelete(ex)}
+                          className="btn-danger px-3 py-1.5 text-xs"
+                        >
+                          {t('common.delete')}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

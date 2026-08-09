@@ -45,8 +45,34 @@ const CSV_COLUMNS = [
   'ref',
 ];
 
-export function listExercises() {
-  return api<ExercisesResponse>('/exercises');
+/** How many workouts (and distinct users) reference an exercise. */
+export interface ExerciseUsage {
+  workouts: number;
+  users: number;
+}
+
+export interface DeleteExerciseResult {
+  ok: boolean;
+  /** True when the exercise was archived instead of deleted, because it is in use. */
+  archived: boolean;
+  deleted: boolean;
+  usage: ExerciseUsage;
+}
+
+/**
+ * @param includeArchived Admin catalog view; the mobile app omits it so archived
+ *   exercises stay out of the pickable list.
+ */
+export function listExercises(includeArchived = false) {
+  return api<ExercisesResponse>(`/exercises${includeArchived ? '?includeArchived=1' : ''}`);
+}
+
+export function unarchiveExercise(id: string) {
+  return api<{ exercise: Exercise }>(`/exercises/${id}/unarchive`, { method: 'POST' });
+}
+
+export function getExerciseUsage(id: string) {
+  return api<{ usage: ExerciseUsage }>(`/exercises/${id}/usage`);
 }
 
 export function getExercise(id: string) {
@@ -61,8 +87,12 @@ export function updateExercise(id: string, input: ExerciseInput) {
   return api<{ exercise: Exercise }>(`/exercises/${id}`, { method: 'PUT', body: input });
 }
 
+/**
+ * Remove an exercise. The server archives instead of deleting when any workout
+ * still references it — check `archived` on the result to report what happened.
+ */
 export function deleteExercise(id: string) {
-  return api<{ ok: boolean }>(`/exercises/${id}`, { method: 'DELETE' });
+  return api<DeleteExerciseResult>(`/exercises/${id}`, { method: 'DELETE' });
 }
 
 export function uploadMedia(exerciseId: string, file: File) {
@@ -87,9 +117,12 @@ export function importExercises(file: File, overwrite = false) {
   return api<ImportResult>('/exercises/import', { method: 'POST', formData: fd });
 }
 
-/** Delete several exercises (and their media) in one request. */
+/**
+ * Remove several exercises in one request. Referenced ones are archived rather
+ * than deleted, so a mixed result is normal.
+ */
 export function bulkDeleteExercises(ids: string[]) {
-  return api<{ deleted: number }>('/exercises/bulk-delete', {
+  return api<{ archived: number; deleted: number }>('/exercises/bulk-delete', {
     method: 'POST',
     body: { ids },
   });

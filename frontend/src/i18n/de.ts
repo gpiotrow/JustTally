@@ -62,6 +62,7 @@ export const de = {
   'detail.noInstructions': 'Keine Anleitung hinterlegt.',
   'detail.tips': 'Tipps zur Ausführung',
   'detail.addToWorkout': 'Zum Training hinzufügen',
+  'detail.archived': 'Archiviert',
 
   // Workout
   'workout.title': 'Training',
@@ -132,6 +133,13 @@ export const de = {
   'admin.ex.newTitle': 'Neue Übung',
   'admin.ex.loadError': 'Laden fehlgeschlagen',
   'admin.ex.deleteError': 'Löschen fehlgeschlagen',
+  'admin.ex.archived': 'Archiviert',
+  'admin.ex.unarchive': 'Reaktivieren',
+  'admin.ex.unarchiveError': 'Reaktivieren fehlgeschlagen',
+  'admin.ex.archivedInstead':
+    '„{name}" wurde archiviert statt gelöscht: {workouts} Training(s) von {users} Nutzer(n) verweisen darauf. Die Übung bleibt in der Historie sichtbar, taucht aber nicht mehr in der Übungsliste auf.',
+  'admin.ex.bulkArchivedInstead':
+    '{archived} Übung(en) archiviert (noch in Trainings verwendet), {deleted} gelöscht.',
 
   // Admin — CSV import result
   'import.resultTitle': 'Import-Ergebnis',

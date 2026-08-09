@@ -142,6 +142,80 @@ export async function initSchema() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS disabled_at BIGINT;
   `);
+
+  // An exercise a workout points at is archived, never deleted — otherwise the
+  // delete silently rewrites other people's training history.
+  await pool.query(`
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS archived_at BIGINT;
+    CREATE INDEX IF NOT EXISTS idx_exercises_archived ON exercises(archived_at);
+  `);
+
+  await migrateWorkoutEntriesToJsonb();
+
+  // Answers "which workouts reference this exercise, and whose?" via the
+  // containment operator. Only valid once entries is jsonb.
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_workouts_entries
+      ON workouts USING GIN (entries jsonb_path_ops);
+  `);
+}
+
+/**
+ * workouts.entries: text -> jsonb.
+ *
+ * Every write goes through JSON.stringify() behind isValidEntries(), so in
+ * principle every row already holds valid JSON. This does not take that on
+ * faith: a single unparseable row would abort the cast with "invalid input
+ * syntax" and no indication of which workout is at fault — and this migration
+ * runs as the fly.io release command, so that failure blocks the deploy.
+ *
+ * On failure it therefore locates the offending rows and names them, and lets
+ * the whole subtransaction roll back rather than coercing anything to '[]'.
+ * Losing a user's logged sets to make a migration pass is the one outcome
+ * worse than a failed deploy.
+ *
+ * Note that jsonb stores objects normalized: keys come back reordered (by
+ * length, then bytewise) and whitespace is dropped. Values are untouched, and
+ * nothing compares entries by serialized form — the sync resolves on
+ * `updated_at` alone — but a byte-for-byte diff of a row before and after will
+ * look changed when it is not.
+ */
+async function migrateWorkoutEntriesToJsonb() {
+  await pool.query(`
+    DO $$
+    DECLARE
+      bad_ids text[];
+      r record;
+    BEGIN
+      IF (SELECT data_type FROM information_schema.columns
+           WHERE table_schema = 'public'
+             AND table_name = 'workouts'
+             AND column_name = 'entries') IS DISTINCT FROM 'text' THEN
+        RETURN;  -- already migrated
+      END IF;
+
+      -- A text default cannot be carried across the type change.
+      ALTER TABLE workouts ALTER COLUMN entries DROP DEFAULT;
+
+      BEGIN
+        ALTER TABLE workouts ALTER COLUMN entries TYPE jsonb USING entries::jsonb;
+      EXCEPTION WHEN others THEN
+        FOR r IN SELECT id, entries FROM workouts LOOP
+          BEGIN
+            PERFORM r.entries::jsonb;
+          EXCEPTION WHEN others THEN
+            bad_ids := array_append(bad_ids, r.id);
+          END;
+        END LOOP;
+        RAISE EXCEPTION
+          'workouts.entries -> jsonb aborted: % row(s) hold invalid JSON (ids: %). Nothing was modified; repair those rows, then redeploy.',
+          coalesce(array_length(bad_ids, 1), 0),
+          coalesce(array_to_string(bad_ids[1:20], ', '), '-');
+      END;
+
+      ALTER TABLE workouts ALTER COLUMN entries SET DEFAULT '[]'::jsonb;
+    END $$;
+  `);
 }
 
 export default pool;

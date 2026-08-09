@@ -37,6 +37,9 @@ export interface Exercise {
   difficulty: Difficulty;
   createdAt: number;
   updatedAt: number;
+  /** Archived exercises are hidden from the catalog but stay readable from history. */
+  archived?: boolean;
+  archivedAt?: number | null;
   media: Media[];
 }
 
@@ -47,6 +50,12 @@ export interface WorkoutSet {
 
 export interface WorkoutEntry {
   exerciseId: string;
+  /**
+   * Reference number of the exercise as it stood when this was recorded.
+   * A second handle back to the exercise if the id link is ever broken —
+   * see backfillWorkoutRefs.js / relinkWorkoutEntries.js.
+   */
+  exerciseRef?: number;
   exerciseName: string;
   sets: WorkoutSet[];
 }
