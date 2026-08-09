@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, getToken, ApiError } from './client';
 import type { Exercise, Difficulty } from '../lib/types';
 
 interface ExercisesResponse {
@@ -19,12 +19,28 @@ export interface ExerciseInput {
   ref?: number;
 }
 
+/**
+ * merge   — insert new rows, skip rows that match an existing exercise
+ * upsert  — insert new rows, update matched rows in place
+ * replace — upsert, plus: any existing exercise absent from the CSV is archived
+ */
+export type ImportMode = 'merge' | 'upsert' | 'replace';
+
 export interface ImportResult {
+  dryRun: boolean;
+  mode: ImportMode;
   imported: number;
   updated: number;
   skipped: number;
+  /** mode=replace only: existing exercises archived because the CSV no longer lists them. */
+  archived: number;
+  /** Of the archived ones, how many are referenced by at least one workout. dryRun preview only. */
+  archivedInUse?: number;
+  /** Distinct users affected by the archiving, combined — not summed per exercise. */
+  archivedAffectedUsers: number;
   errors: { row: number; message: string }[];
-  exercises: Exercise[];
+  /** Present on a real (non-dryRun) run: the rows that were inserted or updated. */
+  exercises?: Exercise[];
 }
 
 export interface MediaBulkResult {
@@ -110,11 +126,17 @@ export function deleteMedia(exerciseId: string, mediaId: string) {
   });
 }
 
-export function importExercises(file: File, overwrite = false) {
+export function importExercises(file: File, mode: ImportMode, dryRun = false) {
   const fd = new FormData();
   fd.append('file', file);
-  fd.append('overwrite', String(overwrite));
+  fd.append('mode', mode);
+  fd.append('dryRun', String(dryRun));
   return api<ImportResult>('/exercises/import', { method: 'POST', formData: fd });
+}
+
+/** Preview what an import would do without writing anything. */
+export function previewImport(file: File, mode: ImportMode) {
+  return importExercises(file, mode, true);
 }
 
 /**
@@ -131,12 +153,83 @@ export function bulkDeleteExercises(ids: string[]) {
 /**
  * Upload many media files at once. Each file is auto-assigned to the exercise
  * whose `ref` matches the file's leading digit run (e.g. "42_front.jpg" → ref 42).
+ * Server-side cap on files per request; {@link bulkUploadMediaChunked} is the
+ * caller most code should use instead of this directly.
  */
+export const MAX_BULK_FILES = 20;
+
 export function bulkUploadMedia(files: File[], overwrite = false) {
   const fd = new FormData();
   for (const file of files) fd.append('files', file);
   fd.append('overwrite', String(overwrite));
   return api<MediaBulkResult>('/exercises/media/bulk', { method: 'POST', formData: fd });
+}
+
+/**
+ * Split a large selection into server-sized chunks and upload sequentially,
+ * merging the results as if it had been one request.
+ *
+ * `overwrite` is applied to the first chunk only, by design, not a bug: it
+ * means "replace each matched exercise's existing media." Applying it to every
+ * chunk would make chunk 2 delete the photos chunk 1 just uploaded, since both
+ * chunks can contain files for the same exercise.
+ */
+export async function bulkUploadMediaChunked(
+  files: File[],
+  overwrite: boolean,
+  onProgress?: (done: number, total: number) => void
+): Promise<MediaBulkResult> {
+  const merged: MediaBulkResult = { assigned: [], unmatched: [], clearedExerciseIds: [] };
+  const clearedExerciseIds = new Set<string>();
+
+  for (let i = 0; i < files.length; i += MAX_BULK_FILES) {
+    const chunk = files.slice(i, i + MAX_BULK_FILES);
+    const result = await bulkUploadMedia(chunk, i === 0 && overwrite);
+    merged.assigned.push(...result.assigned);
+    merged.unmatched.push(...result.unmatched);
+    result.clearedExerciseIds.forEach((id) => clearedExerciseIds.add(id));
+    onProgress?.(Math.min(i + MAX_BULK_FILES, files.length), files.length);
+  }
+
+  merged.clearedExerciseIds = [...clearedExerciseIds];
+  return merged;
+}
+
+/** Persist a new media display order; index 0 becomes the cover image. */
+export function reorderMedia(exerciseId: string, mediaIds: string[]) {
+  return api<{ exercise: Exercise }>(`/exercises/${exerciseId}/media/order`, {
+    method: 'PUT',
+    body: { mediaIds },
+  });
+}
+
+/**
+ * Download the full catalog as CSV. A plain `<a href>` cannot carry the
+ * Authorization header this endpoint requires, so the file is fetched as a
+ * blob and saved via a synthetic link instead.
+ */
+export async function downloadExerciseCsv(): Promise<void> {
+  const token = getToken();
+  const res = await fetch('/api/exercises/export.csv', {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data?.error) message = data.error;
+    } catch {
+      // non-JSON error
+    }
+    throw new ApiError(message, res.status);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'just-tally-exercises.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 /** A ready-to-edit CSV template (header + one bilingual example row); `;`-delimited. */

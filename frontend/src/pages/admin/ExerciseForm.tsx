@@ -1,9 +1,10 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type DragEvent, type FormEvent } from 'react';
 import {
   createExercise,
   updateExercise,
   uploadMedia,
   deleteMedia,
+  reorderMedia,
   type ExerciseInput,
 } from '../../api/exercises';
 import { CATEGORIES, type Difficulty, type Exercise } from '../../lib/types';
@@ -38,6 +39,8 @@ export function ExerciseForm({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [reorderError, setReorderError] = useState<string | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function onSubmit(e: FormEvent) {
@@ -101,6 +104,49 @@ export function ExerciseForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : t('form.deleteError'));
     }
+  }
+
+  /**
+   * Drag-and-drop reorder. Applied optimistically so the grid does not jump
+   * back to the old order while the request is in flight, then rolled back
+   * on failure since a silently-wrong cover image would otherwise go unnoticed.
+   */
+  async function moveMedia(fromIndex: number, toIndex: number) {
+    if (!current || fromIndex === toIndex) return;
+    const before = current.media;
+    const reordered = [...before];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+
+    setReorderError(null);
+    setCurrent({ ...current, media: reordered });
+    try {
+      const res = await reorderMedia(current.id, reordered.map((m) => m.id));
+      setCurrent(res.exercise);
+      onSaved(res.exercise);
+    } catch (err) {
+      setCurrent({ ...current, media: before });
+      setReorderError(err instanceof Error ? err.message : t('admin.ex.reorderError'));
+    }
+  }
+
+  function onDragStart(index: number) {
+    return (e: DragEvent<HTMLDivElement>) => {
+      setDragIndex(index);
+      e.dataTransfer.effectAllowed = 'move';
+    };
+  }
+
+  function onDragOver(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+  }
+
+  function onDrop(index: number) {
+    return (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      if (dragIndex !== null) moveMedia(dragIndex, index);
+      setDragIndex(null);
+    };
   }
 
   return (
@@ -237,20 +283,36 @@ export function ExerciseForm({
           />
         </div>
 
+        {reorderError && <ErrorBanner message={reorderError} />}
+
         {!current ? (
           <p className="text-sm text-fg-subtle">{t('form.saveFirstHint')}</p>
         ) : current.media.length === 0 ? (
           <p className="text-sm text-fg-subtle">{t('form.noMedia')}</p>
         ) : (
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-            {current.media.map((m) => (
-              <div key={m.id} className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-surface-2">
+            {current.media.map((m, i) => (
+              <div
+                key={m.id}
+                draggable
+                onDragStart={onDragStart(i)}
+                onDragOver={onDragOver}
+                onDrop={onDrop(i)}
+                className={`group relative aspect-square cursor-move overflow-hidden rounded-xl border bg-surface-2 transition ${
+                  dragIndex === i ? 'opacity-40' : 'border-border'
+                }`}
+              >
                 {m.mediaType === 'image' ? (
                   <img src={m.thumbnailUrl ?? m.url} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-fg-subtle">
                     <VideoIcon width={32} height={32} />
                   </div>
+                )}
+                {i === 0 && (
+                  <span className="absolute left-1 top-1 rounded-lg bg-black/70 px-2 py-0.5 text-xs text-white">
+                    {t('admin.ex.cover')}
+                  </span>
                 )}
                 <button
                   type="button"

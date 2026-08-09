@@ -107,9 +107,13 @@ export const de = {
   'admin.ex.bulkUploadHint': 'Dateien, deren Name mit der Nummer der Übung beginnt (z.B. „42_front.jpg"), werden automatisch zugeordnet. Maximal 20 Dateien pro Durchgang.',
   'admin.ex.bulkUploadError': 'Bulk-Upload fehlgeschlagen',
   'admin.ex.overwriteMedia': 'Vorhandene Medien beim Hochladen überschreiben',
-  'admin.ex.overwriteImport': 'Vorhandene Übungen beim Import überschreiben',
   'admin.ex.mediaOverwritten': 'Vorhandene Medien wurden bei {count} Übung(en) ersetzt.',
+  'admin.ex.bulkUploadProgress': '{done} / {total} hochgeladen…',
   'admin.ex.template': 'Vorlage herunterladen',
+  'admin.ex.export': 'CSV exportieren',
+  'admin.ex.exportError': 'Export fehlgeschlagen',
+  'admin.ex.reorderError': 'Reihenfolge speichern fehlgeschlagen',
+  'admin.ex.cover': 'Cover',
   'admin.ex.colRef': 'Nr.',
   'admin.ex.colCategory': 'Kategorie',
   'admin.ex.colDifficulty': 'Schwierigkeit',
@@ -141,14 +145,27 @@ export const de = {
   'admin.ex.bulkArchivedInstead':
     '{archived} Übung(en) archiviert (noch in Trainings verwendet), {deleted} gelöscht.',
 
-  // Admin — CSV import result
+  // Admin — CSV import
   'import.resultTitle': 'Import-Ergebnis',
+  'import.previewTitle': 'Vorschau',
+  'import.previewing': 'Vorschau wird berechnet…',
+  'import.previewError': 'Vorschau fehlgeschlagen',
   'import.imported': '{count} importiert',
   'import.updated': '{count} aktualisiert',
   'import.skipped': '{count} übersprungen (Duplikate)',
+  'import.archived': '{count} werden archiviert',
+  'import.archivedInUseWarning':
+    '⚠ davon {inUse} in Trainings von {users} Nutzer(n) verwendet — bleiben in der Historie sichtbar, verschwinden aber aus der Übungsliste.',
   'import.errorsTitle': 'Fehler',
   'import.rowError': 'Zeile {row}: {message}',
   'import.error': 'Import fehlgeschlagen',
+  'import.mode': 'Modus',
+  'import.mode.merge': 'Zusammenführen — Neue hinzufügen, Bestehende überspringen',
+  'import.mode.upsert': 'Aktualisieren — Neue hinzufügen, Bestehende überschreiben',
+  'import.mode.replace': 'Komplettaustausch — Aktualisieren + alles Fehlende archivieren',
+  'import.confirm': 'Import durchführen',
+  'import.cancel': 'Abbrechen',
+  'import.confirming': 'Wird durchgeführt…',
 
   // Admin — exercise form
   'form.nameDe': 'Name (Deutsch)',

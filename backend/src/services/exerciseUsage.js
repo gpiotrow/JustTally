@@ -43,3 +43,34 @@ export async function countExerciseUsage(runner, exerciseIds) {
   }
   return result;
 }
+
+/**
+ * Same containment match as {@link countExerciseUsage}, but combined across a
+ * whole set of exercises rather than per-exercise.
+ *
+ * The distinction matters: summing each exercise's `users` count would
+ * double-count someone who trained more than one of them. This is the number
+ * that belongs in a "you are about to archive N exercises, affecting M
+ * people" warning for a batch operation (e.g. `mode=replace`) — the per-
+ * exercise version cannot answer that question on its own.
+ *
+ * @param {{query: Function}} runner
+ * @param {string[]} exerciseIds
+ * @returns {Promise<ExerciseUsage>} Aggregate across all given ids combined.
+ */
+export async function countAggregateExerciseUsage(runner, exerciseIds) {
+  if (exerciseIds.length === 0) return { workouts: 0, users: 0 };
+
+  const { rows } = await runner.query(
+    `SELECT COUNT(DISTINCT w.id)::int      AS workouts,
+            COUNT(DISTINCT w.user_id)::int AS users
+       FROM workouts w
+      WHERE w.deleted_at IS NULL
+        AND EXISTS (
+          SELECT 1 FROM unnest($1::text[]) AS eid
+           WHERE w.entries @> jsonb_build_array(jsonb_build_object('exerciseId', eid))
+        )`,
+    [exerciseIds]
+  );
+  return { workouts: rows[0].workouts, users: rows[0].users };
+}

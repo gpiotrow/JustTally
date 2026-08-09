@@ -106,9 +106,13 @@ export const en: Record<TKey, string> = {
   'admin.ex.bulkUploadHint': 'Files whose name starts with an exercise number (e.g. "42_front.jpg") are assigned automatically. Max 20 files per batch.',
   'admin.ex.bulkUploadError': 'Bulk upload failed',
   'admin.ex.overwriteMedia': 'Overwrite existing media on upload',
-  'admin.ex.overwriteImport': 'Overwrite existing exercises on import',
   'admin.ex.mediaOverwritten': 'Existing media was replaced for {count} exercise(s).',
+  'admin.ex.bulkUploadProgress': '{done} / {total} uploaded…',
   'admin.ex.template': 'Download template',
+  'admin.ex.export': 'Export CSV',
+  'admin.ex.exportError': 'Export failed',
+  'admin.ex.reorderError': 'Failed to save order',
+  'admin.ex.cover': 'Cover',
   'admin.ex.colRef': 'No.',
   'admin.ex.colCategory': 'Category',
   'admin.ex.colDifficulty': 'Difficulty',
@@ -140,14 +144,27 @@ export const en: Record<TKey, string> = {
   'admin.ex.bulkArchivedInstead':
     '{archived} exercise(s) archived (still used in workouts), {deleted} deleted.',
 
-  // Admin — CSV import result
+  // Admin — CSV import
   'import.resultTitle': 'Import result',
+  'import.previewTitle': 'Preview',
+  'import.previewing': 'Computing preview…',
+  'import.previewError': 'Preview failed',
   'import.imported': '{count} imported',
   'import.updated': '{count} updated',
   'import.skipped': '{count} skipped (duplicates)',
+  'import.archived': '{count} will be archived',
+  'import.archivedInUseWarning':
+    '⚠ {inUse} of those are used in workouts by {users} user(s) — they stay visible in history but disappear from the exercise list.',
   'import.errorsTitle': 'Errors',
   'import.rowError': 'Row {row}: {message}',
   'import.error': 'Import failed',
+  'import.mode': 'Mode',
+  'import.mode.merge': 'Merge — add new, skip existing',
+  'import.mode.upsert': 'Upsert — add new, update existing',
+  'import.mode.replace': 'Replace — update, plus archive anything missing',
+  'import.confirm': 'Run import',
+  'import.cancel': 'Cancel',
+  'import.confirming': 'Running…',
 
   // Admin — exercise form
   'form.nameDe': 'Name (German)',

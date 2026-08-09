@@ -10,7 +10,8 @@ import {
   mediaUrl,
 } from '../services/mediaService.js';
 import { parseExercisesCsv } from '../services/csvImport.js';
-import { countExerciseUsage } from '../services/exerciseUsage.js';
+import { exercisesToCsv } from '../services/csvExport.js';
+import { countExerciseUsage, countAggregateExerciseUsage } from '../services/exerciseUsage.js';
 
 const router = Router();
 
@@ -248,6 +249,27 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/exercises/export.csv — the whole catalog, including archived
+ * exercises, in the exact import shape with `ref` filled in (admin only).
+ *
+ * Registered before `/:id`: Express matches routes in order, and without this
+ * placement `/:id` would swallow this path with `id = "export.csv"`.
+ *
+ * A filled `ref` is the point — re-importing the export matches every row by
+ * number instead of guessing from the name, so `export → edit → mode=replace`
+ * is an exact round trip.
+ */
+router.get('/export.csv', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await db.query(
+    `SELECT name_de, name_en, instructions_de, instructions_en, tips_de, tips_en, category, difficulty, ref
+       FROM exercises ORDER BY ref`
+  );
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="just-tally-exercises.csv"');
+  res.send(exercisesToCsv(rows));
+});
+
+/**
  * GET /api/exercises/:id
  */
 router.get('/:id', requireAuth, async (req, res) => {
@@ -305,11 +327,28 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   res.status(201).json({ exercise: await withMedia(rows[0]) });
 });
 
+const VALID_IMPORT_MODES = ['merge', 'upsert', 'replace'];
+
+/**
+ * `mode` replaces the old `overwrite` boolean with three explicit behaviors;
+ * `overwrite=true` is kept working as an alias for `upsert` so existing
+ * integrations do not break.
+ *   merge   — insert new rows, skip rows that match an existing exercise
+ *   upsert  — insert new rows, update matched rows in place
+ *   replace — upsert, plus: any existing exercise absent from the CSV is archived
+ */
+function resolveImportMode(body) {
+  const raw = String(body?.mode ?? '').trim().toLowerCase();
+  if (VALID_IMPORT_MODES.includes(raw)) return raw;
+  return body?.overwrite === 'true' ? 'upsert' : 'merge';
+}
+
 /**
  * POST /api/exercises/import — bulk-import exercises from a CSV file (admin only).
- * By default, skips rows whose name already exists (case-insensitive, either language).
- * With `overwrite=true` in the form body, a row matching an existing exercise (by ref,
- * else by name) updates that exercise in place instead of being skipped.
+ * `mode`: merge (default) | upsert | replace — see `resolveImportMode`.
+ * `dryRun=true`: compute and return the same counts without writing anything,
+ * so `mode=replace` — which can archive a large slice of the catalog in one
+ * request — is previewed before it runs, not just reported after.
  */
 router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -318,7 +357,10 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
     req.file.mimetype === 'application/vnd.ms-excel' ||
     /\.csv$/i.test(req.file.originalname || '');
   if (!isCsv) return res.status(400).json({ error: 'Only CSV files are allowed' });
-  const overwrite = req.body?.overwrite === 'true';
+
+  const mode = resolveImportMode(req.body);
+  const doUpdate = mode !== 'merge'; // upsert and replace both update matched rows
+  const dryRun = req.query.dryRun === '1' || req.body?.dryRun === 'true';
 
   let parsed;
   try {
@@ -327,9 +369,13 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
     return res.status(400).json({ error: err instanceof Error ? err.message : 'Invalid CSV' });
   }
 
-  // Existing rows, to detect duplicates up front and (in overwrite mode) find the
-  // exercise a CSV row refers to, rather than discovering it mid-transaction.
-  const { rows: existingRows } = await db.query('SELECT id, name_de, name_en, ref FROM exercises');
+  // Existing rows, to detect duplicates up front and (in upsert/replace mode) find
+  // the exercise a CSV row refers to, rather than discovering it mid-transaction.
+  // Archived rows are included in matching: a CSV row bringing one back should
+  // reclaim its own ref/id, not collide with it as if it were a new exercise.
+  const { rows: existingRows } = await db.query(
+    'SELECT id, name_de, name_en, ref, archived_at FROM exercises'
+  );
   const byId = new Map(existingRows.map((r) => [r.id, r]));
   const byRef = new Map();
   const byName = new Map();
@@ -357,7 +403,7 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
   for (const row of parsed.rows) {
     const existing = findExistingMatch(row);
     if (existing) {
-      if (!overwrite || matchedIdsInBatch.has(existing.id)) {
+      if (!doUpdate || matchedIdsInBatch.has(existing.id)) {
         skipped += 1;
         continue;
       }
@@ -382,6 +428,35 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
     }
     keys.forEach((k) => reservedNames.add(k));
     toInsert.push(row);
+  }
+
+  // mode=replace only: existing, still-active exercises absent from this CSV.
+  // Already-archived ones are excluded — archiving them again would be a
+  // no-op, and counting them here would overstate what this import changes.
+  const toArchive =
+    mode === 'replace'
+      ? existingRows.filter((r) => !matchedIdsInBatch.has(r.id) && r.archived_at === null)
+      : [];
+
+  if (dryRun) {
+    const archiveIds = toArchive.map((r) => r.id);
+    const perExercise = archiveIds.length ? await countExerciseUsage(db, archiveIds) : new Map();
+    const archivedInUse = archiveIds.filter((id) => perExercise.get(id).workouts > 0).length;
+    const aggregate = archiveIds.length
+      ? await countAggregateExerciseUsage(db, archiveIds)
+      : { workouts: 0, users: 0 };
+
+    return res.json({
+      dryRun: true,
+      mode,
+      imported: toInsert.length,
+      updated: toUpdate.length,
+      skipped,
+      archived: toArchive.length,
+      archivedInUse,
+      archivedAffectedUsers: aggregate.users,
+      errors,
+    });
   }
 
   const createdIds = [];
@@ -489,6 +564,18 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
     client.release();
   }
 
+  // Runs after commit, not inside the transaction: it is a separate concern
+  // (I3, not import correctness) and countExerciseUsage needs to see the
+  // import's own writes — an exercise the CSV just re-added must not be
+  // archived a moment later for looking "untouched".
+  let archivedCount = 0;
+  let archivedAffectedUsers = 0;
+  if (mode === 'replace' && toArchive.length > 0) {
+    const archiveIds = toArchive.map((r) => r.id);
+    archivedCount = await archiveExercises(archiveIds);
+    archivedAffectedUsers = (await countAggregateExerciseUsage(db, archiveIds)).users;
+  }
+
   // Re-read in one query: the previous per-id loop cost two round trips per
   // imported row, which on a full-catalog import dwarfed the import itself.
   const touchedIds = [...createdIds, ...updatedIds];
@@ -498,9 +585,13 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
   const exercises = await withMediaMany(touchedRows);
 
   res.status(201).json({
+    dryRun: false,
+    mode,
     imported: createdIds.length,
     updated: updatedIds.length,
     skipped,
+    archived: archivedCount,
+    archivedAffectedUsers,
     errors,
     exercises,
   });
@@ -755,6 +846,60 @@ router.post('/bulk-delete', requireAuth, requireAdmin, async (req, res) => {
   const deleted = toDelete.length ? await hardDeleteExercises(toDelete) : 0;
 
   res.json({ archived, deleted });
+});
+
+/**
+ * PUT /api/exercises/:id/media/order — persist a new media display order
+ * (admin only), for drag-and-drop reordering / choosing the cover image.
+ * Body: `{ mediaIds: string[] }` — must be exactly the exercise's current
+ * media ids, reordered; `position` is taken from array index.
+ */
+router.put('/:id/media/order', requireAuth, requireAdmin, async (req, res) => {
+  const { rows: exRows } = await db.query('SELECT id FROM exercises WHERE id = $1', [
+    req.params.id,
+  ]);
+  if (!exRows[0]) return res.status(404).json({ error: 'Exercise not found' });
+
+  const mediaIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds : null;
+  if (!mediaIds || mediaIds.length === 0 || mediaIds.some((id) => typeof id !== 'string')) {
+    return res.status(400).json({ error: 'mediaIds must be a non-empty array of strings' });
+  }
+
+  // The endpoint only reorders — it must not become a way to add or drop media
+  // by omission, so the id set has to match exactly, not just be a subset.
+  const { rows: currentMedia } = await db.query('SELECT id FROM media WHERE exercise_id = $1', [
+    req.params.id,
+  ]);
+  const currentIds = new Set(currentMedia.map((m) => m.id));
+  const providedIds = new Set(mediaIds);
+  const sameSet =
+    currentIds.size === providedIds.size && [...currentIds].every((id) => providedIds.has(id));
+  if (!sameSet) {
+    return res
+      .status(400)
+      .json({ error: "mediaIds must contain exactly this exercise's current media, reordered" });
+  }
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    for (let i = 0; i < mediaIds.length; i++) {
+      await client.query('UPDATE media SET position = $1 WHERE id = $2', [i, mediaIds[i]]);
+    }
+    await client.query('UPDATE exercises SET updated_at = $1 WHERE id = $2', [
+      Date.now(),
+      req.params.id,
+    ]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  const { rows } = await db.query('SELECT * FROM exercises WHERE id = $1', [req.params.id]);
+  res.json({ exercise: await withMedia(rows[0]) });
 });
 
 /**
