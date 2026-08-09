@@ -13,6 +13,7 @@ primary_region = 'fra'
   release_command = 'node src/db/seed.js'
 
 [env]
+  ALLOW_REGISTRATION = 'off'
   MEDIA_DRIVER = 'local'
   NODE_ENV = 'production'
   PORT = '4000'

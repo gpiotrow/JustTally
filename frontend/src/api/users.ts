@@ -13,6 +13,10 @@ export function setUserRole(id: string, role: Role) {
   return api<{ user: User }>(`/users/${id}/role`, { method: 'PATCH', body: { role } });
 }
 
-export function deleteUser(id: string) {
+export function disableUser(id: string) {
   return api<{ ok: boolean }>(`/users/${id}`, { method: 'DELETE' });
+}
+
+export function enableUser(id: string) {
+  return api<{ user: User }>(`/users/${id}/enable`, { method: 'POST' });
 }

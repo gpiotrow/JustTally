@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { listUsers, createUser, setUserRole, deleteUser } from '../../api/users';
+import { listUsers, createUser, setUserRole, disableUser, enableUser } from '../../api/users';
 import { useAuth } from '../../hooks/useAuth';
 import type { Role, User } from '../../lib/types';
 import { EmptyState, ErrorBanner, Modal, Spinner } from '../../components/ui';
@@ -38,13 +38,22 @@ export function UserManagement() {
     }
   }
 
-  async function remove(u: User) {
-    if (!confirm(t('users.deleteConfirm', { name: u.name }))) return;
+  async function disable(u: User) {
+    if (!confirm(t('users.disableConfirm', { name: u.name }))) return;
     try {
-      await deleteUser(u.id);
-      setUsers((prev) => prev.filter((x) => x.id !== u.id));
+      await disableUser(u.id);
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, disabledAt: Date.now() } : x)));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('users.deleteError'));
+    }
+  }
+
+  async function enable(u: User) {
+    try {
+      const res = await enableUser(u.id);
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? res.user : x)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('users.enableError'));
     }
   }
 
@@ -74,39 +83,58 @@ export function UserManagement() {
                 <th className="px-4 py-3">{t('common.name')}</th>
                 <th className="px-4 py-3">{t('common.email')}</th>
                 <th className="px-4 py-3">{t('users.role')}</th>
+                <th className="px-4 py-3">{t('users.status')}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
-              {users.map((u) => (
-                <tr key={u.id} className="hover:bg-surface-2/50">
-                  <td className="px-4 py-3 font-medium text-fg">
-                    {u.name}
-                    {u.id === me?.id && <span className="ml-2 text-xs text-fg-subtle">{t('users.you')}</span>}
-                  </td>
-                  <td className="px-4 py-3 text-fg-muted">{u.email}</td>
-                  <td className="px-4 py-3">
-                    <select
-                      className="input w-auto py-1.5 text-xs"
-                      value={u.role}
-                      disabled={u.id === me?.id}
-                      onChange={(e) => changeRole(u, e.target.value as Role)}
-                    >
-                      <option value="user">user</option>
-                      <option value="admin">admin</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => remove(u)}
-                      className="btn-danger px-3 py-1.5 text-xs"
-                      disabled={u.id === me?.id}
-                    >
-                      {t('common.delete')}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {users.map((u) => {
+                const isDisabled = Boolean(u.disabledAt);
+                return (
+                  <tr key={u.id} className={`hover:bg-surface-2/50 ${isDisabled ? 'opacity-60' : ''}`}>
+                    <td className="px-4 py-3 font-medium text-fg">
+                      {u.name}
+                      {u.id === me?.id && <span className="ml-2 text-xs text-fg-subtle">{t('users.you')}</span>}
+                    </td>
+                    <td className="px-4 py-3 text-fg-muted">{u.email}</td>
+                    <td className="px-4 py-3">
+                      <select
+                        className="input w-auto py-1.5 text-xs"
+                        value={u.role}
+                        disabled={u.id === me?.id}
+                        onChange={(e) => changeRole(u, e.target.value as Role)}
+                      >
+                        <option value="user">user</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          isDisabled ? 'bg-danger/10 text-danger' : 'bg-success/10 text-success'
+                        }`}
+                      >
+                        {isDisabled ? t('users.statusDisabled') : t('users.statusActive')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {isDisabled ? (
+                        <button onClick={() => enable(u)} className="btn-secondary px-3 py-1.5 text-xs">
+                          {t('users.enable')}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => disable(u)}
+                          className="btn-danger px-3 py-1.5 text-xs"
+                          disabled={u.id === me?.id}
+                        >
+                          {t('users.disable')}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -179,7 +207,7 @@ function CreateUserModal({
             className="input"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            minLength={6}
+            minLength={8}
             required
           />
         </div>

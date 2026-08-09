@@ -1,33 +1,53 @@
 import jwt from 'jsonwebtoken';
+import db from '../db/database.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error(
+    'JWT_SECRET is not set. Generate one with `node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"` and add it to your environment.'
+  );
+}
 
 /**
- * Sign a JWT for a user.
+ * Sign a JWT for a user. The token only carries an identity + version — role,
+ * name and email are re-read from the DB on every request so changes take
+ * effect immediately instead of waiting out the token's 30-day lifetime.
  */
 export function signToken(user) {
   return jwt.sign(
-    { sub: user.id, role: user.role, name: user.name, email: user.email },
+    { sub: user.id, tokenVersion: user.token_version ?? 0 },
     JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
   );
 }
 
 /**
- * Require a valid JWT. Attaches req.user.
+ * Require a valid JWT. Attaches req.user from a fresh DB lookup so a
+ * revoked (token_version bumped) or disabled account is rejected immediately,
+ * not just once the token expires.
  */
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) {
     return res.status(401).json({ error: 'Authentication required' });
   }
+
+  let payload;
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
-    next();
+    payload = jwt.verify(token, JWT_SECRET);
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
+
+  const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [payload.sub]);
+  const row = rows[0];
+  if (!row || row.disabled_at !== null || row.token_version !== payload.tokenVersion) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
+  req.user = { sub: row.id, role: row.role, name: row.name, email: row.email };
+  next();
 }
 
 /**

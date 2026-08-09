@@ -37,7 +37,7 @@ export const en: Record<TKey, string> = {
 
   // Register
   'register.subtitle': 'Create an account to get started.',
-  'register.passwordLabel': 'Password (min. 6 characters)',
+  'register.passwordLabel': 'Password (min. 8 characters)',
   'register.submit': 'Sign up',
   'register.submitting': 'Signing up…',
   'register.haveAccount': 'Already have an account?',
@@ -176,14 +176,20 @@ export const en: Record<TKey, string> = {
   'users.empty': 'No users',
   'users.role': 'Role',
   'users.you': '(you)',
-  'users.deleteConfirm': 'Delete user "{name}"?',
+  'users.disableConfirm': 'Disable user "{name}"? They will be signed out immediately.',
   'users.newTitle': 'New user',
   'users.create': 'Create',
   'users.creating': 'Creating…',
   'users.loadError': 'Failed to load',
   'users.roleError': 'Failed to change role',
-  'users.deleteError': 'Failed to delete',
+  'users.deleteError': 'Failed to disable',
   'users.createError': 'Failed to create',
+  'users.enableError': 'Failed to enable',
+  'users.status': 'Status',
+  'users.statusActive': 'Active',
+  'users.statusDisabled': 'Disabled',
+  'users.disable': 'Disable',
+  'users.enable': 'Enable',
 
   // Difficulty labels
   'difficulty.beginner': 'Beginner',

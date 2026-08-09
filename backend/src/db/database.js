@@ -134,6 +134,14 @@ export async function initSchema() {
   await pool.query(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_ref ON exercises(ref);`
   );
+
+  // token_version invalidates every JWT issued before it was last bumped
+  // (role change, disable, logout-everywhere). disabled_at soft-deletes a
+  // user without breaking exercises.created_by / workouts.user_id references.
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS disabled_at BIGINT;
+  `);
 }
 
 export default pool;

@@ -23,6 +23,10 @@ backend/data/
 backend/uploads/**/*
 !backend/uploads/**/.gitkeep
 
+# Test artifacts
+backend/.tmp-test-uploads/
+backend/coverage/
+
 # OS
 .DS_Store
 Thumbs.db

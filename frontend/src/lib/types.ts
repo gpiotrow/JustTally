@@ -8,6 +8,7 @@ export interface User {
   email: string;
   role: Role;
   createdAt?: number;
+  disabledAt?: number | null;
 }
 
 export interface Media {

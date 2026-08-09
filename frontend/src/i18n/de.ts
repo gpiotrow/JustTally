@@ -38,7 +38,7 @@ export const de = {
 
   // Register
   'register.subtitle': 'Erstelle ein Konto, um loszulegen.',
-  'register.passwordLabel': 'Passwort (min. 6 Zeichen)',
+  'register.passwordLabel': 'Passwort (min. 8 Zeichen)',
   'register.submit': 'Registrieren',
   'register.submitting': 'Registrieren…',
   'register.haveAccount': 'Bereits ein Konto?',
@@ -177,14 +177,20 @@ export const de = {
   'users.empty': 'Keine Benutzer',
   'users.role': 'Rolle',
   'users.you': '(du)',
-  'users.deleteConfirm': 'Benutzer „{name}" löschen?',
+  'users.disableConfirm': 'Benutzer „{name}" deaktivieren? Die Anmeldung wird sofort gesperrt.',
   'users.newTitle': 'Neuer Benutzer',
   'users.create': 'Erstellen',
   'users.creating': 'Erstellen…',
   'users.loadError': 'Laden fehlgeschlagen',
   'users.roleError': 'Rolle ändern fehlgeschlagen',
-  'users.deleteError': 'Löschen fehlgeschlagen',
+  'users.deleteError': 'Deaktivieren fehlgeschlagen',
   'users.createError': 'Erstellen fehlgeschlagen',
+  'users.enableError': 'Aktivieren fehlgeschlagen',
+  'users.status': 'Status',
+  'users.statusActive': 'Aktiv',
+  'users.statusDisabled': 'Deaktiviert',
+  'users.disable': 'Deaktivieren',
+  'users.enable': 'Aktivieren',
 
   // Difficulty labels
   'difficulty.beginner': 'Anfänger',
