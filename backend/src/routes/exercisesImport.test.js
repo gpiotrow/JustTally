@@ -33,7 +33,10 @@ const app = express();
 app.use(express.json());
 app.use('/api/exercises', exercisesRouter);
 
-function csv(rows, header = 'name_de;name_en;instructions_de;instructions_en;tips_de;tips_en;category;difficulty;ref') {
+function csv(
+  rows,
+  header = 'ref;category;difficulty;name_de;purpose_de;instructions_de;name_en;purpose_en;instructions_en;name_es;purpose_es;instructions_es'
+) {
   return [header, ...rows].join('\n');
 }
 
@@ -61,7 +64,7 @@ beforeEach(() => {
 
 describe('mode resolution', () => {
   it('defaults to merge: skips a name match without writing anything', async () => {
-    onQuery(/SELECT id, name_de, name_en, ref, archived_at FROM exercises/, () => ({
+    onQuery(/SELECT id, name_de, name_en, name_es, ref, archived_at FROM exercises/, () => ({
       rows: [{ id: 'existing-1', name_de: 'Bankdrücken', name_en: '', ref: 1, archived_at: null }],
     }));
     let wrote = false;
@@ -70,7 +73,7 @@ describe('mode resolution', () => {
       return { rows: [] };
     });
 
-    const res = await importRequest({ csvBody: csv(['Bankdrücken;;;;;;;;']) });
+    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;;;;']) });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ mode: 'merge', imported: 0, updated: 0, skipped: 1 });
@@ -78,7 +81,7 @@ describe('mode resolution', () => {
   });
 
   it('legacy overwrite=true behaves as upsert', async () => {
-    onQuery(/SELECT id, name_de, name_en, ref, archived_at FROM exercises/, () => ({
+    onQuery(/SELECT id, name_de, name_en, name_es, ref, archived_at FROM exercises/, () => ({
       rows: [{ id: 'existing-1', name_de: 'Bankdrücken', name_en: '', ref: 1, archived_at: null }],
     }));
     let updated = false;
@@ -87,7 +90,7 @@ describe('mode resolution', () => {
       return { rows: [] };
     });
 
-    const res = await importRequest({ csvBody: csv(['Bankdrücken;;;;;;;;']), overwrite: true });
+    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;;;;']), overwrite: true });
 
     expect(res.body).toMatchObject({ mode: 'upsert', updated: 1, skipped: 0 });
     expect(updated).toBe(true);
@@ -103,7 +106,7 @@ describe('mode resolution', () => {
 
 describe('dryRun — writes nothing', () => {
   it('reports counts without ever starting a transaction', async () => {
-    onQuery(/SELECT id, name_de, name_en, ref, archived_at FROM exercises/, () => ({
+    onQuery(/SELECT id, name_de, name_en, name_es, ref, archived_at FROM exercises/, () => ({
       rows: [
         { id: 'e1', name_de: 'Bankdrücken', name_en: '', ref: 1, archived_at: null },
         { id: 'e2', name_de: 'Kniebeuge', name_en: '', ref: 2, archived_at: null },
@@ -111,7 +114,7 @@ describe('dryRun — writes nothing', () => {
     }));
 
     const res = await importRequest({
-      csvBody: csv(['Bankdrücken;;;;;;;;', 'Klimmzug;;;;;;;;']),
+      csvBody: csv([';;;Bankdrücken;;;;;;;;', ';;;Klimmzug;;;;;;;;']),
       mode: 'upsert',
       dryRun: true,
     });
@@ -125,7 +128,7 @@ describe('dryRun — writes nothing', () => {
   });
 
   it('mode=replace preview reports the archive warning with per-user counts', async () => {
-    onQuery(/SELECT id, name_de, name_en, ref, archived_at FROM exercises/, () => ({
+    onQuery(/SELECT id, name_de, name_en, name_es, ref, archived_at FROM exercises/, () => ({
       rows: [
         { id: 'kept', name_de: 'Bankdrücken', name_en: '', ref: 1, archived_at: null },
         { id: 'orphan-1', name_de: 'Alte Übung 1', name_en: '', ref: 10, archived_at: null },
@@ -142,7 +145,7 @@ describe('dryRun — writes nothing', () => {
     }));
     onQuery(/COUNT\(DISTINCT w\.id\)::int/, () => ({ rows: [{ workouts: 2, users: 1 }] }));
 
-    const res = await importRequest({ csvBody: csv(['Bankdrücken;;;;;;;;']), mode: 'replace', dryRun: true });
+    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;;;;']), mode: 'replace', dryRun: true });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -160,7 +163,7 @@ describe('dryRun — writes nothing', () => {
 
 describe('mode=replace — archives what the CSV no longer mentions', () => {
   it('archives unmatched existing exercises after a successful import', async () => {
-    onQuery(/SELECT id, name_de, name_en, ref, archived_at FROM exercises/, () => ({
+    onQuery(/SELECT id, name_de, name_en, name_es, ref, archived_at FROM exercises/, () => ({
       rows: [
         { id: 'kept', name_de: 'Bankdrücken', name_en: '', ref: 1, archived_at: null },
         { id: 'orphan', name_de: 'Verwaist', name_en: '', ref: 9, archived_at: null },
@@ -174,7 +177,7 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
     });
     onQuery(/FROM unnest\(\$1::text\[\]\) AS eid/, () => ({ rows: [{ workouts: 0, users: 0 }] }));
 
-    const res = await importRequest({ csvBody: csv(['Bankdrücken;;;;;;;;']), mode: 'replace' });
+    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;;;;']), mode: 'replace' });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ mode: 'replace', updated: 1, archived: 1 });
@@ -182,7 +185,7 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
   });
 
   it('never archives a row the CSV matched, even if its own update failed', async () => {
-    onQuery(/SELECT id, name_de, name_en, ref, archived_at FROM exercises/, () => ({
+    onQuery(/SELECT id, name_de, name_en, name_es, ref, archived_at FROM exercises/, () => ({
       rows: [{ id: 'matched-but-broken', name_de: 'Bankdrücken', name_en: '', ref: 1, archived_at: null }],
     }));
     onQuery(/SET ref = \$1, name = \$2/, () => {
@@ -194,7 +197,7 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
       return { rowCount: 1 };
     });
 
-    const res = await importRequest({ csvBody: csv(['Bankdrücken;;;;;;;;']), mode: 'replace' });
+    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;;;;']), mode: 'replace' });
 
     expect(res.status).toBe(201);
     expect(res.body.errors.length).toBeGreaterThan(0);
@@ -202,7 +205,7 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
   });
 
   it('does not re-archive rows that are already archived', async () => {
-    onQuery(/SELECT id, name_de, name_en, ref, archived_at FROM exercises/, () => ({
+    onQuery(/SELECT id, name_de, name_en, name_es, ref, archived_at FROM exercises/, () => ({
       rows: [{ id: 'already-gone', name_de: 'Alt', name_en: '', ref: 5, archived_at: 123 }],
     }));
     let archiveCalled = false;
@@ -211,14 +214,14 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
       return { rowCount: 1 };
     });
 
-    const res = await importRequest({ csvBody: csv(['Neu;;;;;;;;']), mode: 'replace' });
+    const res = await importRequest({ csvBody: csv([';;;Neu;;;;;;;;']), mode: 'replace' });
 
     expect(res.body.archived).toBe(0);
     expect(archiveCalled).toBe(false);
   });
 
   it('merge and upsert modes never archive anything', async () => {
-    onQuery(/SELECT id, name_de, name_en, ref, archived_at FROM exercises/, () => ({
+    onQuery(/SELECT id, name_de, name_en, name_es, ref, archived_at FROM exercises/, () => ({
       rows: [{ id: 'untouched', name_de: 'Unerwähnt', name_en: '', ref: 3, archived_at: null }],
     }));
     let archiveCalled = false;
@@ -227,13 +230,13 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
       return { rowCount: 1 };
     });
 
-    await importRequest({ csvBody: csv(['Neu;;;;;;;;']), mode: 'upsert' });
+    await importRequest({ csvBody: csv([';;;Neu;;;;;;;;']), mode: 'upsert' });
 
     expect(archiveCalled).toBe(false);
   });
 
   it('un-archives a matched row instead of leaving it archived after update', async () => {
-    onQuery(/SELECT id, name_de, name_en, ref, archived_at FROM exercises/, () => ({
+    onQuery(/SELECT id, name_de, name_en, name_es, ref, archived_at FROM exercises/, () => ({
       rows: [{ id: 'coming-back', name_de: 'Rückkehrer', name_en: '', ref: 7, archived_at: 999 }],
     }));
     let sql = null;
@@ -242,7 +245,7 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
       return { rows: [] };
     });
 
-    await importRequest({ csvBody: csv(['Rückkehrer;;;;;;;;']), mode: 'replace' });
+    await importRequest({ csvBody: csv([';;;Rückkehrer;;;;;;;;']), mode: 'replace' });
 
     expect(sql).toMatch(/archived_at = NULL/);
   });
@@ -250,18 +253,21 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
 
 describe('GET /api/exercises/export.csv', () => {
   it('exports with ref filled, before the /:id route can intercept it', async () => {
-    onQuery(/SELECT name_de, name_en, instructions_de, instructions_en, tips_de, tips_en, category, difficulty, ref\s+FROM exercises/, () => ({
+    onQuery(/SELECT ref, category, difficulty,[\s\S]*?FROM exercises/, () => ({
       rows: [
         {
-          name_de: 'Bankdrücken',
-          name_en: 'Bench Press',
-          instructions_de: '',
-          instructions_en: '',
-          tips_de: '',
-          tips_en: '',
+          ref: 1,
           category: 'chest',
           difficulty: 'intermediate',
-          ref: 1,
+          name_de: 'Bankdrücken',
+          purpose_de: '',
+          instructions_de: '',
+          name_en: 'Bench Press',
+          purpose_en: '',
+          instructions_en: '',
+          name_es: '',
+          purpose_es: '',
+          instructions_es: '',
         },
       ],
     }));
@@ -270,7 +276,7 @@ describe('GET /api/exercises/export.csv', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/text\/csv/);
-    expect(res.text).toContain('name_de;name_en');
+    expect(res.text).toContain('ref;category;difficulty');
     expect(res.text).toContain('"Bankdrücken"');
     expect(res.text).toContain('"1"');
   });

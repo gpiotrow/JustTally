@@ -31,11 +31,12 @@ const bulkUpload = multer({
 
 const VALID_DIFFICULTY = ['beginner', 'intermediate', 'advanced'];
 
-/** German-preferred resolution of a bilingual field, with fallback to the other. */
-function resolve(de, en) {
+/** Preferred resolution across three languages: de -> en -> es. */
+function resolve(de, en, es) {
   const d = (de || '').trim();
   const e = (en || '').trim();
-  return d || e;
+  const s = (es || '').trim();
+  return d || e || s;
 }
 
 /**
@@ -63,13 +64,16 @@ function serializeExercise(exercise, media) {
     // Resolved (German-preferred) values for back-compat and sorting.
     name: exercise.name,
     instructions: exercise.instructions,
-    // Bilingual source-of-truth fields.
+    // Trilingual source-of-truth fields.
     nameDe: exercise.name_de ?? '',
     nameEn: exercise.name_en ?? '',
+    nameEs: exercise.name_es ?? '',
+    purposeDe: exercise.purpose_de ?? '',
+    purposeEn: exercise.purpose_en ?? '',
+    purposeEs: exercise.purpose_es ?? '',
     instructionsDe: exercise.instructions_de ?? '',
     instructionsEn: exercise.instructions_en ?? '',
-    tipsDe: exercise.tips_de ?? '',
-    tipsEn: exercise.tips_en ?? '',
+    instructionsEs: exercise.instructions_es ?? '',
     category: exercise.category,
     difficulty: exercise.difficulty,
     createdAt: exercise.created_at,
@@ -261,7 +265,10 @@ router.get('/', requireAuth, async (req, res) => {
  */
 router.get('/export.csv', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await db.query(
-    `SELECT name_de, name_en, instructions_de, instructions_en, tips_de, tips_en, category, difficulty, ref
+    `SELECT ref, category, difficulty,
+            name_de, purpose_de, instructions_de,
+            name_en, purpose_en, instructions_en,
+            name_es, purpose_es, instructions_es
        FROM exercises ORDER BY ref`
   );
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -282,10 +289,22 @@ router.get('/:id', requireAuth, async (req, res) => {
  * POST /api/exercises — create (admin only).
  */
 router.post('/', requireAuth, requireAdmin, async (req, res) => {
-  const { nameDe, nameEn, instructionsDe, instructionsEn, tipsDe, tipsEn, category, difficulty, ref } =
-    req.body || {};
-  if (!resolve(nameDe, nameEn)) {
-    return res.status(400).json({ error: 'At least one of nameDe / nameEn is required' });
+  const {
+    nameDe,
+    nameEn,
+    nameEs,
+    purposeDe,
+    purposeEn,
+    purposeEs,
+    instructionsDe,
+    instructionsEn,
+    instructionsEs,
+    category,
+    difficulty,
+    ref,
+  } = req.body || {};
+  if (!resolve(nameDe, nameEn, nameEs)) {
+    return res.status(400).json({ error: 'At least one of nameDe / nameEn / nameEs is required' });
   }
   if (difficulty && !VALID_DIFFICULTY.includes(difficulty)) {
     return res.status(400).json({ error: 'Invalid difficulty' });
@@ -298,24 +317,28 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   try {
     ({ rows } = await db.query(
       `INSERT INTO exercises
-         (id, ref, name, name_de, name_en, category, difficulty,
-          instructions, instructions_de, instructions_en, tips_de, tips_en,
+         (id, ref, name, name_de, name_en, name_es, category, difficulty,
+          instructions, instructions_de, instructions_en, instructions_es,
+          purpose_de, purpose_en, purpose_es,
           created_by, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
        RETURNING *`,
       [
         id,
         refNumber,
-        resolve(nameDe, nameEn),
+        resolve(nameDe, nameEn, nameEs),
         (nameDe || '').trim(),
         (nameEn || '').trim(),
+        (nameEs || '').trim(),
         category || 'other',
         difficulty || 'beginner',
-        resolve(instructionsDe, instructionsEn),
+        resolve(instructionsDe, instructionsEn, instructionsEs),
         (instructionsDe || '').trim(),
         (instructionsEn || '').trim(),
-        (tipsDe || '').trim(),
-        (tipsEn || '').trim(),
+        (instructionsEs || '').trim(),
+        (purposeDe || '').trim(),
+        (purposeEn || '').trim(),
+        (purposeEs || '').trim(),
         req.user.sub,
         now,
         now,
@@ -374,7 +397,7 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
   // Archived rows are included in matching: a CSV row bringing one back should
   // reclaim its own ref/id, not collide with it as if it were a new exercise.
   const { rows: existingRows } = await db.query(
-    'SELECT id, name_de, name_en, ref, archived_at FROM exercises'
+    'SELECT id, name_de, name_en, name_es, ref, archived_at FROM exercises'
   );
   const byId = new Map(existingRows.map((r) => [r.id, r]));
   const byRef = new Map();
@@ -383,13 +406,15 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
     if (r.ref != null) byRef.set(r.ref, r);
     if (r.name_de) byName.set(r.name_de.trim().toLowerCase(), r);
     if (r.name_en) byName.set(r.name_en.trim().toLowerCase(), r);
+    if (r.name_es) byName.set(r.name_es.trim().toLowerCase(), r);
   }
 
-  /** Find the existing exercise a CSV row refers to: by ref first, else by either name. */
+  /** Find the existing exercise a CSV row refers to: by ref first, else by any name. */
   function findExistingMatch(row) {
     if (row.ref != null && byRef.has(row.ref)) return byRef.get(row.ref);
     if (row.nameDe && byName.has(row.nameDe.toLowerCase())) return byName.get(row.nameDe.toLowerCase());
     if (row.nameEn && byName.has(row.nameEn.toLowerCase())) return byName.get(row.nameEn.toLowerCase());
+    if (row.nameEs && byName.has(row.nameEs.toLowerCase())) return byName.get(row.nameEs.toLowerCase());
     return null;
   }
 
@@ -412,7 +437,7 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
       continue;
     }
 
-    const keys = [row.nameDe, row.nameEn].filter(Boolean).map((n) => n.toLowerCase());
+    const keys = [row.nameDe, row.nameEn, row.nameEs].filter(Boolean).map((n) => n.toLowerCase());
     if (keys.some((k) => reservedNames.has(k))) {
       skipped += 1; // duplicate within this file
       continue;
@@ -470,28 +495,32 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
       let refNumber;
       try {
         const id = nanoid();
-        const name = row.nameDe || row.nameEn;
-        const instructions = row.instructionsDe || row.instructionsEn;
+        const name = row.nameDe || row.nameEn || row.nameEs;
+        const instructions = row.instructionsDe || row.instructionsEn || row.instructionsEs;
         refNumber = await resolveRef(client, row.ref);
         await client.query(
           `INSERT INTO exercises
-             (id, ref, name, name_de, name_en, category, difficulty,
-              instructions, instructions_de, instructions_en, tips_de, tips_en,
+             (id, ref, name, name_de, name_en, name_es, category, difficulty,
+              instructions, instructions_de, instructions_en, instructions_es,
+              purpose_de, purpose_en, purpose_es,
               created_by, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
           [
             id,
             refNumber,
             name,
             row.nameDe,
             row.nameEn,
+            row.nameEs,
             row.category,
             row.difficulty,
             instructions,
             row.instructionsDe,
             row.instructionsEn,
-            row.tipsDe,
-            row.tipsEn,
+            row.instructionsEs,
+            row.purposeDe,
+            row.purposeEn,
+            row.purposeEs,
             req.user.sub,
             now,
             now,
@@ -516,8 +545,8 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
       await client.query('SAVEPOINT row_update');
       let refNumber;
       try {
-        const name = row.nameDe || row.nameEn;
-        const instructions = row.instructionsDe || row.instructionsEn;
+        const name = row.nameDe || row.nameEn || row.nameEs;
+        const instructions = row.instructionsDe || row.instructionsEn || row.instructionsEs;
         refNumber =
           row.ref != null ? await resolveRef(client, row.ref, existingId) : byId.get(existingId).ref;
         // archived_at is cleared: a row present in the imported catalog is part
@@ -525,22 +554,26 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
         // archived exercise and leave it invisible, with nothing to explain why.
         await client.query(
           `UPDATE exercises
-             SET ref = $1, name = $2, name_de = $3, name_en = $4, category = $5, difficulty = $6,
-                 instructions = $7, instructions_de = $8, instructions_en = $9,
-                 tips_de = $10, tips_en = $11, updated_at = $12, archived_at = NULL
-           WHERE id = $13`,
+             SET ref = $1, name = $2, name_de = $3, name_en = $4, name_es = $5, category = $6, difficulty = $7,
+                 instructions = $8, instructions_de = $9, instructions_en = $10, instructions_es = $11,
+                 purpose_de = $12, purpose_en = $13, purpose_es = $14,
+                 updated_at = $15, archived_at = NULL
+           WHERE id = $16`,
           [
             refNumber,
             name,
             row.nameDe,
             row.nameEn,
+            row.nameEs,
             row.category,
             row.difficulty,
             instructions,
             row.instructionsDe,
             row.instructionsEn,
-            row.tipsDe,
-            row.tipsEn,
+            row.instructionsEs,
+            row.purposeDe,
+            row.purposeEn,
+            row.purposeEs,
             now,
             existingId,
           ]
@@ -607,20 +640,35 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   const existing = existingRows[0];
   if (!existing) return res.status(404).json({ error: 'Exercise not found' });
 
-  const { nameDe, nameEn, instructionsDe, instructionsEn, tipsDe, tipsEn, category, difficulty, ref } =
-    req.body || {};
+  const {
+    nameDe,
+    nameEn,
+    nameEs,
+    purposeDe,
+    purposeEn,
+    purposeEs,
+    instructionsDe,
+    instructionsEn,
+    instructionsEs,
+    category,
+    difficulty,
+    ref,
+  } = req.body || {};
   if (difficulty && !VALID_DIFFICULTY.includes(difficulty)) {
     return res.status(400).json({ error: 'Invalid difficulty' });
   }
 
   const nextNameDe = (nameDe ?? existing.name_de ?? '').trim();
   const nextNameEn = (nameEn ?? existing.name_en ?? '').trim();
+  const nextNameEs = (nameEs ?? existing.name_es ?? '').trim();
   const nextInstrDe = (instructionsDe ?? existing.instructions_de ?? '').trim();
   const nextInstrEn = (instructionsEn ?? existing.instructions_en ?? '').trim();
-  const nextTipsDe = (tipsDe ?? existing.tips_de ?? '').trim();
-  const nextTipsEn = (tipsEn ?? existing.tips_en ?? '').trim();
-  if (!resolve(nextNameDe, nextNameEn)) {
-    return res.status(400).json({ error: 'At least one of nameDe / nameEn is required' });
+  const nextInstrEs = (instructionsEs ?? existing.instructions_es ?? '').trim();
+  const nextPurposeDe = (purposeDe ?? existing.purpose_de ?? '').trim();
+  const nextPurposeEn = (purposeEn ?? existing.purpose_en ?? '').trim();
+  const nextPurposeEs = (purposeEs ?? existing.purpose_es ?? '').trim();
+  if (!resolve(nextNameDe, nextNameEn, nextNameEs)) {
+    return res.status(400).json({ error: 'At least one of nameDe / nameEn / nameEs is required' });
   }
 
   // Keep the current number unless a new one is explicitly provided.
@@ -630,23 +678,26 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     ({ rows } = await db.query(
       `UPDATE exercises
-         SET ref = $1, name = $2, name_de = $3, name_en = $4, category = $5, difficulty = $6,
-             instructions = $7, instructions_de = $8, instructions_en = $9,
-             tips_de = $10, tips_en = $11, updated_at = $12
-       WHERE id = $13
+         SET ref = $1, name = $2, name_de = $3, name_en = $4, name_es = $5, category = $6, difficulty = $7,
+             instructions = $8, instructions_de = $9, instructions_en = $10, instructions_es = $11,
+             purpose_de = $12, purpose_en = $13, purpose_es = $14, updated_at = $15
+       WHERE id = $16
        RETURNING *`,
       [
         nextRef,
-        resolve(nextNameDe, nextNameEn),
+        resolve(nextNameDe, nextNameEn, nextNameEs),
         nextNameDe,
         nextNameEn,
+        nextNameEs,
         category ?? existing.category,
         difficulty ?? existing.difficulty,
-        resolve(nextInstrDe, nextInstrEn),
+        resolve(nextInstrDe, nextInstrEn, nextInstrEs),
         nextInstrDe,
         nextInstrEn,
-        nextTipsDe,
-        nextTipsEn,
+        nextInstrEs,
+        nextPurposeDe,
+        nextPurposeEn,
+        nextPurposeEs,
         Date.now(),
         req.params.id,
       ]

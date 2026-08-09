@@ -1,19 +1,21 @@
 import { parse } from 'csv-parse/sync';
+import { CSV_EXPORT_COLUMNS } from './csvExport.js';
 
 const VALID_DIFFICULTY = ['beginner', 'intermediate', 'advanced'];
 const MAX_ROWS = 1000;
 
-/** German-preferred resolution of a bilingual field, with fallback to the other. */
-function resolve(de, en) {
-  return (de || '').trim() || (en || '').trim();
+/** Preferred resolution across three languages: de -> en -> es. */
+function resolve(de, en, es) {
+  return (de || '').trim() || (en || '').trim() || (es || '').trim();
 }
 
 /**
  * Parse and validate a CSV buffer of exercises.
  *
  * Uses `;` as the column delimiter (Excel default in German locales).
- * Expected header columns:
- *   name_de, name_en, instructions_de, instructions_en, tips_de, tips_en, category, difficulty, ref
+ * Expected header columns (see {@link CSV_EXPORT_COLUMNS}):
+ *   ref, category, difficulty, name_de, purpose_de, instructions_de,
+ *   name_en, purpose_en, instructions_en, name_es, purpose_es, instructions_es
  * `ref` is optional; when omitted the exercise gets the next auto number.
  *
  * @param {Buffer} buffer Raw uploaded CSV file content.
@@ -47,8 +49,9 @@ export function parseExercisesCsv(buffer) {
 
     const nameDe = (rec.name_de || '').trim();
     const nameEn = (rec.name_en || '').trim();
-    if (!resolve(nameDe, nameEn)) {
-      errors.push({ row: rowNumber, message: 'Missing name (name_de or name_en required)' });
+    const nameEs = (rec.name_es || '').trim();
+    if (!resolve(nameDe, nameEn, nameEs)) {
+      errors.push({ row: rowNumber, message: 'Missing name (name_de, name_en or name_es required)' });
       return;
     }
 
@@ -77,10 +80,13 @@ export function parseExercisesCsv(buffer) {
       rowNumber,
       nameDe,
       nameEn,
+      nameEs,
+      purposeDe: (rec.purpose_de || '').trim(),
+      purposeEn: (rec.purpose_en || '').trim(),
+      purposeEs: (rec.purpose_es || '').trim(),
       instructionsDe: (rec.instructions_de || '').trim(),
       instructionsEn: (rec.instructions_en || '').trim(),
-      tipsDe: (rec.tips_de || '').trim(),
-      tipsEn: (rec.tips_en || '').trim(),
+      instructionsEs: (rec.instructions_es || '').trim(),
       category: (rec.category || '').trim() || 'other',
       difficulty,
       ref,
@@ -89,3 +95,7 @@ export function parseExercisesCsv(buffer) {
 
   return { rows, errors };
 }
+
+// Re-exported so callers that only need the column list don't have to reach
+// into csvExport.js directly.
+export { CSV_EXPORT_COLUMNS };

@@ -158,6 +158,20 @@ export async function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_workouts_entries
       ON workouts USING GIN (entries jsonb_path_ops);
   `);
+
+  // Spanish as a third content language, plus a "purpose" field distinct from
+  // instructions. tips_de/tips_en are dropped: user feedback was that "tips"
+  // and "execution instructions" are the same thing — instructions_* now
+  // carries what tips_* used to hold.
+  await pool.query(`
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS name_es          TEXT NOT NULL DEFAULT '';
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS instructions_es  TEXT NOT NULL DEFAULT '';
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS purpose_de       TEXT NOT NULL DEFAULT '';
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS purpose_en       TEXT NOT NULL DEFAULT '';
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS purpose_es       TEXT NOT NULL DEFAULT '';
+    ALTER TABLE exercises DROP COLUMN IF EXISTS tips_de;
+    ALTER TABLE exercises DROP COLUMN IF EXISTS tips_en;
+  `);
 }
 
 /**

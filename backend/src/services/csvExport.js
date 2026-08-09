@@ -3,15 +3,18 @@
  * edited and re-imported without remapping headers.
  */
 export const CSV_EXPORT_COLUMNS = [
-  'name_de',
-  'name_en',
-  'instructions_de',
-  'instructions_en',
-  'tips_de',
-  'tips_en',
+  'ref',
   'category',
   'difficulty',
-  'ref',
+  'name_de',
+  'purpose_de',
+  'instructions_de',
+  'name_en',
+  'purpose_en',
+  'instructions_en',
+  'name_es',
+  'purpose_es',
+  'instructions_es',
 ];
 
 /** Quote a field for `;`-delimited CSV, doubling any embedded quotes. */
@@ -24,7 +27,8 @@ function csvField(value) {
  * `ref` filled in — the difference that makes a re-import match every row by
  * number instead of guessing from names.
  *
- * @param {Array<{name_de, name_en, instructions_de, instructions_en, tips_de, tips_en, category, difficulty, ref}>} rows
+ * @param {Array<{ref, category, difficulty, name_de, purpose_de, instructions_de,
+ *   name_en, purpose_en, instructions_en, name_es, purpose_es, instructions_es}>} rows
  *   Raw exercise rows (snake_case, straight from the database).
  */
 export function exercisesToCsv(rows) {
@@ -32,15 +36,18 @@ export function exercisesToCsv(rows) {
   for (const r of rows) {
     lines.push(
       [
-        r.name_de,
-        r.name_en,
-        r.instructions_de,
-        r.instructions_en,
-        r.tips_de,
-        r.tips_en,
+        r.ref,
         r.category,
         r.difficulty,
-        r.ref,
+        r.name_de,
+        r.purpose_de,
+        r.instructions_de,
+        r.name_en,
+        r.purpose_en,
+        r.instructions_en,
+        r.name_es,
+        r.purpose_es,
+        r.instructions_es,
       ]
         .map(csvField)
         .join(';')

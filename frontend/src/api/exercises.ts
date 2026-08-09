@@ -50,15 +50,18 @@ export interface MediaBulkResult {
 }
 
 const CSV_COLUMNS = [
-  'name_de',
-  'name_en',
-  'instructions_de',
-  'instructions_en',
-  'tips_de',
-  'tips_en',
+  'ref',
   'category',
   'difficulty',
-  'ref',
+  'name_de',
+  'purpose_de',
+  'instructions_de',
+  'name_en',
+  'purpose_en',
+  'instructions_en',
+  'name_es',
+  'purpose_es',
+  'instructions_es',
 ];
 
 /** How many workouts (and distinct users) reference an exercise. */
@@ -232,20 +235,23 @@ export async function downloadExerciseCsv(): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
-/** A ready-to-edit CSV template (header + one bilingual example row); `;`-delimited. */
+/** A ready-to-edit CSV template (header + one trilingual example row); `;`-delimited. */
 export function csvTemplate(): string {
   const example = [
-    'Schulterdrücken',
-    'Overhead Press',
-    'Stange über Kopf drücken.',
-    'Press the bar overhead.',
-    'Ellbogen leicht vor der Stange halten.',
-    'Keep elbows slightly in front of the bar.',
-    'shoulders',
-    'intermediate',
     // Left blank on purpose: any existing ref value here risks colliding with a
     // real exercise, since ref is optional and auto-assigned when omitted.
     '',
+    'shoulders',
+    'intermediate',
+    'Schulterdrücken',
+    'Kräftigt die Schultermuskulatur.',
+    'Stange über Kopf drücken. Ellbogen leicht vor der Stange halten.',
+    'Overhead Press',
+    'Builds the shoulder muscles.',
+    'Press the bar overhead. Keep elbows slightly in front of the bar.',
+    'Press de hombros',
+    'Fortalece los músculos del hombro.',
+    'Empuja la barra por encima de la cabeza. Mantén los codos ligeramente delante de la barra.',
   ];
   return `${CSV_COLUMNS.join(';')}\n${example.map((v) => `"${v}"`).join(';')}\n`;
 }
