@@ -75,6 +75,10 @@ export const es: Record<TKey, string> = {
   'detail.addToWorkout': 'Añadir al entrenamiento',
   'detail.archived': 'Archivado',
 
+  // Image lightbox
+  'lightbox.previous': 'Foto anterior',
+  'lightbox.next': 'Foto siguiente',
+
   // Workout
   'workout.title': 'Entrenamiento',
   'workout.emptyTitle': 'Aún no hay ejercicios',

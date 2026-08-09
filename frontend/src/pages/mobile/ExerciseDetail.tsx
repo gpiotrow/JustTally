@@ -7,6 +7,7 @@ import { CategoryBadge, DifficultyBadge, Spinner, EmptyState, ErrorBanner } from
 import { useLanguage } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
 import { FavoriteButton } from '../../components/FavoriteButton';
+import { ImageLightbox } from '../../components/ImageLightbox';
 import type { Exercise } from '../../lib/types';
 
 export function ExerciseDetail() {
@@ -20,6 +21,7 @@ export function ExerciseDetail() {
     error: favoriteError,
   } = useFavorites();
   const { lang, t } = useLanguage();
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fromList = useMemo(() => exercises.find((e) => e.id === id), [exercises, id]);
 
   // Archived exercises are absent from the catalog listing, but history still
@@ -91,16 +93,31 @@ export function ExerciseDetail() {
 
       {images.length > 0 && (
         <div className="-mx-1 flex snap-x gap-3 overflow-x-auto pb-1">
-          {images.map((m) => (
-            <img
+          {images.map((m, i) => (
+            <button
               key={m.id}
-              src={m.url}
-              alt={m.originalName ?? name}
-              loading="lazy"
-              className="h-56 w-auto flex-shrink-0 snap-center rounded-2xl object-cover"
-            />
+              type="button"
+              onClick={() => setLightboxIndex(i)}
+              className="flex-shrink-0 snap-center"
+            >
+              <img
+                src={m.url}
+                alt={m.originalName ?? name}
+                loading="lazy"
+                className="h-56 w-auto cursor-zoom-in rounded-2xl object-cover"
+              />
+            </button>
           ))}
         </div>
+      )}
+
+      {lightboxIndex !== null && (
+        <ImageLightbox
+          images={images.map((m) => ({ url: m.url, alt: m.originalName ?? name }))}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
       )}
 
       {videos.map((m) => (

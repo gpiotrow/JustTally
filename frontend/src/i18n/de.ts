@@ -76,6 +76,10 @@ export const de = {
   'detail.addToWorkout': 'Zum Training hinzufügen',
   'detail.archived': 'Archiviert',
 
+  // Image lightbox
+  'lightbox.previous': 'Vorheriges Foto',
+  'lightbox.next': 'Nächstes Foto',
+
   // Workout
   'workout.title': 'Training',
   'workout.emptyTitle': 'Noch keine Übungen',
