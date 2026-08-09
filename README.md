@@ -2,6 +2,8 @@
 
 Ein lokal lauffähiger Gym-Tracker als **Progressive Web App (PWA)** für iPhone und Android.
 
+**Live:** [justtally.org](https://justtally.org)
+
 - **Mobile App** (jeder Benutzer): Übungen mit Anleitung, Fotos und Videos durchsuchen, offline nutzen, Trainings protokollieren.
 - **Web-Admin** (Admin-Rolle): Übungen anlegen/bearbeiten, Medien hochladen, Benutzer & Rollen verwalten.
 - **Multi-User**: Mehrere Konten, rollenbasierter Zugriff (admin / user), JWT-Authentifizierung.
@@ -15,8 +17,9 @@ Ein lokal lauffähiger Gym-Tracker als **Progressive Web App (PWA)** für iPhone
 | Backend   | Node.js · Express · Postgres (`pg`, z. B. Neon) |
 | Auth      | JWT · bcryptjs |
 | Medien    | `sharp` (Bild-Komprimierung → WebP + Thumbnails) hinter einem Storage-Driver |
-| Hosting   | fly.io (Docker + persistentes Volume) |
+| Hosting   | fly.io (Docker + persistentes Volume) · Domain via Cloudflare |
 | Offline   | Service Worker (Workbox) · IndexedDB (`idb-keyval`) |
+| Tests     | vitest · supertest (Backend) |
 
 ## Voraussetzungen
 
@@ -60,6 +63,13 @@ Der Vite-Dev-Server proxyt `/api` und `/uploads` automatisch ans Backend (Port 4
 > und `http://<PC-IP>:5173` aufrufen. Für PWA-Installation/Offline ist HTTPS bzw.
 > `localhost` nötig — siehe Hinweise in `docs/`.
 
+## Tests
+
+```bash
+cd backend
+npm test              # vitest, mockt die DB — kein Postgres nötig
+```
+
 ## Produktions-Build
 
 ```bash
@@ -102,6 +112,22 @@ ist nicht nötig. Für einen lokalen Build stattdessen `fly deploy --local-only`
 - Nach dem ersten Deploy prüfen, dass Medien einen Deploy überleben: Foto hochladen,
   `fly deploy`, Foto muss noch da sein.
 
+### Eigene Domain (Cloudflare)
+
+```bash
+fly certs add justtally.org
+fly certs add www.justtally.org
+```
+
+Zeigt die nötigen DNS-Werte an (`A`/`AAAA` auf die fly-App). Bei Cloudflare unter
+**DNS → Records** eintragen — Proxy-Status auf **„DNS only"** (graue Wolke), nicht
+die orangene Proxy-Wolke: fly.io terminiert TLS selbst, ein zusätzlicher Cloudflare-
+Proxy kollidiert damit ohne `SSL/TLS`-Modus „Full (strict)".
+
+```bash
+fly certs check justtally.org
+```
+
 ### Medien-Storage
 
 Uploads laufen über einen austauschbaren Driver (`backend/src/services/storage/`):
@@ -119,13 +145,16 @@ Ein `r2`-Driver für Cloudflare R2 ist vorbereitet — siehe
 just-tally/
 ├── backend/          Express-API + Postgres + Medien-Upload
 │   └── src/
-│       ├── routes/   auth · exercises · users · workouts
+│       ├── routes/   auth · exercises · users · workouts (+ *.test.js)
 │       ├── middleware/auth.js (JWT)
-│       ├── services/ mediaService.js (sharp) · storage/ (Driver) · csvImport.js
+│       ├── services/ mediaService.js (sharp) · storage/ (Driver) ·
+│       │             csvImport.js/csvExport.js · exerciseUsage.js
+│       ├── lib/      validation.js · loginLockout.js
+│       ├── scripts/  backfillWorkoutRefs.js · relinkWorkoutEntries.js
 │       └── db/       database.js · seed.js
 └── frontend/         React-PWA (mobile + admin)
     └── src/
-        ├── pages/    auth · mobile · admin
+        ├── pages/    auth · mobile · admin/exercise-manager
         ├── api/      client · exercises · users
         ├── hooks/    useAuth · useExercises · useWorkouts · useOnline
         └── components/
@@ -133,10 +162,21 @@ just-tally/
 
 ## Sicherheit / Produktion
 
-- **`JWT_SECRET` unbedingt setzen und ändern.** Fehlt die Variable, fällt
-  `auth.js` derzeit still auf einen im Repo stehenden Wert zurück — offener Punkt,
-  siehe Phase 2 in [docs/media-and-catalog-plan.md](docs/media-and-catalog-plan.md).
-- **`POST /api/auth/register` ist aktuell offen.** Auf einer öffentlich
-  erreichbaren URL kann sich jeder ein Konto anlegen. Ebenfalls Phase 2.
+- **`JWT_SECRET` ist Pflicht, kein Fallback.** Fehlt die Variable, startet das
+  Backend gar nicht erst (`middleware/auth.js`).
+- **Rolle wird bei jedem Request live aus der DB gelesen**, nicht aus dem Token —
+  eine Rollenänderung oder Deaktivierung wirkt sofort, nicht erst nach Ablauf
+  des 30-Tage-Tokens.
+- **Selbstregistrierung ist standardmäßig aus** (`ALLOW_REGISTRATION=off`).
+  Admins legen Konten über **Admin → Benutzer** an; `open` erlaubt öffentliche
+  Registrierung als `user`.
+- **Login-Rate-Limit:** 20 Versuche / 15 Min pro IP, zusätzlich Sperre eines
+  Kontos für 15 Min nach 5 Fehlversuchen.
+- **Nutzer werden deaktiviert, nicht gelöscht** (`disabled_at`) — Trainingshistorie
+  und `exercises.created_by` bleiben referenzierbar.
+- **Übungen werden archiviert statt gelöscht**, sobald ein Training darauf verweist
+  (`archived_at`) — verhindert, dass ein Löschen fremde Trainingshistorien zerstört.
 - Hinter HTTPS betreiben — auf fly.io erledigt das `force_https` in `fly.toml`.
 - `.env` und `backend/data/`, `backend/uploads/` sind in `.gitignore`.
+
+Details und Hintergrund: [docs/media-and-catalog-plan.md](docs/media-and-catalog-plan.md).
