@@ -229,6 +229,24 @@ export const es: Record<TKey, string> = {
   'users.disable': 'Desactivar',
   'users.enable': 'Activar',
 
+  // Settings — offline photos
+  'settings.title': 'Ajustes',
+  'settings.open': 'Abrir ajustes',
+  'settings.offlineMedia': 'Fotos sin conexión',
+  'settings.offlineMediaHint':
+    'Guarda las fotos de tus favoritos en este dispositivo para tenerlas disponibles sin red. El ajuste solo se aplica aquí, no a tus otros dispositivos.',
+  'settings.offlineMediaToggle': 'Guardar sin conexión las fotos de los favoritos',
+  'settings.stored': '{cached} de {total} fotos guardadas',
+  'settings.downloading': '{done} / {total} descargadas…',
+  'settings.download': 'Descargar las que faltan',
+  'settings.clear': 'Eliminar fotos sin conexión',
+  'settings.storageUsed': 'Almacenamiento usado: {size}',
+  'settings.unsupported': 'Este navegador no puede guardar fotos sin conexión.',
+  'settings.offlineNow': 'Sin conexión — ahora no se pueden descargar fotos.',
+  'settings.noFavorites': 'Aún no hay favoritos con fotos. Marca ejercicios como favoritos y aparecerán aquí.',
+  'settings.unverified':
+    'No se pudieron confirmar {count} foto(s): el servidor de medios no envía cabeceras CORS, así que no hay forma de comprobar que la imagen llegó realmente. Están guardadas y se mostrarán, pero ocupan más espacio del necesario.',
+
   // Difficulty labels
   'difficulty.beginner': 'Principiante',
   'difficulty.intermediate': 'Intermedio',

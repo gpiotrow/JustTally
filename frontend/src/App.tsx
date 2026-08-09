@@ -9,6 +9,7 @@ import { ExerciseList } from './pages/mobile/ExerciseList';
 import { ExerciseDetail } from './pages/mobile/ExerciseDetail';
 import { Workout } from './pages/mobile/Workout';
 import { History } from './pages/mobile/History';
+import { Settings } from './pages/mobile/Settings';
 import { ExerciseManager } from './pages/admin/ExerciseManager';
 import { UserManagement } from './pages/admin/UserManagement';
 
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/workout" element={<Workout />} />
             <Route path="/workout/:id" element={<Workout />} />
             <Route path="/history" element={<History />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
 
           {/* Admin web interface (admin only) */}

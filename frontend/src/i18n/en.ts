@@ -229,6 +229,24 @@ export const en: Record<TKey, string> = {
   'users.disable': 'Disable',
   'users.enable': 'Enable',
 
+  // Settings — offline photos
+  'settings.title': 'Settings',
+  'settings.open': 'Open settings',
+  'settings.offlineMedia': 'Offline photos',
+  'settings.offlineMediaHint':
+    "Stores your favorites' photos on this device so they are available without a network. The setting applies here only, not to your other devices.",
+  'settings.offlineMediaToggle': 'Store favorites’ photos offline',
+  'settings.stored': '{cached} of {total} photos stored',
+  'settings.downloading': '{done} / {total} downloaded…',
+  'settings.download': 'Download missing',
+  'settings.clear': 'Delete offline photos',
+  'settings.storageUsed': 'Storage used: {size}',
+  'settings.unsupported': 'This browser cannot store photos offline.',
+  'settings.offlineNow': 'Offline — no photos can be downloaded right now.',
+  'settings.noFavorites': 'No favorites with photos yet. Mark exercises as favorites and they will appear here.',
+  'settings.unverified':
+    '{count} photo(s) could not be confirmed: the media server sends no CORS headers, so there is no way to check that the image actually arrived. They are stored and will display, but take up more storage than needed.',
+
   // Difficulty labels
   'difficulty.beginner': 'Beginner',
   'difficulty.intermediate': 'Intermediate',

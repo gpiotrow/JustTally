@@ -4,7 +4,7 @@ import { useOnline } from '../hooks/useOnline';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle } from './LanguageToggle';
 import { useT, type TKey } from '../i18n';
-import { DumbbellIcon, ClipboardIcon, TrendingIcon } from './icons';
+import { DumbbellIcon, ClipboardIcon, TrendingIcon, SettingsIcon } from './icons';
 
 const NAV: { to: string; labelKey: TKey; Icon: typeof DumbbellIcon; end: boolean }[] = [
   { to: '/', labelKey: 'nav.exercises', Icon: DumbbellIcon, end: true },
@@ -37,6 +37,14 @@ export function MobileLayout() {
         <div className="flex items-center gap-2">
           <LanguageToggle />
           <ThemeToggle />
+          <button
+            onClick={() => navigate('/settings')}
+            className="btn-ghost p-2"
+            aria-label={t('settings.open')}
+            title={t('settings.open')}
+          >
+            <SettingsIcon width={18} height={18} />
+          </button>
           {isAdmin && (
             <button onClick={() => navigate('/admin')} className="btn-ghost px-3 py-1.5 text-xs">
               {t('common.admin')}

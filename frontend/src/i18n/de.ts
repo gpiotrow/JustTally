@@ -230,6 +230,24 @@ export const de = {
   'users.disable': 'Deaktivieren',
   'users.enable': 'Aktivieren',
 
+  // Settings — offline photos
+  'settings.title': 'Einstellungen',
+  'settings.open': 'Einstellungen öffnen',
+  'settings.offlineMedia': 'Offline-Fotos',
+  'settings.offlineMediaHint':
+    'Speichert die Fotos deiner Favoriten auf diesem Gerät, damit sie ohne Netz verfügbar sind. Die Einstellung gilt nur hier, nicht für deine anderen Geräte.',
+  'settings.offlineMediaToggle': 'Fotos der Favoriten offline speichern',
+  'settings.stored': '{cached} von {total} Fotos gespeichert',
+  'settings.downloading': '{done} / {total} geladen…',
+  'settings.download': 'Fehlende laden',
+  'settings.clear': 'Offline-Fotos löschen',
+  'settings.storageUsed': 'Belegter Speicher: {size}',
+  'settings.unsupported': 'Dieser Browser unterstützt keinen Offline-Speicher für Fotos.',
+  'settings.offlineNow': 'Offline — es lassen sich gerade keine Fotos laden.',
+  'settings.noFavorites': 'Noch keine Favoriten mit Fotos. Markiere Übungen als Favorit, dann erscheinen sie hier.',
+  'settings.unverified':
+    '{count} Foto(s) konnten nicht bestätigt werden: Der Medien-Server sendet keine CORS-Header, daher ist nicht prüfbar, ob wirklich das Bild ankam. Sie sind gespeichert und werden angezeigt, belegen aber mehr Speicher als nötig.',
+
   // Difficulty labels
   'difficulty.beginner': 'Anfänger',
   'difficulty.intermediate': 'Fortgeschritten',
