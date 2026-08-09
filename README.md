@@ -132,12 +132,34 @@ fly certs check justtally.org
 
 Uploads laufen über einen austauschbaren Driver (`backend/src/services/storage/`):
 
-| `MEDIA_DRIVER` | Ablage | Einsatz |
+| `MEDIA_DRIVER` | Ablage | Ausliefern |
 |---|---|---|
-| `local` | Dateisystem unter `UPLOADS_DIR` | lokal (`backend/uploads`) und fly-Volume (`/data/uploads`) |
+| `local` | Dateisystem unter `UPLOADS_DIR` | Express static, eine fly-Machine |
+| `r2` | Cloudflare R2 | CDN, 0 € Egress, beliebig skalierbar |
 
-Ein `r2`-Driver für Cloudflare R2 ist vorbereitet — siehe
-[docs/media-and-catalog-plan.md](docs/media-and-catalog-plan.md).
+**Umstieg auf R2** (sobald der Bucket + Custom Domain stehen):
+
+1. In Cloudflare: R2-Bucket anlegen, Custom Domain (`media.<domain>`) daran binden,
+   API-Token „Object Read & Write" auf diesen Bucket beschränkt erzeugen.
+2. Secrets setzen:
+   ```bash
+   fly secrets set MEDIA_DRIVER=r2 \
+     R2_ACCOUNT_ID="…" R2_ACCESS_KEY_ID="…" R2_SECRET_ACCESS_KEY="…" \
+     R2_BUCKET=justtally-media MEDIA_PUBLIC_BASE_URL="https://media.<domain>"
+   ```
+3. Bestehende lokale Medien migrieren:
+   ```bash
+   fly ssh console -C "node src/scripts/mediaDoctor.js --to-r2"          # Trockenlauf
+   fly ssh console -C "node src/scripts/mediaDoctor.js --to-r2 --apply"  # schreibt tatsächlich
+   ```
+   Migriert Zeile für Zeile: Upload → verifizieren → DB-Zeile umstellen →
+   **erst dann** die lokale Kopie löschen. Bricht eine Zeile ab, bleibt sie
+   unverändert lokal.
+4. `VITE_MEDIA_ORIGIN` beim Frontend-Build setzen (`Dockerfile`-`ARG`), damit
+   der Service Worker die CDN-Origin zusätzlich zu `/uploads` cached.
+
+`mediaDoctor.js --report` findet verwaiste `media`-Zeilen (Datei/Objekt fehlt,
+z. B. Render-Altbestand), `--prune` löscht sie aus der DB.
 
 ## Projektstruktur
 

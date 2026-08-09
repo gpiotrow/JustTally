@@ -1,5 +1,5 @@
 import { mkdirSync } from 'node:fs';
-import { unlink, writeFile } from 'node:fs/promises';
+import { access, readFile, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,6 +40,10 @@ export function createLocalDriver() {
       await writeFile(path, body);
     },
 
+    async get(key) {
+      return readFile(resolvePath(key));
+    },
+
     async remove(key) {
       try {
         await unlink(resolvePath(key));
@@ -51,6 +55,15 @@ export function createLocalDriver() {
 
     publicUrl(key) {
       return `/uploads/${key}`;
+    },
+
+    async exists(key) {
+      try {
+        await access(resolvePath(key));
+        return true;
+      } catch {
+        return false;
+      }
     },
 
     async presignPut() {
