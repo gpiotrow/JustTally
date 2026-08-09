@@ -7,8 +7,32 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api, getToken, setToken } from '../api/client';
+import { ApiError, api, getToken, setToken } from '../api/client';
 import type { User } from '../lib/types';
+
+/**
+ * Last identity the server confirmed. Kept so an offline start can restore the
+ * session instead of dropping the user on the login screen — where, with no
+ * network, they could not get back in.
+ *
+ * Not a trust boundary: it decides which screens render, never what the API
+ * allows. Every request is still authorized server-side against the token.
+ */
+const USER_KEY = 'jt_user';
+
+function readCachedUser(): User | null {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheUser(user: User | null) {
+  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+  else localStorage.removeItem(USER_KEY);
+}
 
 interface AuthContextValue {
   user: User | null;
@@ -37,9 +61,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
+
+    // Start from the last confirmed identity so an offline launch opens the
+    // app; the check below corrects or clears it once the server answers.
+    const cached = readCachedUser();
+    if (cached) setUser(cached);
+
     api<{ user: User }>('/auth/me')
-      .then((res) => setUser(res.user))
-      .catch(() => setToken(null))
+      .then((res) => {
+        setUser(res.user);
+        cacheUser(res.user);
+      })
+      .catch((err) => {
+        // Only the server rejecting the token proves it is invalid. A request
+        // that never arrived says nothing about the token — and discarding it
+        // there would lock the user out of the entire offline app, including
+        // any way back in, until they find a network. Which is precisely when
+        // an offline-first gym app is supposed to be useful.
+        if (err instanceof ApiError && err.status === 401) {
+          setToken(null);
+          cacheUser(null);
+          setUser(null);
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -47,17 +91,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await api<AuthResponse>('/auth/login', { body: { email, password } });
     setToken(res.token);
     setUser(res.user);
+    cacheUser(res.user);
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
     const res = await api<AuthResponse>('/auth/register', { body: { name, email, password } });
     setToken(res.token);
     setUser(res.user);
+    cacheUser(res.user);
   }, []);
 
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
+    cacheUser(null);
   }, []);
 
   const value = useMemo<AuthContextValue>(
