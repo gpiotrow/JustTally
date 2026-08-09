@@ -1,7 +1,7 @@
 import { useLanguage } from '../i18n';
 
 /**
- * Compact DE/EN language switch. Shows both options; the active one is highlighted.
+ * Compact DE/EN/ES language switch. Shows all options; the active one is highlighted.
  */
 export function LanguageToggle() {
   const { lang, setLang, t } = useLanguage();
@@ -12,7 +12,7 @@ export function LanguageToggle() {
       role="group"
       aria-label={t('lang.switch')}
     >
-      {(['de', 'en'] as const).map((l) => (
+      {(['de', 'en', 'es'] as const).map((l) => (
         <button
           key={l}
           type="button"

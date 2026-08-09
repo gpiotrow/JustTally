@@ -9,10 +9,13 @@ interface ExercisesResponse {
 export interface ExerciseInput {
   nameDe: string;
   nameEn: string;
+  nameEs: string;
+  purposeDe: string;
+  purposeEn: string;
+  purposeEs: string;
   instructionsDe: string;
   instructionsEn: string;
-  tipsDe: string;
-  tipsEn: string;
+  instructionsEs: string;
   category: string;
   difficulty: Difficulty;
   /** Optional reference number; leave undefined to auto-assign. */

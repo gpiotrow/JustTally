@@ -23,16 +23,19 @@ export interface Exercise {
   id: string;
   /** Human-visible sequential number used for filename-based media matching. */
   ref: number;
-  /** German-preferred resolved name (server-side fallback). */
+  /** de -> en -> es preferred resolved name (server-side fallback). */
   name: string;
-  /** German-preferred resolved instructions (server-side fallback). */
+  /** de -> en -> es preferred resolved instructions (server-side fallback). */
   instructions: string;
   nameDe: string;
   nameEn: string;
+  nameEs: string;
+  purposeDe: string;
+  purposeEn: string;
+  purposeEs: string;
   instructionsDe: string;
   instructionsEn: string;
-  tipsDe: string;
-  tipsEn: string;
+  instructionsEs: string;
   category: string;
   difficulty: Difficulty;
   createdAt: number;

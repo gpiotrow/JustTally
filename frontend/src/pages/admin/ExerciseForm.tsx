@@ -10,13 +10,15 @@ import {
 import { CATEGORIES, type Difficulty, type Exercise } from '../../lib/types';
 import { ErrorBanner } from '../../components/ui';
 import { VideoIcon } from '../../components/icons';
-import { useT, type TKey } from '../../i18n';
+import { useT, type Lang, type TKey } from '../../i18n';
 
 const DIFFICULTIES: Difficulty[] = ['beginner', 'intermediate', 'advanced'];
+const LANGS: Lang[] = ['de', 'en', 'es'];
+const LANG_KEY: Record<Lang, TKey> = { de: 'form.langDe', en: 'form.langEn', es: 'form.langEs' };
 
 /**
- * Create or edit an exercise (bilingual: German + English), including media upload.
- * For new exercises the media section unlocks after the first save.
+ * Create or edit an exercise (trilingual: German, English, Spanish), including
+ * media upload. For new exercises the media section unlocks after the first save.
  */
 export function ExerciseForm({
   initial,
@@ -27,14 +29,24 @@ export function ExerciseForm({
 }) {
   const t = useT();
   const [current, setCurrent] = useState<Exercise | null>(initial);
-  const [nameDe, setNameDe] = useState(initial?.nameDe ?? '');
-  const [nameEn, setNameEn] = useState(initial?.nameEn ?? '');
+  const [activeLang, setActiveLang] = useState<Lang>('de');
+  const [name, setName] = useState<Record<Lang, string>>({
+    de: initial?.nameDe ?? '',
+    en: initial?.nameEn ?? '',
+    es: initial?.nameEs ?? '',
+  });
+  const [purpose, setPurpose] = useState<Record<Lang, string>>({
+    de: initial?.purposeDe ?? '',
+    en: initial?.purposeEn ?? '',
+    es: initial?.purposeEs ?? '',
+  });
+  const [instructions, setInstructions] = useState<Record<Lang, string>>({
+    de: initial?.instructionsDe ?? '',
+    en: initial?.instructionsEn ?? '',
+    es: initial?.instructionsEs ?? '',
+  });
   const [category, setCategory] = useState(initial?.category ?? 'other');
   const [difficulty, setDifficulty] = useState<Difficulty>(initial?.difficulty ?? 'beginner');
-  const [instructionsDe, setInstructionsDe] = useState(initial?.instructionsDe ?? '');
-  const [instructionsEn, setInstructionsEn] = useState(initial?.instructionsEn ?? '');
-  const [tipsDe, setTipsDe] = useState(initial?.tipsDe ?? '');
-  const [tipsEn, setTipsEn] = useState(initial?.tipsEn ?? '');
   const [ref, setRef] = useState(initial?.ref != null ? String(initial.ref) : '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -43,21 +55,29 @@ export function ExerciseForm({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  /** A tab is flagged when its name — the one required field per language — is empty. */
+  function isTabIncomplete(lang: Lang) {
+    return !name[lang].trim();
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!nameDe.trim() && !nameEn.trim()) {
+    if (!name.de.trim() && !name.en.trim() && !name.es.trim()) {
       setError(t('form.nameRequired'));
       return;
     }
     setSaving(true);
     const input: ExerciseInput = {
-      nameDe: nameDe.trim(),
-      nameEn: nameEn.trim(),
-      instructionsDe,
-      instructionsEn,
-      tipsDe,
-      tipsEn,
+      nameDe: name.de.trim(),
+      nameEn: name.en.trim(),
+      nameEs: name.es.trim(),
+      purposeDe: purpose.de,
+      purposeEn: purpose.en,
+      purposeEs: purpose.es,
+      instructionsDe: instructions.de,
+      instructionsEn: instructions.en,
+      instructionsEs: instructions.es,
       category,
       difficulty,
       ref: ref.trim() ? Number(ref) : undefined,
@@ -153,26 +173,6 @@ export function ExerciseForm({
     <div className="space-y-6">
       <form onSubmit={onSubmit} className="space-y-4">
         {error && <ErrorBanner message={error} />}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="ex-name-de">{t('form.nameDe')}</label>
-            <input
-              id="ex-name-de"
-              className="input"
-              value={nameDe}
-              onChange={(e) => setNameDe(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="label" htmlFor="ex-name-en">{t('form.nameEn')}</label>
-            <input
-              id="ex-name-en"
-              className="input"
-              value={nameEn}
-              onChange={(e) => setNameEn(e.target.value)}
-            />
-          </div>
-        </div>
         <div>
           <label className="label" htmlFor="ex-ref">{t('form.refNumber')}</label>
           <input
@@ -214,46 +214,66 @@ export function ExerciseForm({
             </select>
           </div>
         </div>
-        <div>
-          <label className="label" htmlFor="ex-inst-de">{t('form.instructionsDe')}</label>
-          <textarea
-            id="ex-inst-de"
-            className="input min-h-28 resize-y"
-            value={instructionsDe}
-            onChange={(e) => setInstructionsDe(e.target.value)}
-            placeholder={t('form.instructionsPlaceholder')}
-          />
+
+        <div className="rounded-xl border border-border">
+          <div role="tablist" className="flex border-b border-border">
+            {LANGS.map((l) => (
+              <button
+                key={l}
+                type="button"
+                role="tab"
+                aria-selected={activeLang === l}
+                onClick={() => setActiveLang(l)}
+                className={`flex-1 px-3 py-2 text-sm font-semibold transition first:rounded-tl-xl last:rounded-tr-xl ${
+                  activeLang === l
+                    ? 'bg-surface-2 text-fg'
+                    : 'text-fg-subtle hover:text-fg-muted'
+                }`}
+              >
+                {t(LANG_KEY[l])}
+                {isTabIncomplete(l) && (
+                  <span
+                    className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500 align-middle"
+                    title={t('form.langIncomplete')}
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-4 p-4">
+            <div>
+              <label className="label" htmlFor="ex-name">{t('form.name')}</label>
+              <input
+                id="ex-name"
+                className="input"
+                value={name[activeLang]}
+                onChange={(e) => setName({ ...name, [activeLang]: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="ex-purpose">{t('form.purpose')}</label>
+              <textarea
+                id="ex-purpose"
+                className="input min-h-20 resize-y"
+                value={purpose[activeLang]}
+                onChange={(e) => setPurpose({ ...purpose, [activeLang]: e.target.value })}
+                placeholder={t('form.purposePlaceholder')}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="ex-instructions">{t('form.instructions')}</label>
+              <textarea
+                id="ex-instructions"
+                className="input min-h-28 resize-y"
+                value={instructions[activeLang]}
+                onChange={(e) => setInstructions({ ...instructions, [activeLang]: e.target.value })}
+                placeholder={t('form.instructionsPlaceholder')}
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <label className="label" htmlFor="ex-inst-en">{t('form.instructionsEn')}</label>
-          <textarea
-            id="ex-inst-en"
-            className="input min-h-28 resize-y"
-            value={instructionsEn}
-            onChange={(e) => setInstructionsEn(e.target.value)}
-            placeholder={t('form.instructionsPlaceholder')}
-          />
-        </div>
-        <div>
-          <label className="label" htmlFor="ex-tips-de">{t('form.tipsDe')}</label>
-          <textarea
-            id="ex-tips-de"
-            className="input min-h-24 resize-y"
-            value={tipsDe}
-            onChange={(e) => setTipsDe(e.target.value)}
-            placeholder={t('form.tipsPlaceholder')}
-          />
-        </div>
-        <div>
-          <label className="label" htmlFor="ex-tips-en">{t('form.tipsEn')}</label>
-          <textarea
-            id="ex-tips-en"
-            className="input min-h-24 resize-y"
-            value={tipsEn}
-            onChange={(e) => setTipsEn(e.target.value)}
-            placeholder={t('form.tipsPlaceholder')}
-          />
-        </div>
+
         <button type="submit" className="btn-primary w-full" disabled={saving}>
           {saving ? t('form.saving') : current ? t('form.saveChanges') : t('form.create')}
         </button>

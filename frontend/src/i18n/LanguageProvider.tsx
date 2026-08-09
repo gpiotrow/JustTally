@@ -1,11 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { de, type TKey } from './de';
 import { en } from './en';
+import { es } from './es';
 
-export type Lang = 'de' | 'en';
+export type Lang = 'de' | 'en' | 'es';
+
+const VALID_LANGS: readonly Lang[] = ['de', 'en', 'es'];
 
 const STORAGE_KEY = 'jt_lang';
-const DICTS: Record<Lang, Record<TKey, string>> = { de, en };
+const DICTS: Record<Lang, Record<TKey, string>> = { de, en, es };
 
 type TParams = Record<string, string | number>;
 
@@ -26,7 +29,7 @@ function interpolate(template: string, params?: TParams): string {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === 'en' ? 'en' : 'de'; // default German
+    return VALID_LANGS.includes(stored as Lang) ? (stored as Lang) : 'de'; // default German
   });
 
   // Keep the document language attribute in sync for a11y / browser features.
