@@ -27,6 +27,7 @@ export const de = {
   // Mobile navigation
   'nav.exercises': 'Übungen',
   'nav.workout': 'Training',
+  'nav.routines': 'Pläne',
   'nav.history': 'Verlauf',
   'nav.users': 'Benutzer',
   'layout.mobileView': 'Mobile Ansicht',
@@ -303,6 +304,35 @@ export const de = {
   'settings.noFavorites': 'Noch keine Favoriten mit Fotos. Markiere Übungen als Favorit, dann erscheinen sie hier.',
   'settings.unverified':
     '{count} Foto(s) konnten nicht bestätigt werden: Der Medien-Server sendet keine CORS-Header, daher ist nicht prüfbar, ob wirklich das Bild ankam. Sie sind gespeichert und werden angezeigt, belegen aber mehr Speicher als nötig.',
+
+  // Routines
+  'routines.title': 'Pläne',
+  'routines.new': '+ Neue Routine',
+  'routines.emptyTitle': 'Noch keine Pläne',
+  'routines.emptyHint': 'Lege eine Routine an, um nach Plan zu trainieren.',
+  'routines.noDays': 'Noch keine Tage.',
+  'routines.untitledDay': 'Tag',
+  'routines.exerciseCount': '{count} Übung(en)',
+  'routines.start': 'Training starten',
+  'routines.deleteConfirm': 'Diesen Plan wirklich löschen?',
+  'routines.editTitle': 'Plan bearbeiten',
+  'routines.newTitle': 'Neuer Plan',
+  'routines.name': 'Name',
+  'routines.namePlaceholder': 'z.B. Push/Pull/Legs',
+  'routines.description': 'Beschreibung',
+  'routines.dayNamePlaceholder': 'z.B. Push A',
+  'routines.addDay': '+ Tag hinzufügen',
+  'routines.targetSets': 'Ziel-Sätze',
+  'routines.targetReps': 'Ziel-Wdh.',
+  'routines.alternatives': 'Alternativen',
+  'routines.addAlternative': '+ Alternative',
+  'routines.removeAlternative': 'Alternative {name} entfernen',
+  'routines.alternativesTitle': 'Alternative zu {name}',
+  'routines.backToPlan': 'Zurück zum Plan',
+  'routines.pickOtherExercise': 'Andere Übung wählen',
+  'routines.swapped': '{name} eingesetzt',
+  'routines.swapHint': 'Gilt nur für dieses Training — der Plan bleibt unverändert.',
+  'routines.undoSwap': 'Rückgängig',
 
   // Difficulty labels
   'difficulty.beginner': 'Anfänger',

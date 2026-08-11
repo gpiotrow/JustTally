@@ -26,6 +26,7 @@ export const en: Record<TKey, string> = {
   // Mobile navigation
   'nav.exercises': 'Exercises',
   'nav.workout': 'Workout',
+  'nav.routines': 'Routines',
   'nav.history': 'History',
   'nav.users': 'Users',
   'layout.mobileView': 'Mobile view',
@@ -301,6 +302,35 @@ export const en: Record<TKey, string> = {
   'settings.noFavorites': 'No favorites with photos yet. Mark exercises as favorites and they will appear here.',
   'settings.unverified':
     '{count} photo(s) could not be confirmed: the media server sends no CORS headers, so there is no way to check that the image actually arrived. They are stored and will display, but take up more storage than needed.',
+
+  // Routines
+  'routines.title': 'Routines',
+  'routines.new': '+ New routine',
+  'routines.emptyTitle': 'No routines yet',
+  'routines.emptyHint': 'Create a routine to train from a plan.',
+  'routines.noDays': 'No days yet.',
+  'routines.untitledDay': 'Day',
+  'routines.exerciseCount': '{count} exercise(s)',
+  'routines.start': 'Start workout',
+  'routines.deleteConfirm': 'Delete this routine?',
+  'routines.editTitle': 'Edit routine',
+  'routines.newTitle': 'New routine',
+  'routines.name': 'Name',
+  'routines.namePlaceholder': 'e.g. Push/Pull/Legs',
+  'routines.description': 'Description',
+  'routines.dayNamePlaceholder': 'e.g. Push A',
+  'routines.addDay': '+ Add day',
+  'routines.targetSets': 'Target sets',
+  'routines.targetReps': 'Target reps',
+  'routines.alternatives': 'Alternatives',
+  'routines.addAlternative': '+ Alternative',
+  'routines.removeAlternative': 'Remove alternative {name}',
+  'routines.alternativesTitle': 'Alternative to {name}',
+  'routines.backToPlan': 'Back to plan',
+  'routines.pickOtherExercise': 'Choose another exercise',
+  'routines.swapped': 'Swapped in {name}',
+  'routines.swapHint': 'Only for this workout — the plan stays unchanged.',
+  'routines.undoSwap': 'Undo',
 
   // Difficulty labels
   'difficulty.beginner': 'Beginner',

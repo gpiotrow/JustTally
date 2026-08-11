@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useWorkouts } from '../../hooks/useWorkouts';
 import { useAuth } from '../../hooks/useAuth';
@@ -10,10 +10,18 @@ import { NumberField } from '../../components/NumberField';
 import { SetTypeToggle } from '../../components/SetTypeToggle';
 import { RpePicker } from '../../components/RpePicker';
 import { PlatesIcon, CheckIcon } from '../../components/icons';
-import { setType, type WorkoutEntry, type WorkoutSession, type WorkoutSet, type SetType } from '../../lib/types';
+import {
+  setType,
+  type WorkoutEntry,
+  type WorkoutSession,
+  type WorkoutSet,
+  type SetType,
+  type RoutineAlternative,
+} from '../../lib/types';
 import {
   convertWeightInput,
   formatWeightInput,
+  formatWeightWithUnit,
   parseRepsInput,
   weightInputToKg,
   weightStep,
@@ -27,9 +35,16 @@ import {
   ungroupEntries,
   nextOpenInOrder,
 } from '../../lib/supersets';
+import { shouldSwipe } from '../../lib/swipeGesture';
+import type { RoutineInstantiation } from '../../lib/routineInstantiate';
 import { useLanguage } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
 import { useRpeVisibility } from '../../hooks/useRpeVisibility';
+
+/** Shown once, the first time any exercise is ever swapped on this device. */
+const SWAP_HINT_SEEN_KEY = 'jt_swap_hint_seen';
+/** How long the undo toast after a swap stays up before it stops being an option. */
+const UNDO_TOAST_MS = 6000;
 
 /**
  * Sets under edit hold the raw text of each field rather than a number.
@@ -56,8 +71,23 @@ interface DraftEntry {
   sets: DraftSet[];
   /** Superset membership; entries sharing this render as one card. */
   groupId?: string;
-  /** No UI yet (that comes with routines); carried so editing never drops it. */
+  /** Which routine exercise this entry started from — set once, at instantiation, never by editing. */
   plannedExerciseId?: string;
+  /**
+   * Plan B, Plan C for the swipe/tap swap gesture. Only ever present on an
+   * entry started from a routine; never saved onto `WorkoutEntry` — a swap
+   * changes this session, not the plan's list of alternatives.
+   */
+  alternatives?: RoutineAlternative[];
+  /** The routine exercise before any swap, so "back to the plan" is always one of the offered options. */
+  plannedExercise?: { exerciseId: string; exerciseRef?: number; exerciseName: string };
+  /**
+   * The routine's targets, shown as a hint under the exercise name — not fed
+   * into the number fields as a placeholder, because that slot already shows
+   * what was actually lifted last time, which matters more mid-set. Purely
+   * local to this editing session, never saved.
+   */
+  target?: { reps?: string; weight?: number; rpe?: number; restSeconds?: number };
 }
 
 const blankSet = (): DraftSet => ({ reps: '', weight: '', type: 'working', done: false });
@@ -127,6 +157,26 @@ function toSavedEntries(entries: DraftEntry[], unit: Unit): WorkoutEntry[] {
     .filter((entry) => entry.sets.length > 0);
 }
 
+/** Seed a fresh workout's entries from "Training starten" — blank sets, targets carried as a hint. */
+function instantiationToDraftEntries(instantiation: RoutineInstantiation): DraftEntry[] {
+  return instantiation.entries.map((ex) => ({
+    exerciseId: ex.exerciseId,
+    exerciseRef: ex.exerciseRef,
+    exerciseName: ex.exerciseName,
+    groupId: ex.groupId,
+    plannedExerciseId: ex.plannedExerciseId,
+    alternatives: ex.alternatives,
+    plannedExercise: { exerciseId: ex.exerciseId, exerciseRef: ex.exerciseRef, exerciseName: ex.exerciseName },
+    target: {
+      reps: ex.targetReps,
+      weight: ex.targetWeight,
+      rpe: ex.targetRpe,
+      restSeconds: ex.restSeconds,
+    },
+    sets: Array.from({ length: ex.setCount }, () => blankSet()),
+  }));
+}
+
 /**
  * Container: waits for stored sessions — needed for the edit target as well as
  * for last session's numbers — then mounts the editor keyed by id so the form's
@@ -134,6 +184,7 @@ function toSavedEntries(entries: DraftEntry[], unit: Unit): WorkoutEntry[] {
  */
 export function Workout() {
   const { id } = useParams();
+  const location = useLocation();
   const { sessions, loaded } = useWorkouts();
   const { t } = useLanguage();
 
@@ -141,7 +192,20 @@ export function Workout() {
   const initial = id ? sessions.find((s) => s.id === id) ?? null : null;
   if (id && !initial) return <Navigate to="/history" replace />;
 
-  return <WorkoutEditor key={id ?? 'new'} initial={initial} sessions={sessions} />;
+  // Only for a brand-new session — an existing one is always edited as logged.
+  const instantiation = !id
+    ? ((location.state as { instantiation?: RoutineInstantiation } | null)?.instantiation ?? null)
+    : null;
+
+  // `location.key` is stable across re-renders of the same navigation (e.g. a
+  // background sync updating `sessions`) but changes on every new "Training
+  // starten" tap, even back to the same day — exactly the remount this needs
+  // and nothing more.
+  const key = id ?? (instantiation ? `routine-${location.key}` : 'new');
+
+  return (
+    <WorkoutEditor key={key} initial={initial} sessions={sessions} instantiation={instantiation} />
+  );
 }
 
 /**
@@ -151,9 +215,11 @@ export function Workout() {
 function WorkoutEditor({
   initial,
   sessions,
+  instantiation,
 }: {
   initial: WorkoutSession | null;
   sessions: WorkoutSession[];
+  instantiation: RoutineInstantiation | null;
 }) {
   const { exercises, loading } = useExercises();
   const { addSession, updateSession } = useWorkouts();
@@ -163,14 +229,24 @@ function WorkoutEditor({
   const { lang, t } = useLanguage();
   const [rpeVisible] = useRpeVisibility();
 
-  const [entries, setEntries] = useState<DraftEntry[]>(() =>
-    toDraftEntries(initial?.entries ?? [], unit)
-  );
+  const [entries, setEntries] = useState<DraftEntry[]>(() => {
+    if (initial) return toDraftEntries(initial.entries, unit);
+    if (instantiation) return instantiationToDraftEntries(instantiation);
+    return [];
+  });
   /** Entries checked for the next "group as superset" action. */
   const [selectedForGroup, setSelectedForGroup] = useState<Set<number>>(new Set());
-  const [picking, setPicking] = useState(false);
+  /** `'add'` appends a new entry; an index replaces that entry's exercise instead. */
+  const [picking, setPicking] = useState<'add' | number | false>(false);
+  /** Entry index whose alternatives list is open (tap on the exercise name). */
+  const [alternativesFor, setAlternativesFor] = useState<number | null>(null);
+  const [undo, setUndo] = useState<{
+    ei: number;
+    previous: { exerciseId: string; exerciseRef?: number; exerciseName: string };
+    showHint: boolean;
+  } | null>(null);
   const [plateEntry, setPlateEntry] = useState<number | null>(null);
-  const [title, setTitle] = useState(initial?.title ?? '');
+  const [title, setTitle] = useState(initial?.title ?? instantiation?.title ?? '');
   const [startedAt, setStartedAt] = useState(() =>
     toLocalInputValue(initial?.startedAt ?? initial?.date ?? Date.now())
   );
@@ -178,6 +254,21 @@ function WorkoutEditor({
     initial?.durationMin != null ? String(initial.durationMin) : ''
   );
   const [notes, setNotes] = useState(initial?.notes ?? '');
+  const routineId = initial?.routineId ?? instantiation?.routineId;
+  const weekIndex = initial?.weekIndex ?? instantiation?.weekIndex;
+  const dayId = initial?.dayId ?? instantiation?.dayId;
+
+  // The undo toast is a moment, not a state: it clears itself.
+  useEffect(() => {
+    if (!undo) return;
+    const id = window.setTimeout(() => setUndo(null), UNDO_TOAST_MS);
+    return () => window.clearTimeout(id);
+  }, [undo]);
+
+  /** Drag origin for the swap-to-alternative swipe; a ref because it never needs to trigger a render. */
+  const swipeOrigin = useRef<{ ei: number; x: number; width: number } | null>(null);
+  /** Set when a swipe just swapped the exercise, so the click that follows the pointer-up does not also open the alternatives list. */
+  const suppressNameClick = useRef(false);
 
   /** Reps inputs by `entryIndex:setIndex`, so check-off can jump to the next one. */
   const repsInputs = useRef(new Map<string, HTMLInputElement>());
@@ -269,6 +360,56 @@ function WorkoutEditor({
     setPicking(false);
   }
 
+  /**
+   * Swap which exercise an entry logs against — the routine's own picture of
+   * this slot (`plannedExerciseId`) never changes, only what is being logged
+   * right now. Sets, groupId and targets carry over unchanged: a swap is a
+   * substitution, not a fresh start.
+   */
+  function replaceExercise(
+    ei: number,
+    next: { exerciseId: string; exerciseRef?: number; exerciseName: string }
+  ) {
+    const entry = entries[ei];
+    if (!entry || next.exerciseId === entry.exerciseId) return;
+    const previous = {
+      exerciseId: entry.exerciseId,
+      exerciseRef: entry.exerciseRef,
+      exerciseName: entry.exerciseName,
+    };
+    setEntries((prev) =>
+      prev.map((e, i) => (i !== ei ? e : { ...e, ...next }))
+    );
+    const seenHint = localStorage.getItem(SWAP_HINT_SEEN_KEY) === 'true';
+    if (!seenHint) localStorage.setItem(SWAP_HINT_SEEN_KEY, 'true');
+    setUndo({ ei, previous, showHint: !seenHint });
+  }
+
+  function undoSwap() {
+    if (!undo) return;
+    setEntries((prev) => prev.map((e, i) => (i !== undo.ei ? e : { ...e, ...undo.previous })));
+    setUndo(null);
+  }
+
+  function onSwipeStart(ei: number, e: ReactPointerEvent<HTMLElement>) {
+    const entry = entries[ei];
+    if (!entry.alternatives || entry.alternatives.length === 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    swipeOrigin.current = { ei, x: e.clientX, width: rect.width };
+  }
+
+  function onSwipeEnd(e: ReactPointerEvent<HTMLElement>) {
+    const origin = swipeOrigin.current;
+    swipeOrigin.current = null;
+    if (!origin) return;
+    if (!shouldSwipe(e.clientX - origin.x, origin.width)) return;
+    const alt = entries[origin.ei].alternatives?.[0];
+    if (alt) {
+      replaceExercise(origin.ei, alt);
+      suppressNameClick.current = true;
+    }
+  }
+
   function updateSet(ei: number, si: number, patch: Partial<DraftSet>) {
     setEntries((prev) =>
       prev.map((entry, i) =>
@@ -346,7 +487,11 @@ function WorkoutEditor({
     // Inside a superset, only the group's last exercise starts a rest — the
     // point of pairing them is no rest in between, only after the round.
     // `start` must run inside this tap: arming the audio alarm needs a gesture.
-    if (set.type !== 'drop' && isLastGroupMember(entries, ei)) rest.start();
+    // A routine-set duration for this exercise overrides the global default;
+    // without one, `start()` falls back to it on its own.
+    if (set.type !== 'drop' && isLastGroupMember(entries, ei)) {
+      rest.start(entries[ei].target?.restSeconds);
+    }
 
     const next = nextOpenInOrder(entries, ei, si);
     pendingFocus.current = next ? `${next[0]}:${next[1]}` : null;
@@ -376,6 +521,9 @@ function WorkoutEditor({
       startedAt: parseLocalInputValue(startedAt),
       ...(durationMin !== undefined && !Number.isNaN(durationMin) ? { durationMin } : {}),
       ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+      // A backward-pointing label only: there is no path from here back into
+      // the routine, so nothing this session does can ever edit the template.
+      ...(routineId !== undefined ? { routineId, weekIndex, dayId } : {}),
       entries: savedEntries,
     };
     if (initial) await updateSession(session);
@@ -401,6 +549,56 @@ function WorkoutEditor({
         >
           {t('workout.remove')}
         </button>
+      </div>
+    );
+  }
+
+  /**
+   * Exercise name — shared between a standalone card and a group member.
+   * Only entries started from a routine carry `alternatives`, so the swipe
+   * and tap-to-swap affordances are silent no-ops everywhere else: a plain
+   * `onSwipeStart` bails immediately when there is nothing to swap to.
+   */
+  function renderExerciseName(ei: number, entry: DraftEntry, letter?: string) {
+    const target = entry.target;
+    const targetHint = target
+      ? [
+          target.reps ? `${target.reps} ${t('workout.reps')}` : null,
+          target.weight != null ? formatWeightWithUnit(target.weight, unit) : null,
+          target.rpe != null ? `RPE ${target.rpe}` : null,
+        ]
+          .filter((part): part is string => part !== null)
+          .join(' · ')
+      : '';
+
+    return (
+      <div
+        className="min-w-0 flex-1"
+        onPointerDown={(e) => onSwipeStart(ei, e)}
+        onPointerUp={(e) => onSwipeEnd(e)}
+        onPointerCancel={() => {
+          swipeOrigin.current = null;
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            if (suppressNameClick.current) {
+              suppressNameClick.current = false;
+              return;
+            }
+            if (entry.alternatives && entry.alternatives.length > 0) setAlternativesFor(ei);
+          }}
+          className="flex min-w-0 items-center gap-1.5 text-left font-semibold text-fg"
+        >
+          {letter && (
+            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">
+              {letter}
+            </span>
+          )}
+          <span className="min-w-0 truncate">{entry.exerciseName}</span>
+        </button>
+        {targetHint && <p className="truncate text-xs text-fg-subtle">{targetHint}</p>}
       </div>
     );
   }
@@ -592,7 +790,7 @@ function WorkoutEditor({
               return (
                 <div key={ei} className="card p-4">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <label className="flex min-w-0 items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <input
                         type="checkbox"
                         checked={selectedForGroup.has(ei)}
@@ -600,8 +798,8 @@ function WorkoutEditor({
                         aria-label={t('workout.selectForGroup', { name: entry.exerciseName })}
                         className="h-5 w-5 shrink-0 accent-accent"
                       />
-                      <p className="min-w-0 truncate font-semibold text-fg">{entry.exerciseName}</p>
-                    </label>
+                      {renderExerciseName(ei, entry)}
+                    </div>
                     {renderEntryActions(ei)}
                   </div>
                   {renderSetRows(ei, entry)}
@@ -631,12 +829,7 @@ function WorkoutEditor({
                       className={memberPosition > 0 ? 'border-t border-border pt-4' : ''}
                     >
                       <div className="mb-3 flex items-center justify-between gap-2">
-                        <p className="flex min-w-0 items-center gap-1.5 truncate font-semibold text-fg">
-                          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">
-                            {letters[ei]}
-                          </span>
-                          <span className="min-w-0 truncate">{entry.exerciseName}</span>
-                        </p>
+                        {renderExerciseName(ei, entry, letters[ei])}
                         {renderEntryActions(ei)}
                       </div>
                       {renderSetRows(ei, entry)}
@@ -649,11 +842,11 @@ function WorkoutEditor({
         </div>
       )}
 
-      <button onClick={() => setPicking(true)} className="btn-ghost w-full">
+      <button onClick={() => setPicking('add')} className="btn-ghost w-full">
         {t('workout.addExercise')}
       </button>
 
-      {picking && (
+      {picking !== false && (
         <Modal title={t('workout.pickTitle')} onClose={() => setPicking(false)}>
           <ul className="space-y-2">
             {exercises.map((ex) => {
@@ -661,7 +854,11 @@ function WorkoutEditor({
               return (
                 <li key={ex.id}>
                   <button
-                    onClick={() => addExercise(ex.id, name, ex.ref)}
+                    onClick={() => {
+                      if (picking === 'add') addExercise(ex.id, name, ex.ref);
+                      else replaceExercise(picking, { exerciseId: ex.id, exerciseRef: ex.ref, exerciseName: name });
+                      setPicking(false);
+                    }}
                     className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3 text-left text-fg hover:bg-border"
                   >
                     <span>{name}</span>
@@ -672,6 +869,78 @@ function WorkoutEditor({
             })}
           </ul>
         </Modal>
+      )}
+
+      {alternativesFor !== null && entries[alternativesFor] && (
+        <Modal
+          title={t('routines.alternativesTitle', { name: entries[alternativesFor].exerciseName })}
+          onClose={() => setAlternativesFor(null)}
+        >
+          <ul className="space-y-2">
+            {entries[alternativesFor].plannedExercise &&
+              entries[alternativesFor].plannedExercise!.exerciseId !== entries[alternativesFor].exerciseId && (
+                <li>
+                  <button
+                    onClick={() => {
+                      replaceExercise(alternativesFor, entries[alternativesFor].plannedExercise!);
+                      setAlternativesFor(null);
+                    }}
+                    className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3 text-left text-fg hover:bg-border"
+                  >
+                    <span>{entries[alternativesFor].plannedExercise!.exerciseName}</span>
+                    <span className="chip bg-surface text-fg-subtle">{t('routines.backToPlan')}</span>
+                  </button>
+                </li>
+              )}
+            {(entries[alternativesFor].alternatives ?? [])
+              .filter((alt) => alt.exerciseId !== entries[alternativesFor].exerciseId)
+              .map((alt) => (
+                <li key={alt.exerciseId}>
+                  <button
+                    onClick={() => {
+                      replaceExercise(alternativesFor, alt);
+                      setAlternativesFor(null);
+                    }}
+                    className="flex min-h-14 w-full items-center rounded-xl bg-surface-2 px-4 py-3 text-left text-fg hover:bg-border"
+                  >
+                    {alt.exerciseName}
+                  </button>
+                </li>
+              ))}
+            <li>
+              <button
+                onClick={() => {
+                  setPicking(alternativesFor);
+                  setAlternativesFor(null);
+                }}
+                className="btn-ghost w-full text-sm"
+              >
+                {t('routines.pickOtherExercise')}
+              </button>
+            </li>
+          </ul>
+        </Modal>
+      )}
+
+      {undo && (
+        <div
+          role="status"
+          className="fixed bottom-16 left-1/2 z-30 w-full max-w-md -translate-x-1/2 px-3 pb-2"
+        >
+          <div className="card flex items-center justify-between gap-3 p-3 shadow-lg">
+            <div className="min-w-0">
+              <p className="truncate text-sm text-fg">
+                {t('routines.swapped', { name: entries[undo.ei]?.exerciseName ?? '' })}
+              </p>
+              {undo.showHint && (
+                <p className="mt-0.5 text-xs text-fg-subtle">{t('routines.swapHint')}</p>
+              )}
+            </div>
+            <button onClick={undoSwap} className="btn-ghost shrink-0 px-3 py-1.5 text-sm">
+              {t('routines.undoSwap')}
+            </button>
+          </div>
+        </div>
       )}
 
       {plateEntry !== null && (

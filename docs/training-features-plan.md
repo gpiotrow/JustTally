@@ -11,8 +11,9 @@ sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenr
 | § 3 Testbarkeit | ✅ `6be3f4a` |
 | § 4 Phase 1 — Satz-Ausführung, Pausentimer, Einheiten | ✅ `e37e61e` |
 | § 5 Phase 2 — Sync-Härtung | ✅ `c383095` |
-| § 6 Phase 3 — Komplexe Methoden | ✅ (dieser Commit) |
-| § 7–§ 11 | offen |
+| § 6 Phase 3 — Komplexe Methoden | ✅ `69e274b` |
+| § 7 Phase 4 — Routinen und Alternativen | ✅ (dieser Commit) |
+| § 8–§ 11 | offen |
 
 ---
 
@@ -345,13 +346,13 @@ Der geplante Teil:
   aussieht, ob nichts anliegt oder ein ganzes Training wartet.
 - ✅ Kein Background-Sync-API, wie geplant.
 
-> **Offen geblieben: `createSyncedCollection<T>()`.** Geteilt ist bisher die
-> riskante Hälfte — Merge- und Queue-Arithmetik in `syncMerge.ts`. Der Rest wäre
-> IndexedDB-Schlüssel und React-State-Verdrahtung, und dafür gibt es genau einen
-> Aufrufer. Die Abstraktion entsteht besser mit dem zweiten (§ 7, Routinen), wenn
-> sichtbar ist, was beide wirklich teilen, statt jetzt gegen einen einzigen Fall
-> geraten zu werden. **Damit ist § 7 nicht mehr durch § 5 vorentlastet** — der
-> Punkt wandert dorthin.
+> **`createSyncedCollection<T>()`: nachgezogen in § 7.** Geteilt war hier zunächst
+> nur die riskante Hälfte — Merge- und Queue-Arithmetik in `syncMerge.ts`. Der
+> Rest (IndexedDB-Schlüssel, React-State-Verdrahtung) hatte zu diesem Zeitpunkt
+> genau einen Aufrufer, und die Abstraktion wartete bewusst auf den zweiten. Mit
+> Routinen als zweitem Aufrufer ist sie jetzt in `lib/syncedCollection.ts`
+> gebaut, `useWorkouts.ts` läuft selbst darüber (Regressionstests + Build nach
+> der Umstellung weiterhin grün) — s. § 7.1.
 
 ---
 
@@ -403,7 +404,7 @@ den Viewport selbst zu verkleinern. Ergebnis: Satzzeile 254/254 px (kein
 
 ---
 
-## 7. Phase 4 — Routinen und vordefinierte Alternativen
+## 7. Phase 4 — Routinen und vordefinierte Alternativen — ✅ erledigt
 
 *Erfüllt: P1 „Vordefinierte Übungs-Alternativen"*
 
@@ -412,38 +413,68 @@ zwei Oberflächen einführt.
 
 ### 7.1 Backend
 
-- **Zuerst:** `createSyncedCollection<T>()` aus § 5 nachziehen. Der Punkt wurde
-  dort bewusst zurückgestellt, weil es nur einen Aufrufer gab; hier gibt es zwei,
-  und erst daran wird sichtbar, was Workouts und Routinen wirklich teilen.
-  `lib/syncMerge.ts` liefert die riskante Hälfte bereits fertig und getestet.
-- Tabelle `routines` (id, user_id, name, description, `weeks` jsonb, created_at,
-  updated_at, deleted_at) analog zu `workouts`
-- `POST /api/routines/sync` — dasselbe Protokoll, dieselbe Validierungsstrenge
-- Validierung: Alternativen müssen auf existierende Übungen zeigen; ungültige
-  Einträge abweisen, nicht stillschweigend leeren
+- ✅ `createSyncedCollection<T>()` aus § 5 nachgezogen — `lib/syncedCollection.ts`
+  extrahiert die IndexedDB-/React-Verdrahtung (Dirty-Queue, Tombstones,
+  Cross-Instanz-Benachrichtigung, In-Flight-Dedupe) aus `useWorkouts.ts`, oben
+  auf `lib/syncMerge.ts` (unverändert). `useWorkouts.ts` läuft jetzt selbst
+  darüber — die App-Legacy-Migration (`adoptLegacyCache`) bleibt Workout-eigen
+  und wird als optionaler `prepare`-Hook durchgereicht, statt generalisiert zu
+  werden, weil sie an genau eine historische Schlüsselmenge gebunden ist.
+  `useRoutines.ts` ist der zweite, dünne Aufrufer.
+- ✅ Tabelle `routines` (id, user_id, name, description, `weeks` jsonb,
+  created_at, updated_at, deleted_at) analog zu `workouts`, direkt als jsonb
+  angelegt — anders als `workouts.entries` gibt es hier keine text-Spalte
+  abzulösen.
+- ✅ `POST /api/routines/sync` — dasselbe Protokoll, dieselbe Validierungsstrenge
+  (`backend/src/routes/routines.js`, 16 Testfälle)
+- ✅ Validierung: `exerciseId` von Haupt- und Alternativ-Übungen wird in einem
+  Round-Trip gegen `exercises` geprüft; ein Routine-Upsert mit einer
+  nicht-existenten Referenz wird komplett abgewiesen, nicht teilweise
+  gespeichert
 
 ### 7.2 Mobil
 
-- Neuer Reiter **Pläne**: Liste der Routinen, pro Routine die Wochen/Tage
-- „Training starten" instanziiert Tag → Session (§ 2.3), mit vorbelegten
-  Sätzen, Zielwiederholungen als Platzhalter und den Vorwerten der letzten
-  Sitzung darunter
-- **Wechsel auf Plan B/C**: Wischen nach links auf der Übungskarte tauscht direkt
-  auf die erste Alternative, langes Drücken oder Tippen auf den Namen öffnet die
-  Auswahl aller hinterlegten Alternativen plus „andere Übung wählen".
-  Ein Toast mit „Rückgängig" fängt Fehlwischer ab.
-- Gewischt wird mit Pointer-Events und einer Schwelle von ~25 % der Kartenbreite;
-  keine zusätzliche Bibliothek, und die Aktion bleibt per Tap erreichbar, damit
-  sie nicht nur für Wischkundige existiert.
-- Die Vorlage bleibt unangetastet — sichtbar gemacht durch einen Hinweis „nur für
-  dieses Training" beim ersten Wechsel.
+- ✅ Neuer Reiter **Pläne** (`pages/mobile/Routines.tsx`), Bottom-Nav von drei auf
+  vier Spalten erweitert
+- ✅ „Training starten" instanziiert Tag → Session (§ 2.3) über die reine
+  Funktion `lib/routineInstantiate.ts` (7 Testfälle): vorbelegte, leere Sätze
+  in der Zielanzahl, `plannedExerciseId` gesetzt, Supersatz-`groupId` aus dem
+  Plan übernommen
+- ✅ **Wechsel auf Plan B/C**: Wischen (Pointer-Events, Schwelle 25 % der
+  Kartenbreite über `lib/swipeGesture.ts`, 5 Testfälle) tauscht auf die erste
+  Alternative; Tippen auf den Namen öffnet eine Liste aller Alternativen plus
+  „zurück zum Plan" (sobald abgewichen wurde) plus „andere Übung wählen" für
+  den vollen Katalog. Ein Toast mit „Rückgängig" fängt Fehlwischer ab und zeigt
+  beim allerersten Wechsel auf diesem Gerät zusätzlich den Hinweis „Gilt nur
+  für dieses Training — der Plan bleibt unverändert."
+- ✅ Die Vorlage bleibt strukturell unangetastet: browserverifiziert (Plan
+  angelegt → Training gestartet → auf die Alternative gewischt → gespeichert →
+  `routines`-Eintrag in IndexedDB zeigt weiterhin auf die ursprüngliche Übung,
+  die gespeicherte Session trägt `exerciseId` der Alternative und
+  `plannedExerciseId` der ursprünglich geplanten Übung)
+- ✅ Ziel-Wiederholungen/-Gewicht/-RPE aus dem Plan werden als Hinweiszeile
+  unter dem Übungsnamen angezeigt (s. § 7.4, Abweichung von der Planung)
+- ✅ Eine plangebundene Pausendauer (`restSeconds`) überschreibt den globalen
+  Timer-Default beim Abhaken eines Satzes dieser Übung — genau das in § 4.2
+  offen gelassene „Dauer pro Übung im Plan hinterlegbar (Phase 4)"
 
 ### 7.3 Offline
 
-Routinen werden wie Übungen gecacht und wie Workouts synchronisiert. Ein Plan,
-den man im Studio nicht öffnen kann, ist wertlos.
+✅ Routinen sind über `createSyncedCollection` von Grund auf offline-first —
+derselbe Mechanismus wie Workouts, kein separater Lese-Cache nötig, weil es
+sich (anders als der schreibgeschützte Übungskatalog) um eine synchronisierte
+Kollektion mit eigenem Schreibpfad handelt.
 
-**Aufwand: XL** (5–7 Tage)
+### 7.4 Abweichungen von der Planung
+
+| Geplant | Umgesetzt | Warum |
+|---|---|---|
+| Mobile Oberfläche für beliebig viele Wochen (Periodisierung) | Mobiler Editor erzeugt genau **eine** Woche pro Routine | Wochen duplizieren mit prozentualer Steigerung ist explizit § 8 (Desktop-Planer). Eine volle Wochen-Verwaltung am Telefon vor diesem Baustein zu bauen hieße, dieselbe Mechanik zweimal zu bauen. Das Datenmodell (`weeks: RoutineWeek[]`) trägt mehrere Wochen bereits – der Desktop-Planer muss nichts migrieren, nur die zweite und dritte Woche hinzufügen können. |
+| Zielgewicht/-RPE/-Pausendauer im mobilen Formular editierbar | Nur **Ziel-Sätze** und **Ziel-Wiederholungen** sind im mobilen Editor setzbar; `targetWeight`/`targetRpe`/`restSeconds` sind im Modell und im Backend voll unterstützt (und werden beim Start als Hinweis angezeigt, falls vorhanden), aber ohne Eingabefeld im mobilen Formular | Auf 320 px sind zwei Zahlenfelder plus Text ohnehin das Maximum an vertretbarer Dichte für eine erste Version; die fehlenden Felder sind rein additiv nachrüstbar, sobald der Desktop-Planer (mit mehr Platz) sie ohnehin braucht. |
+| „Zielwiederholungen als Platzhalter" im Zahlenfeld | Ziel als eigene **Hinweiszeile** unter dem Übungsnamen, das Zahlenfeld-Placeholder bleibt der Vorwert aus der letzten Sitzung | Das Placeholder-Feld zeigt bereits „was beim letzten Mal lag" — die Zahl, die während des Satzes am meisten zählt. Das Ziel dort hineinzudrängen hätte eine der beiden Informationen verdeckt; eine zusätzliche Zeile zeigt beides gleichzeitig statt eine durch die andere zu ersetzen. |
+| Alternativen: „Plan C" als eigenständiges UI-Konzept | Modell trägt beliebig viele Alternativen (`alternatives[]`); mobiler Editor kann beliebig viele hinzufügen (wiederholtes „+ Alternative"), aber wischen tauscht immer auf `alternatives[0]` | Die Wisch-Geste kennt per Definition nur eine Richtung; „Plan C" bleibt über „Tippen → Liste aller Alternativen" erreichbar. Deckt sich mit dem Wortlaut „tauscht direkt auf die erste Alternative". |
+
+**Aufwand: XL** (5–7 Tage), wie geplant.
 
 ---
 
@@ -617,7 +648,7 @@ indikativ — es identifiziert die Zahl auf der Scheibe, nicht die Farbe.
 §4  Satz + Timer        L    ✅ ◀─┘  (Modell für alles Weitere)
 §5  Sync-Härtung        M    ✅ ◀── unabhängig
 §6  Komplexe Methoden   M–L  ✅ ◀── braucht §4
-§7  Routinen + Alt.     XL      ◀── braucht §4, §5
+§7  Routinen + Alt.     XL   ✅ ◀── braucht §4, §5
 §8  Desktop-Planer      L–XL    ◀── braucht §7
 §9  Export/Import       M       ◀── braucht §4, §6, §7
 §10 Analytics           L       ◀── braucht §4 (Satz-Typen)
@@ -634,7 +665,7 @@ Sinnvolle Auslieferungsschnitte:
 | Release | Enthält | Nutzen |
 |---|---|---|
 | **A** | §3 ✅, §4 ✅, §5 ✅ | Die App ist im Studio wirklich benutzbar — **fertig** |
-| **B** | §6 ✅, §7 | Trainieren nach Plan, Alternativen bei besetztem Gerät |
+| **B** | §6 ✅, §7 ✅ | Trainieren nach Plan, Alternativen bei besetztem Gerät — **fertig** |
 | **C** | §8, §9 | Planung am Desktop, Daten gehören dem Nutzer |
 | **D** | §10, §11 | Auswertung und Erholungsübersicht |
 

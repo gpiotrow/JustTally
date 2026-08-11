@@ -9,6 +9,7 @@ import { Register } from './pages/auth/Register';
 import { ExerciseList } from './pages/mobile/ExerciseList';
 import { ExerciseDetail } from './pages/mobile/ExerciseDetail';
 import { Workout } from './pages/mobile/Workout';
+import { Routines } from './pages/mobile/Routines';
 import { History } from './pages/mobile/History';
 import { Settings } from './pages/mobile/Settings';
 import { ExerciseManager } from './pages/admin/ExerciseManager';
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/exercise/:id" element={<ExerciseDetail />} />
               <Route path="/workout" element={<Workout />} />
               <Route path="/workout/:id" element={<Workout />} />
+              <Route path="/routines" element={<Routines />} />
               <Route path="/history" element={<History />} />
               <Route path="/settings" element={<Settings />} />
             </Route>

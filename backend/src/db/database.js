@@ -199,6 +199,25 @@ export async function initSchema() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS sex TEXT
       CHECK (sex IS NULL OR sex IN ('male','female'));
   `);
+
+  // Routine templates. `weeks` starts as jsonb directly — unlike workouts.entries
+  // there is no pre-existing text column to migrate away from. Synced with the
+  // same protocol as workouts: last-write-wins on updated_at, deleted_at as the
+  // tombstone.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS routines (
+      id           TEXT PRIMARY KEY,
+      user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name         TEXT NOT NULL,
+      description  TEXT,
+      weeks        JSONB NOT NULL DEFAULT '[]',
+      created_at   BIGINT NOT NULL,
+      updated_at   BIGINT NOT NULL,
+      deleted_at   BIGINT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_routines_user ON routines(user_id);
+  `);
 }
 
 /**

@@ -133,6 +133,61 @@ export interface WorkoutSession {
   /** Last-modified timestamp (epoch ms); refreshed on every save, used for sync conflict resolution. */
   updatedAt: number;
   entries: WorkoutEntry[];
+  /**
+   * Which routine this session was instantiated from, and where in it. Purely
+   * a backward-pointing label — there is no path from here back into the
+   * routine, so nothing this session does can ever edit the template.
+   */
+  routineId?: string;
+  weekIndex?: number;
+  dayId?: string;
+}
+
+/** A named alternative exercise a routine exercise can be swapped for mid-workout. */
+export interface RoutineAlternative {
+  exerciseId: string;
+  exerciseRef?: number;
+  exerciseName: string;
+}
+
+export interface RoutineExercise {
+  exerciseId: string;
+  exerciseRef?: number;
+  exerciseName: string;
+  /** Plan B, Plan C — offered in this order when the primary exercise is taken. */
+  alternatives: RoutineAlternative[];
+  targetSets: number;
+  /** Text, not a number: real plans say "8-12" or "AMRAP", not just "10". */
+  targetReps?: string;
+  /** Always kilograms, like WorkoutSet.weight — converted at the display edge. */
+  targetWeight?: number;
+  targetRpe?: number;
+  restSeconds?: number;
+  /** Superset already baked into the plan; carried onto the instantiated entries. */
+  groupId?: string;
+  notes?: string;
+}
+
+export interface RoutineDay {
+  id: string;
+  name: string;
+  exercises: RoutineExercise[];
+}
+
+export interface RoutineWeek {
+  id: string;
+  /** e.g. "Week 1" or "Deload" — optional, most routines only need position. */
+  name?: string;
+  days: RoutineDay[];
+}
+
+export interface Routine {
+  id: string;
+  name: string;
+  description?: string;
+  /** Periodization: several weeks, each with its own targets. */
+  weeks: RoutineWeek[];
+  updatedAt: number;
 }
 
 export const CATEGORIES = [

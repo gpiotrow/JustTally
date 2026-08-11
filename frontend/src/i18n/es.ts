@@ -26,6 +26,7 @@ export const es: Record<TKey, string> = {
   // Mobile navigation
   'nav.exercises': 'Ejercicios',
   'nav.workout': 'Entrenamiento',
+  'nav.routines': 'Planes',
   'nav.history': 'Historial',
   'nav.users': 'Usuarios',
   'layout.mobileView': 'Vista móvil',
@@ -301,6 +302,35 @@ export const es: Record<TKey, string> = {
   'settings.noFavorites': 'Aún no hay favoritos con fotos. Marca ejercicios como favoritos y aparecerán aquí.',
   'settings.unverified':
     'No se pudieron confirmar {count} foto(s): el servidor de medios no envía cabeceras CORS, así que no hay forma de comprobar que la imagen llegó realmente. Están guardadas y se mostrarán, pero ocupan más espacio del necesario.',
+
+  // Rutinas
+  'routines.title': 'Rutinas',
+  'routines.new': '+ Nueva rutina',
+  'routines.emptyTitle': 'Aún no hay rutinas',
+  'routines.emptyHint': 'Crea una rutina para entrenar según un plan.',
+  'routines.noDays': 'Aún no hay días.',
+  'routines.untitledDay': 'Día',
+  'routines.exerciseCount': '{count} ejercicio(s)',
+  'routines.start': 'Iniciar entrenamiento',
+  'routines.deleteConfirm': '¿Eliminar esta rutina?',
+  'routines.editTitle': 'Editar rutina',
+  'routines.newTitle': 'Nueva rutina',
+  'routines.name': 'Nombre',
+  'routines.namePlaceholder': 'p. ej. Push/Pull/Legs',
+  'routines.description': 'Descripción',
+  'routines.dayNamePlaceholder': 'p. ej. Push A',
+  'routines.addDay': '+ Añadir día',
+  'routines.targetSets': 'Series objetivo',
+  'routines.targetReps': 'Repeticiones objetivo',
+  'routines.alternatives': 'Alternativas',
+  'routines.addAlternative': '+ Alternativa',
+  'routines.removeAlternative': 'Quitar alternativa {name}',
+  'routines.alternativesTitle': 'Alternativa a {name}',
+  'routines.backToPlan': 'Volver al plan',
+  'routines.pickOtherExercise': 'Elegir otro ejercicio',
+  'routines.swapped': 'Sustituido por {name}',
+  'routines.swapHint': 'Solo para este entrenamiento — el plan no cambia.',
+  'routines.undoSwap': 'Deshacer',
 
   // Difficulty labels
   'difficulty.beginner': 'Principiante',
