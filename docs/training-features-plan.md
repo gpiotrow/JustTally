@@ -1,6 +1,6 @@
 # Plan: Vom Übungskatalog zum Trainings-Tracker
 
-Stand: 2026-08-11 · Basis: `e37e61e`
+Stand: 2026-08-11 · Basis: `c383095`
 
 Deckt **Priorität 1 vollständig**, **Priorität 2 ohne Wearables und Health-Integration**
 sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenrechner** ab.
@@ -10,8 +10,9 @@ sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenr
 | Quick-Wins (Auto-Sync, Vorwerte, Touch-Ziele, Plattenrechner) | ✅ `7af82ea` |
 | § 3 Testbarkeit | ✅ `6be3f4a` |
 | § 4 Phase 1 — Satz-Ausführung, Pausentimer, Einheiten | ✅ `e37e61e` |
-| § 5 Phase 2 — Sync-Härtung | ⟵ als Nächstes |
-| § 6–§ 11 | offen |
+| § 5 Phase 2 — Sync-Härtung | ✅ `c383095` |
+| § 6 Phase 3 — Komplexe Methoden | ⟵ als Nächstes |
+| § 7–§ 11 | offen |
 
 ---
 
@@ -311,32 +312,46 @@ mit dem Satz-Typ-Schalter aus § 6 überhaupt erreichbar.
 
 ---
 
-## 5. Phase 2 — Sync-Härtung
+## 5. Phase 2 — Sync-Härtung — ✅ erledigt (`c383095`)
 
 *Erfüllt: P1 „Offline-First" (Rest)*
 
-Nach den Quick-Wins läuft die Synchronisation automatisch. Was noch fehlt, ist
-Sparsamkeit und Sichtbarkeit.
+Geplant war Sparsamkeit und Sichtbarkeit. Beim Lesen des bestehenden `sync()`
+kamen **drei Wege dazu, ein Training zu verlieren** — alle drei nur, wenn während
+eines laufenden Requests weitertrainiert wird, was auf Studio-WLAN der Normalfall
+ist. Sie sind der eigentliche Inhalt dieser Phase geworden.
 
-- **Inkrementeller Push.** Heute geht bei *jedem* Lauf die komplette Sessionliste
-  an den Server (`upserts: sessions`). Mit wachsender Historie wird das zum
-  mehrere hundert Kilobyte großen Request auf Mobilfunk. Stattdessen: Dirty-Set
-  in IndexedDB (`jt_workouts_dirty:<userId>`), Push nur der geänderten IDs, Leeren
-  erst nach bestätigter Antwort.
-- **Zusätzliche Auslöser**: `visibilitychange` (App aus dem Hintergrund geholt)
-  ergänzend zu Mount und `online`.
-- **Sichtbarer Zustand**: kleines Abzeichen „n Änderungen warten" in der Historie
-  statt eines stummen Zeitstempels.
-- Kein Background-Sync-API: es hilft nur bei geschlossener App und verträgt sich
-  schlecht mit einem Protokoll, das Zustand statt Ereignisse überträgt. Der
-  Gegenwert rechtfertigt die Komplexität nicht.
-- **Wiederverwendbarer Sync-Baustein.** Ab Phase 3 kommen Routinen und
-  Körpergewichte dazu. Statt das Protokoll dreimal zu kopieren:
-  `createSyncedCollection<T>()` mit den erprobten Bausteinen (per-User-Keys,
-  Tombstones, Last-Write-Wins, Instanz-übergreifende Benachrichtigung).
+| Fenster | Was passierte | Behoben durch |
+|---|---|---|
+| Sitzungsliste aus dem Closure | `persist(merged)` schrieb den Stand von *vor* dem Request zurück; ein währenddessen gespeichertes Training war aus IndexedDB überschrieben, nicht bloß ungesynct | Jeder Lesevorgang frisch aus dem Speicher, vor dem Senden **und** nach der Antwort |
+| Server-Echo gewann bedingungslos | Der Server schickt jede Zeile zurück, die er für neuer hält — auch die eben gepushte. Eine Bearbeitung dazwischen wurde vom eigenen, älteren Upload überschrieben | Last-Write-Wins auch clientseitig (`mergeSynced`) |
+| Löschwarteschlange pauschal geleert | Eine Löschung während des Requests fiel aus der Queue, ohne gesendet worden zu sein: lokal weg, auf dem Server am Leben, beim nächsten Pull zurück | Beide Warteschlangen per Snapshot leeren (`remainingDirty` / `remainingDeletes`) |
 
-**Aufwand: M** (2 Tage) · Sollte vor Phase 3 liegen, damit die neuen Kollektionen
-den fertigen Baustein nutzen statt Kopien zu erzeugen.
+Die Arithmetik liegt als reine Funktionen in `frontend/src/lib/syncMerge.ts`
+(22 Testfälle). Zusätzlich entfernt ein Remote-Delete keine Sitzung mehr, die noch
+ungepushte lokale Änderungen trägt.
+
+Der geplante Teil:
+
+- ✅ **Inkrementeller Push** über `jt_workouts_dirty:<userId>`. Ein sauberer Stand
+  sendet 56 Bytes statt der kompletten Historie.
+- ✅ **Migration mitgedacht:** ein Gerät, das in diesen Build aktualisiert, hat
+  Sitzungen und *keine* Warteschlange. „Fehlt" als „leer" zu lesen hätte bedeutet,
+  dass offline Protokolliertes nie wieder gepusht wird — `seedDirtyQueue`
+  unterscheidet die beiden Fälle.
+- ✅ **`visibilitychange`** als dritter Auslöser. In der Praxis der wichtigste:
+  Telefone werden öfter entsperrt, als sie eine Offline/Online-Grenze überqueren.
+- ✅ **Abzeichen „n Änderungen warten"** statt eines Zeitstempels, der gleich
+  aussieht, ob nichts anliegt oder ein ganzes Training wartet.
+- ✅ Kein Background-Sync-API, wie geplant.
+
+> **Offen geblieben: `createSyncedCollection<T>()`.** Geteilt ist bisher die
+> riskante Hälfte — Merge- und Queue-Arithmetik in `syncMerge.ts`. Der Rest wäre
+> IndexedDB-Schlüssel und React-State-Verdrahtung, und dafür gibt es genau einen
+> Aufrufer. Die Abstraktion entsteht besser mit dem zweiten (§ 7, Routinen), wenn
+> sichtbar ist, was beide wirklich teilen, statt jetzt gegen einen einzigen Fall
+> geraten zu werden. **Damit ist § 7 nicht mehr durch § 5 vorentlastet** — der
+> Punkt wandert dorthin.
 
 ---
 
@@ -372,6 +387,10 @@ zwei Oberflächen einführt.
 
 ### 7.1 Backend
 
+- **Zuerst:** `createSyncedCollection<T>()` aus § 5 nachziehen. Der Punkt wurde
+  dort bewusst zurückgestellt, weil es nur einen Aufrufer gab; hier gibt es zwei,
+  und erst daran wird sichtbar, was Workouts und Routinen wirklich teilen.
+  `lib/syncMerge.ts` liefert die riskante Hälfte bereits fertig und getestet.
 - Tabelle `routines` (id, user_id, name, description, `weeks` jsonb, created_at,
   updated_at, deleted_at) analog zu `workouts`
 - `POST /api/routines/sync` — dasselbe Protokoll, dieselbe Validierungsstrenge
@@ -571,7 +590,7 @@ indikativ — es identifiziert die Zahl auf der Scheibe, nicht die Farbe.
 ```
 §3  Testbarkeit         S    ✅ ──┐
 §4  Satz + Timer        L    ✅ ◀─┘  (Modell für alles Weitere)
-§5  Sync-Härtung        M       ◀── unabhängig, aber vor §7 (Sync-Baustein)
+§5  Sync-Härtung        M    ✅ ◀── unabhängig
 §6  Komplexe Methoden   M–L     ◀── braucht §4
 §7  Routinen + Alt.     XL      ◀── braucht §4, §5
 §8  Desktop-Planer      L–XL    ◀── braucht §7
@@ -589,7 +608,7 @@ Sinnvolle Auslieferungsschnitte:
 
 | Release | Enthält | Nutzen |
 |---|---|---|
-| **A** | §3 ✅, §4 ✅, §5 | Die App ist im Studio wirklich benutzbar |
+| **A** | §3 ✅, §4 ✅, §5 ✅ | Die App ist im Studio wirklich benutzbar — **fertig** |
 | **B** | §6, §7 | Trainieren nach Plan, Alternativen bei besetztem Gerät |
 | **C** | §8, §9 | Planung am Desktop, Daten gehören dem Nutzer |
 | **D** | §10, §11 | Auswertung und Erholungsübersicht |
