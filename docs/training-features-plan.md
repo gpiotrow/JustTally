@@ -1,9 +1,17 @@
 # Plan: Vom Übungskatalog zum Trainings-Tracker
 
-Stand: 2026-08-11 · Basis: `b73acfd` + die vier Quick-Wins (noch nicht committet)
+Stand: 2026-08-11 · Basis: `e37e61e`
 
 Deckt **Priorität 1 vollständig**, **Priorität 2 ohne Wearables und Health-Integration**
 sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenrechner** ab.
+
+| Abschnitt | Stand |
+|---|---|
+| Quick-Wins (Auto-Sync, Vorwerte, Touch-Ziele, Plattenrechner) | ✅ `7af82ea` |
+| § 3 Testbarkeit | ✅ `6be3f4a` |
+| § 4 Phase 1 — Satz-Ausführung, Pausentimer, Einheiten | ✅ `e37e61e` |
+| § 5 Phase 2 — Sync-Härtung | ⟵ als Nächstes |
+| § 6–§ 11 | offen |
 
 ---
 
@@ -59,6 +67,7 @@ alte Clients brechen nicht.
 users ──┬── workouts        (bestehend, erweitert)   ← protokollierte Sätze
         ├── routines        (neu)                    ← Trainingspläne (Vorlage)
         └── body_weights    (neu)                    ← manuelle Gewichtseinträge
+  └─ unit_preference, sex   (neu, am Konto)          ← Anzeige + relative Kraft
 
 exercises (bestehend, erweitert um Muskelgruppen)
 ```
@@ -70,6 +79,7 @@ type SetType = 'warmup' | 'working' | 'drop';
 
 interface WorkoutSet {
   reps: number;
+  /** IMMER Kilogramm, unabhängig von der Anzeigeeinheit (§ 2.5). */
   weight?: number;
   /** Default beim Lesen: 'working'. Alte Zeilen haben das Feld nicht. */
   type?: SetType;
@@ -177,27 +187,61 @@ calves`.
 > Tabellenprogramm, und Felder im Admin-Formular. Ohne diese Daten bleibt die
 > Heatmap leer — das ist die reale Vorbedingung von § 10, nicht das Rendering.
 
+### 2.5 Einheiten und Profil — umgesetzt in § 4
+
+```sql
+ALTER TABLE users ADD COLUMN IF NOT EXISTS unit_preference TEXT NOT NULL DEFAULT 'kg'
+  CHECK (unit_preference IN ('kg','lb'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS sex TEXT
+  CHECK (sex IS NULL OR sex IN ('male','female'));
+```
+
+**Kilogramm sind kanonisch.** Gespeichert, synchronisiert und exportiert wird
+ausschließlich kg; Pfund existieren nur an der Grenze, an der ein Wert angezeigt
+oder getippt wird (`frontend/src/lib/units.ts`). Eine Präferenz, die sich ändern
+kann, darf niemals umdeuten können, was bereits geschrieben wurde.
+
+Beide Felder hängen am **Konto, nicht am Gerät** — anders als Theme und Sprache,
+die in `localStorage` liegen. Die Einheit beschreibt, wie jemand trainiert, nicht
+wo er gerade sitzt; zwei Geräte desselben Kontos dürfen sich nicht darüber
+uneinig sein, was „60" bedeutet. Geschrieben wird über `PATCH /api/auth/me`,
+lokal gecacht, damit ein Offline-Start die richtige Einheit kennt.
+
+`sex` ist bewusst nullable und optional: es existiert nur, um für Wilks/DOTS
+(§ 10) den Koeffizientensatz zu wählen, und niemand muss es beantworten, um die
+App zu benutzen. Es bleibt aus der Admin-Benutzerliste heraus — ein Admin hat
+keinen Grund, es an fremden Konten zu lesen.
+
 ---
 
-## 3. Vorarbeit: Testbarkeit (Voraussetzung, keine Phase)
+## 3. Vorarbeit: Testbarkeit — ✅ erledigt (`6be3f4a`)
 
-Das Frontend hat heute **keinen Test-Runner**. Ab hier entsteht Logik, die man
-nicht durch Hinsehen prüft: Timer-Arithmetik, 1RM-Formeln, Volumenaggregation,
-Export-Round-Trip, Erholungs-Decay, Plattenmathematik.
+Das Frontend hatte **keinen Test-Runner**. Ab hier entsteht Logik, die man nicht
+durch Hinsehen prüft: Timer-Arithmetik, 1RM-Formeln, Volumenaggregation,
+Export-Round-Trip, Erholungs-Decay, Einheitenumrechnung, Plattenmathematik.
 
-- `vitest` + `@testing-library/react` + `jsdom` im Frontend einrichten
-- `npm test` in `frontend/`, gleiche Konventionen wie im Backend
-- Rückwirkend: Unit-Tests für das bereits gebaute `lib/plates.ts`
+- ✅ `vitest` + `@testing-library/react` + `jsdom` im Frontend, eigene
+  `vitest.config.ts` — damit Testläufe den VitePWA-Service-Worker-Build nicht
+  mitziehen, dieselbe Trennung wie im Backend
+- ✅ `npm test` in `frontend/`
+- ✅ Rückwirkend: Unit-Tests für `lib/plates.ts`
 
-Aufwand: **S** (halber Tag). Blockiert nichts, sollte aber vor Phase 1 stehen.
+Stand nach § 4: **74 Frontend-Tests** (plates, units, restTimer), 169 im Backend.
 
 ---
 
-## 4. Phase 1 — Satz-Ausführung und Pausentimer
+## 4. Phase 1 — Satz-Ausführung, Pausentimer, Einheiten — ✅ erledigt (`e37e61e`)
 
-*Erfüllt: P1 „Gym-UI" (Rest), P1 „Historischer Kontext & Pausentimer" (Rest)*
+*Erfüllt: P1 „Gym-UI" (Rest), P1 „Historischer Kontext & Pausentimer" (Rest),
+sowie die Einheiten-Entscheidung aus § 15.6*
 
 Die Phase mit dem höchsten Alltagswert. Danach ist die App im Studio benutzbar.
+
+Was im Browser nachgewiesen wurde: Fokus springt beim Abhaken auf den nächsten
+offenen Satz (Satz 1 → „Satz 2 — Wdh."), der Timer steht nach einem vollständigen
+Seiten-Reload mitten in der Pause bei 1:06 statt neu bei 1:30 (90 s minus 24 s
+tatsächlich vergangener Zeit), 82,5 kg gespeichert erscheinen als 181.88 lb, und
+der Stepper springt in Pfund um 5 statt um 2,5.
 
 ### 4.1 Abhaken und Auto-Scroll
 
@@ -207,13 +251,22 @@ Die Phase mit dem höchsten Alltagswert. Danach ist die App im Studio benutzbar.
   der Blick soll auf dem nächsten offenen Satz landen.
 - **Auto-Scroll**: beim Abhaken bekommt das erste Feld des nächsten offenen Satzes
   den Fokus, die Zeile wird mit `scrollIntoView({ block: 'center' })` mittig
-  gezogen. Der Fokuswechsel auf ein `input[type=number]` hält die Zifferntastatur
-  offen — gewollt.
+  gezogen. Der Fokuswechsel auf ein Feld mit Ziffern-Tastatur hält diese offen —
+  gewollt.
 - Bei Supersätzen (Phase 3) läuft die Reihenfolge A1 → B1 → A2 → B2.
-- **Stepper `−` / `+`** an beiden Feldern (Wdh. ±1, Gewicht ±2,5 kg, langes
-  Drücken beschleunigt). Tippen auf einer Zifferntastatur ist die schlechteste
-  Eingabeart unter Belastung; die Platzhalter aus der letzten Sitzung plus zwei
-  Stepper-Taps decken den Normalfall ab.
+- **Stepper `−` / `+`** an beiden Feldern (Wdh. ±1, Gewicht ±2,5 kg bzw. ±5 lb,
+  langes Drücken beschleunigt). Tippen auf einer Zifferntastatur ist die
+  schlechteste Eingabeart unter Belastung; die Platzhalter aus der letzten Sitzung
+  plus zwei Stepper-Taps decken den Normalfall ab.
+
+> **Korrektur gegenüber der ersten Fassung dieses Plans.** Hier stand
+> `input[type=number]`. Das ist beim Bauen durchgefallen: ein Number-Input
+> verwirft bei jedem Tastendruck einen abschließenden Dezimaltrenner, `"62,"`
+> kann also nie zu `"62,5"` werden — und das Komma ist der Trenner auf jeder
+> deutschen Ziffern-Tastatur. Die Felder sind jetzt `type="text"` mit
+> `inputMode="decimal"`; der Rohtext bleibt während der Eingabe stehen und wird
+> **einmal** beim Speichern geparst (`DraftSet` in `Workout.tsx`). Damit fallen
+> Dezimaltrenner, Locale-Komma und die kg/lb-Umrechnung in eine Lösung zusammen.
 
 ### 4.2 Pausentimer
 
@@ -243,8 +296,18 @@ Die Phase mit dem höchsten Alltagswert. Danach ist die App im Studio benutzbar.
 - Leseseitig Defaults (`type ?? 'working'`, `done ?? true`), damit alte Sitzungen
   in Statistik und Export korrekt landen
 
-**Aufwand: L** (3–4 Tage) · **Risiko:** gering, bis auf Wake Lock / Audio-Entsperrung
-auf iOS, was auf einem echten Gerät geprüft werden muss.
+### 4.4 Abweichungen von der Planung
+
+| Geplant | Umgesetzt | Warum |
+|---|---|---|
+| `PATCH /api/users/me` | `PATCH /api/auth/me` | `users.js` ist durchgehend Admin-only; `auth.js` hat bereits `GET /me` mit dem passenden Serializer. Eine Selbstbedienungs-Route in einen Admin-Router zu legen, hätte die Reihenfolge gegenüber `/:id`-Routen zu einer stillen Falle gemacht. |
+| `input[type=number]` | `type="text"` + `inputMode="decimal"` | s. Kasten in § 4.1 — Dezimalkomma. |
+| `requestAnimationFrame` für den Fokus-Sprung | `useEffect` nach dem Commit | rAF ist in einem verborgenen Dokument ausgesetzt; der Sprung wäre dort still ausgefallen. Gebraucht wird ohnehin „nachdem React die Zeile gerendert hat", und genau dann läuft ein Effekt. Beim Verifizieren aufgefallen. |
+
+**Aufwand: L** (3–4 Tage) · **Offen geblieben:** Wake Lock und Audio-Entsperrung
+sind nur im Desktop-Browser geprüft — der iOS-Test steht noch aus. Ebenso die
+Drop-Satz-Ausnahme beim Timer: der Pfad ist gebaut (`type !== 'drop'`), aber erst
+mit dem Satz-Typ-Schalter aus § 6 überhaupt erreichbar.
 
 ---
 
@@ -481,27 +544,33 @@ funktioniert offline, keine zusätzliche Latenz.
 
 *Erfüllt: P3 „Integrierter Hantelscheibenrechner"*
 
-Steht bereits (`lib/plates.ts`, `components/PlateCalculator.tsx`): pro Seite
-aufgeschlüsselt, maßstäbliche Scheibendarstellung in Wettkampffarben, Stange
-20/15/10/ohne, Rest-Warnung bei nicht darstellbaren Gewichten, Rechnung in
-Ganzzahl-Centi-Kilo.
+Steht (`lib/plates.ts`, `components/PlateCalculator.tsx`): pro Seite
+aufgeschlüsselt, maßstäbliche Scheibendarstellung, Rest-Warnung bei nicht
+darstellbaren Gewichten, Rechnung in Ganzzahl-Hundertsteln.
 
-Offene Kleinigkeiten, die in andere Phasen einsortiert werden:
+Seit § 4 **einheiten-neutral**: metrisch 25/20/15/10/5/2,5/1,25 kg an Stangen
+20/15/10/ohne, imperial 45/35/25/10/5/2,5 lb an 45/35/15/ohne. Gerechnet wird
+**nativ in der Anzeigeeinheit**, nie durch Umrechnung eines metrischen Ergebnisses
+— das Resultat muss auf Scheiben landen, die am Ständer wirklich hängen, und
+20 kg sind nicht 45 lb. Die Farben sind metrisch die Wettkampfnorm; imperiale
+Bumper-Farben sind zwischen Herstellern uneinheitlich und deshalb nur
+indikativ — es identifiziert die Zahl auf der Scheibe, nicht die Farbe.
 
-| Nachtrag | Phase |
+| Nachtrag | Stand |
 |---|---|
-| Unit-Tests für `computePlates` | § 3 — **erledigt** (11 Fälle, inkl. Rest, Rundung, leerer/negativer Scheibensatz) |
+| Unit-Tests für `computePlates` | ✅ § 3 (15 Fälle, metrisch + imperial, Rest, Rundung, leerer/negativer Scheibensatz) |
+| Zielgewicht aus der Satzzeile übernehmen | ✅ § 4 (letztes gefülltes Gewicht der Übung, sonst der Vorwert) |
+| Pfund-Einheiten (imperialer Scheiben-/Stangensatz) | ✅ § 4, s. § 15.6 |
+| Zurückschreiben des gerechneten Gewichts in die Satzzeile | offen, klein |
 | Eigener Scheibenbestand pro Studio (Anzahl je Größe) | später, optional |
-| Zielgewicht aus der Satzzeile direkt übernehmen und zurückschreiben | § 4 |
-| Pfund-Einheiten (imperialer Scheiben-/Stangensatz) | § 4 — entschieden: kg + lb umschaltbar, siehe § 15.6 |
 
 ---
 
 ## 13. Reihenfolge, Abhängigkeiten, Aufwand
 
 ```
-§3  Testbarkeit         S    ──┐
-§4  Satz + Timer        L    ◀─┘  (Modell für alles Weitere)
+§3  Testbarkeit         S    ✅ ──┐
+§4  Satz + Timer        L    ✅ ◀─┘  (Modell für alles Weitere)
 §5  Sync-Härtung        M       ◀── unabhängig, aber vor §7 (Sync-Baustein)
 §6  Komplexe Methoden   M–L     ◀── braucht §4
 §7  Routinen + Alt.     XL      ◀── braucht §4, §5
@@ -511,16 +580,16 @@ Offene Kleinigkeiten, die in andere Phasen einsortiert werden:
 §11 Heatmap             L       ◀── braucht §10 + Datenpflege
 ```
 
-Grobe Summe: **23–33 Arbeitstage**. Das ist eine Größenordnung für die Planung,
-keine Zusage — die drei Posten mit der größten Streuung sind der Desktop-Planer
-(Drag & Drop über verschachtelte Ebenen), die Wischgeste in Phase 4 und die
-Datenpflege für die Heatmap.
+Grobe Summe: **23–33 Arbeitstage**, davon rund 4 erledigt. Das ist eine
+Größenordnung für die Planung, keine Zusage — die drei Posten mit der größten
+Streuung sind der Desktop-Planer (Drag & Drop über verschachtelte Ebenen), die
+Wischgeste in Phase 4 und die Datenpflege für die Heatmap.
 
 Sinnvolle Auslieferungsschnitte:
 
 | Release | Enthält | Nutzen |
 |---|---|---|
-| **A** | §3, §4, §5 | Die App ist im Studio wirklich benutzbar |
+| **A** | §3 ✅, §4 ✅, §5 | Die App ist im Studio wirklich benutzbar |
 | **B** | §6, §7 | Trainieren nach Plan, Alternativen bei besetztem Gerät |
 | **C** | §8, §9 | Planung am Desktop, Daten gehören dem Nutzer |
 | **D** | §10, §11 | Auswertung und Erholungsübersicht |
@@ -536,6 +605,8 @@ Sinnvolle Auslieferungsschnitte:
   altem Stand darf an neuen Daten nicht scheitern.
 - **Das Backend weist ungültige Strukturen ab, statt sie zu speichern.** Bestehende
   Linie aus `isValidEntries`.
+- **Gewichte immer kanonisch in kg** (§ 2.5) — Pfund nur an der Anzeige- und
+  Eingabegrenze. Kein gespeicherter Wert darf von einer Einstellung abhängen.
 - **Touch-Ziele ≥ 44 px** in allen Trainingsansichten, geprüft bei 320 px Breite.
 - **Beide Themes** bei jeder neuen Oberfläche, Kontrast geprüft.
 - **Reine Logik in `lib/` mit Tests** — Timer, Statistik, Export, Erholung,
