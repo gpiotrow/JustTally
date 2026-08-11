@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkouts } from '../../hooks/useWorkouts';
 import { useOnline } from '../../hooks/useOnline';
+import { useAuth } from '../../hooks/useAuth';
+import { formatWeightWithUnit } from '../../lib/units';
 import { EmptyState, ErrorBanner, Spinner } from '../../components/ui';
 import { useLanguage } from '../../i18n';
 
@@ -16,6 +18,7 @@ const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 export function History() {
   const { sessions, loaded, deleteSession, sync, syncing, lastSyncedAt } = useWorkouts();
   const online = useOnline();
+  const { unit } = useAuth();
   const { lang, t } = useLanguage();
   const [syncError, setSyncError] = useState<string | null>(null);
   const dateFmt = new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-US', DATE_OPTIONS);
@@ -98,7 +101,12 @@ export function History() {
                       </Link>{' '}
                       <span className="text-fg-subtle">
                         {e.sets
-                          .map((set) => `${set.reps}${set.weight ? `×${set.weight}kg` : ''}`)
+                          .map(
+                            (set) =>
+                              `${set.reps}${
+                                set.weight ? `×${formatWeightWithUnit(set.weight, unit)}` : ''
+                              }`
+                          )
                           .join(', ')}
                       </span>
                     </li>

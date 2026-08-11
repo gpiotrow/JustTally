@@ -1,6 +1,10 @@
+import type { Unit } from './units';
+
 export type Role = 'admin' | 'user';
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 export type MediaType = 'image' | 'video';
+
+export type Sex = 'male' | 'female';
 
 export interface User {
   id: string;
@@ -9,6 +13,18 @@ export interface User {
   role: Role;
   createdAt?: number;
   disabledAt?: number | null;
+  /**
+   * Display unit for weights. Belongs to the account rather than the device —
+   * unlike theme and language, it describes how someone trains, not where they
+   * happen to be sitting. Absent on the admin user list, which has no business
+   * reading it.
+   */
+  unitPreference?: Unit;
+  /**
+   * Optional and self-declared. Exists only to pick the coefficient set for
+   * relative-strength formulas; `null` is a real answer meaning "withdrawn".
+   */
+  sex?: Sex | null;
 }
 
 export interface Media {
@@ -46,10 +62,38 @@ export interface Exercise {
   media: Media[];
 }
 
+/**
+ * Warm-up sets must stay out of volume and 1RM estimates, drop sets belong to
+ * the working set before them and start no rest. The distinction is what makes
+ * later statistics honest, so it is recorded at logging time.
+ */
+export type SetType = 'warmup' | 'working' | 'drop';
+
 export interface WorkoutSet {
   reps: number;
+  /**
+   * Always kilograms, whatever the user has chosen to see. Display and input
+   * convert at the edge (`lib/units.ts`) so no stored number ever depends on a
+   * preference that can change.
+   */
   weight?: number;
+  /** Absent on sets logged before set types existed; read as `'working'`. */
+  type?: SetType;
+  /**
+   * Absent on sets logged before check-off existed. Those were recorded after
+   * the fact and were all performed, so the read-default is `true` — treating
+   * them as open would strand every historical session mid-workout.
+   */
+  done?: boolean;
+  /** When the set was checked off; the rest timer counts from here. */
+  completedAt?: number;
+  /** Rate of perceived exertion, 5–10 in half steps. */
+  rpe?: number;
 }
+
+/** Read-defaults for sets written before these fields existed. */
+export const setType = (set: WorkoutSet): SetType => set.type ?? 'working';
+export const isSetDone = (set: WorkoutSet): boolean => set.done ?? true;
 
 export interface WorkoutEntry {
   exerciseId: string;

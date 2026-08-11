@@ -19,8 +19,21 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts. Please try again later.' },
 });
 
+/**
+ * The account's own view of itself. Deliberately richer than the admin list's
+ * serializer in `users.js`: `sex` is here because the signed-in user needs it
+ * back to render their own settings, and it stays out of there because no
+ * admin needs to read it off a list of other people.
+ */
 function publicUser(row) {
-  return { id: row.id, name: row.name, email: row.email, role: row.role };
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    unitPreference: row.unit_preference ?? 'kg',
+    sex: row.sex ?? null,
+  };
 }
 
 /**
@@ -95,6 +108,55 @@ router.post('/login', authLimiter, async (req, res) => {
  */
 router.get('/me', requireAuth, async (req, res) => {
   const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
+  const row = rows[0];
+  if (!row) return res.status(404).json({ error: 'User not found' });
+  res.json({ user: publicUser(row) });
+});
+
+/**
+ * PATCH /api/auth/me — the signed-in user's own display preferences.
+ *
+ * Lives beside GET /me rather than in the users router, which is admin-only
+ * throughout: this is the one profile write a normal account makes, and it can
+ * only ever touch its own row (`req.user.sub`, never a path parameter).
+ *
+ * Partial by design — sending only `unitPreference` must not blank `sex`.
+ */
+router.patch('/me', requireAuth, async (req, res) => {
+  const { unitPreference, sex } = req.body || {};
+  const updates = [];
+  const params = [];
+
+  if (unitPreference !== undefined) {
+    if (!['kg', 'lb'].includes(unitPreference)) {
+      return res.status(400).json({ error: 'unitPreference must be "kg" or "lb"' });
+    }
+    params.push(unitPreference);
+    updates.push(`unit_preference = $${params.length}`);
+  }
+
+  if (sex !== undefined) {
+    // null is a real value here: it is how someone withdraws an answer they
+    // gave earlier, so it must be distinguishable from "field not sent".
+    if (sex !== null && !['male', 'female'].includes(sex)) {
+      return res.status(400).json({ error: 'sex must be "male", "female" or null' });
+    }
+    params.push(sex);
+    updates.push(`sex = $${params.length}`);
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ error: 'Nothing to update' });
+  }
+
+  params.push(Date.now());
+  updates.push(`updated_at = $${params.length}`);
+  params.push(req.user.sub);
+
+  const { rows } = await db.query(
+    `UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`,
+    params
+  );
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'User not found' });
   res.json({ user: publicUser(row) });

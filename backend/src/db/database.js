@@ -187,6 +187,18 @@ export async function initSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id);
   `);
+
+  // Display unit and (optional) sex belong to the account, not the device:
+  // theme and language describe where you are sitting, these describe how you
+  // train. `sex` stays nullable on purpose — it exists only to pick the
+  // coefficient set for relative-strength formulas, and nobody is required to
+  // answer it to use the app.
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS unit_preference TEXT NOT NULL DEFAULT 'kg'
+      CHECK (unit_preference IN ('kg','lb'));
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS sex TEXT
+      CHECK (sex IS NULL OR sex IN ('male','female'));
+  `);
 }
 
 /**

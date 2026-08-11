@@ -92,6 +92,15 @@ export function SettingsIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Set completed. Heavier stroke than the rest: it is the most-tapped control. */
+export function CheckIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} strokeWidth={2.5} {...props}>
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
 /** Loaded barbell, seen from the side — entry point to the plate calculator. */
 export function PlatesIcon(props: SVGProps<SVGSVGElement>) {
   return (

@@ -1,22 +1,41 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useWorkouts } from '../../hooks/useWorkouts';
+import { useAuth } from '../../hooks/useAuth';
+import { useRestTimer } from '../../hooks/useRestTimer';
 import { Modal, Spinner, EmptyState, CategoryBadge } from '../../components/ui';
 import { PlateCalculator } from '../../components/PlateCalculator';
-import { PlatesIcon } from '../../components/icons';
-import type { WorkoutEntry, WorkoutSession, WorkoutSet } from '../../lib/types';
+import { NumberField } from '../../components/NumberField';
+import { PlatesIcon, CheckIcon } from '../../components/icons';
+import { setType, type WorkoutEntry, type WorkoutSession, type WorkoutSet, type SetType } from '../../lib/types';
+import {
+  convertWeightInput,
+  formatWeightInput,
+  parseRepsInput,
+  weightInputToKg,
+  weightStep,
+  type Unit,
+} from '../../lib/units';
 import { useLanguage } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
 
 /**
- * A set being edited may be blank in either field — that is what makes room for
- * last session's numbers to show through as placeholders. `WorkoutEntry` keeps
- * requiring `reps`, so drafts are converted on save.
+ * Sets under edit hold the raw text of each field rather than a number.
+ *
+ * Three problems collapse into one solution that way: a half-typed "62." stops
+ * being reparsed into "62" on every keystroke, a German "62,5" survives, and
+ * the pound/kilogram conversion happens once at the boundary instead of on
+ * every render. Parsing to canonical kilograms happens on save.
  */
 interface DraftSet {
-  reps?: number;
-  weight?: number;
+  reps: string;
+  weight: string;
+  type: SetType;
+  done: boolean;
+  completedAt?: number;
+  /** No UI yet (that comes with the RPE work); carried so editing never drops it. */
+  rpe?: number;
 }
 
 interface DraftEntry {
@@ -25,6 +44,8 @@ interface DraftEntry {
   exerciseName: string;
   sets: DraftSet[];
 }
+
+const blankSet = (): DraftSet => ({ reps: '', weight: '', type: 'working', done: false });
 
 /** Convert an epoch ms timestamp to a local `datetime-local` input value (no seconds). */
 function toLocalInputValue(ms: number): string {
@@ -39,18 +60,48 @@ function parseLocalInputValue(value: string): number {
   return Number.isNaN(ms) ? Date.now() : ms;
 }
 
+function toDraftEntries(entries: WorkoutEntry[], unit: Unit): DraftEntry[] {
+  return entries.map((entry) => ({
+    exerciseId: entry.exerciseId,
+    exerciseRef: entry.exerciseRef,
+    exerciseName: entry.exerciseName,
+    sets: entry.sets.map((s) => ({
+      reps: String(s.reps),
+      weight: formatWeightInput(s.weight, unit),
+      type: setType(s),
+      // Sets that predate check-off were logged after the fact; treating them
+      // as unfinished would reopen every workout in the history.
+      done: s.done ?? true,
+      completedAt: s.completedAt,
+      rpe: s.rpe,
+    })),
+  }));
+}
+
+const isBlank = (s: DraftSet) => s.reps.trim() === '' && s.weight.trim() === '';
+
 /**
  * Rows the user never filled in are sets they never did — dropping them keeps
  * "0 ×" phantoms out of the history, and entries left with nothing at all go
  * with them.
  */
-function toSavedEntries(entries: DraftEntry[]): WorkoutEntry[] {
+function toSavedEntries(entries: DraftEntry[], unit: Unit): WorkoutEntry[] {
   return entries
     .map((entry) => ({
-      ...entry,
-      sets: entry.sets
-        .filter((s) => s.reps !== undefined || s.weight !== undefined)
-        .map((s) => ({ reps: s.reps ?? 0, weight: s.weight })),
+      exerciseId: entry.exerciseId,
+      ...(entry.exerciseRef !== undefined ? { exerciseRef: entry.exerciseRef } : {}),
+      exerciseName: entry.exerciseName,
+      sets: entry.sets.filter((s) => !isBlank(s)).map((s): WorkoutSet => {
+        const weight = weightInputToKg(s.weight, unit);
+        return {
+          reps: parseRepsInput(s.reps) ?? 0,
+          ...(weight !== undefined ? { weight } : {}),
+          type: s.type,
+          done: s.done,
+          ...(s.completedAt !== undefined ? { completedAt: s.completedAt } : {}),
+          ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
+        };
+      }),
     }))
     .filter((entry) => entry.sets.length > 0);
 }
@@ -74,7 +125,7 @@ export function Workout() {
 
 /**
  * Build or edit a workout: set title/start/duration/notes, pick exercises, log
- * sets (reps + weight), then save the session locally.
+ * sets, check them off as they are done.
  */
 function WorkoutEditor({
   initial,
@@ -85,9 +136,14 @@ function WorkoutEditor({
 }) {
   const { exercises, loading } = useExercises();
   const { addSession, updateSession } = useWorkouts();
+  const { unit } = useAuth();
+  const rest = useRestTimer();
   const navigate = useNavigate();
   const { lang, t } = useLanguage();
-  const [entries, setEntries] = useState<DraftEntry[]>(initial?.entries ?? []);
+
+  const [entries, setEntries] = useState<DraftEntry[]>(() =>
+    toDraftEntries(initial?.entries ?? [], unit)
+  );
   const [picking, setPicking] = useState(false);
   const [plateEntry, setPlateEntry] = useState<number | null>(null);
   const [title, setTitle] = useState(initial?.title ?? '');
@@ -99,6 +155,52 @@ function WorkoutEditor({
   );
   const [notes, setNotes] = useState(initial?.notes ?? '');
 
+  /** Reps inputs by `entryIndex:setIndex`, so check-off can jump to the next one. */
+  const repsInputs = useRef(new Map<string, HTMLInputElement>());
+  const registerReps = (key: string) => (el: HTMLInputElement | null) => {
+    if (el) repsInputs.current.set(key, el);
+    else repsInputs.current.delete(key);
+  };
+
+  /**
+   * Set by check-off, consumed on the next commit.
+   *
+   * An effect rather than requestAnimationFrame: rAF is suspended while the
+   * document is hidden, so the jump would silently never happen there. What is
+   * actually needed is "once React has rendered the row", which is exactly
+   * when an effect runs.
+   */
+  const pendingFocus = useRef<string | null>(null);
+  useEffect(() => {
+    const key = pendingFocus.current;
+    if (!key) return;
+    pendingFocus.current = null;
+    const input = repsInputs.current.get(key);
+    if (!input) return;
+    // Focus first without scrolling, then centre it deliberately — letting the
+    // browser scroll on focus lands the row wherever it likes, usually just
+    // under the sticky header.
+    input.focus({ preventScroll: true });
+    input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+
+  /**
+   * Re-express every weight already typed when the display unit changes, so a
+   * switch mid-workout does not silently reinterpret 60 kg as 60 lb.
+   */
+  const previousUnit = useRef(unit);
+  useEffect(() => {
+    const from = previousUnit.current;
+    if (from === unit) return;
+    previousUnit.current = unit;
+    setEntries((prev) =>
+      prev.map((entry) => ({
+        ...entry,
+        sets: entry.sets.map((s) => ({ ...s, weight: convertWeightInput(s.weight, from, unit) })),
+      }))
+    );
+  }, [unit]);
+
   /**
    * What was lifted last time, per exercise — shown as the placeholder in each
    * empty field so the number to beat is where the eyes already are, without
@@ -106,16 +208,20 @@ function WorkoutEditor({
    */
   const previousSets = useMemo(() => {
     const byExercise = new Map<string, WorkoutSet[]>();
-    const olderFirstLast = [...sessions]
+    const newestFirst = [...sessions]
       .filter((s) => s.id !== initial?.id)
       .sort((a, b) => (b.startedAt ?? b.date) - (a.startedAt ?? a.date));
-    for (const session of olderFirstLast) {
+    for (const session of newestFirst) {
       for (const entry of session.entries) {
         if (!byExercise.has(entry.exerciseId)) byExercise.set(entry.exerciseId, entry.sets);
       }
     }
     return byExercise;
   }, [sessions, initial?.id]);
+
+  const savedEntries = useMemo(() => toSavedEntries(entries, unit), [entries, unit]);
+
+  if (loading) return <Spinner label={t('common.loading')} />;
 
   /**
    * The set at the same position last time; if that session was shorter, its
@@ -127,28 +233,19 @@ function WorkoutEditor({
     return sets[Math.min(index, sets.length - 1)];
   }
 
-  const savedEntries = useMemo(() => toSavedEntries(entries), [entries]);
-
-  if (loading) return <Spinner label={t('common.loading')} />;
-
   // exerciseRef is recorded alongside the id: if the id link is ever lost, the
   // reference number is what lets the entry be reattached to its exercise.
   function addExercise(exerciseId: string, exerciseName: string, exerciseRef: number) {
-    setEntries((prev) => [...prev, { exerciseId, exerciseRef, exerciseName, sets: [{}] }]);
+    setEntries((prev) => [...prev, { exerciseId, exerciseRef, exerciseName, sets: [blankSet()] }]);
     setPicking(false);
   }
 
-  function updateSet(ei: number, si: number, field: 'reps' | 'weight', value: string) {
+  function updateSet(ei: number, si: number, patch: Partial<DraftSet>) {
     setEntries((prev) =>
       prev.map((entry, i) =>
         i !== ei
           ? entry
-          : {
-              ...entry,
-              sets: entry.sets.map((set, j) =>
-                j !== si ? set : { ...set, [field]: value === '' ? undefined : Number(value) }
-              ),
-            }
+          : { ...entry, sets: entry.sets.map((s, j) => (j !== si ? s : { ...s, ...patch })) }
       )
     );
   }
@@ -158,7 +255,12 @@ function WorkoutEditor({
       prev.map((entry, i) => {
         if (i !== ei) return entry;
         const last = entry.sets[entry.sets.length - 1];
-        return { ...entry, sets: [...entry.sets, { ...last }] };
+        // Carries the numbers forward but never the completion: a new set is by
+        // definition one that has not been done yet.
+        return {
+          ...entry,
+          sets: [...entry.sets, { ...(last ?? blankSet()), done: false, completedAt: undefined }],
+        };
       })
     );
   }
@@ -167,13 +269,41 @@ function WorkoutEditor({
     setEntries((prev) => prev.filter((_, i) => i !== ei));
   }
 
+  /** The next set still open, scanning forward from the one just finished. */
+  function nextOpenKey(ei: number, si: number): string | null {
+    for (let j = si + 1; j < entries[ei].sets.length; j += 1) {
+      if (!entries[ei].sets[j].done) return `${ei}:${j}`;
+    }
+    for (let i = ei + 1; i < entries.length; i += 1) {
+      const j = entries[i].sets.findIndex((s) => !s.done);
+      if (j !== -1) return `${i}:${j}`;
+    }
+    return null;
+  }
+
+  function toggleDone(ei: number, si: number) {
+    const set = entries[ei].sets[si];
+    if (set.done) {
+      updateSet(ei, si, { done: false, completedAt: undefined });
+      return;
+    }
+
+    updateSet(ei, si, { done: true, completedAt: Date.now() });
+
+    // A drop set is by definition taken without a pause, so it starts none.
+    // `start` must run inside this tap: arming the audio alarm needs a gesture.
+    if (set.type !== 'drop') rest.start();
+
+    pendingFocus.current = nextOpenKey(ei, si);
+  }
+
   /** Weight to open the plate calculator with: what is loaded now, else last time's. */
   function seedWeight(ei: number): number | undefined {
     const entry = entries[ei];
     if (!entry) return undefined;
     for (let i = entry.sets.length - 1; i >= 0; i -= 1) {
-      const weight = entry.sets[i].weight;
-      if (weight !== undefined) return weight;
+      const kg = weightInputToKg(entry.sets[i].weight, unit);
+      if (kg !== undefined) return kg;
     }
     return previousSet(entry.exerciseId, entry.sets.length - 1)?.weight;
   }
@@ -284,42 +414,72 @@ function WorkoutEditor({
                   </button>
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="grid grid-cols-[2rem,1fr,1fr] gap-2 text-xs font-semibold uppercase text-fg-subtle">
-                  <span>{t('workout.set')}</span>
-                  <span>{t('workout.reps')}</span>
-                  <span>{t('workout.weight')}</span>
-                </div>
+
+              <div className="grid grid-cols-[1.5rem,1fr,1fr,3.25rem] gap-x-2 text-xs font-semibold uppercase text-fg-subtle">
+                <span>{t('workout.set')}</span>
+                <span>{t('workout.reps')}</span>
+                <span>{`${t('workout.weight')} (${unit})`}</span>
+                <span className="sr-only">{t('workout.doneColumn')}</span>
+              </div>
+
+              <div className="mt-2 space-y-3">
                 {entry.sets.map((set, si) => {
                   const last = previousSet(entry.exerciseId, si);
+                  const repsLabel = t('workout.reps');
+                  const weightLabel = t('workout.weight');
                   return (
-                    <div key={si} className="grid grid-cols-[2rem,1fr,1fr] items-center gap-2">
-                      <span className="text-sm font-semibold text-fg-muted">{si + 1}</span>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min="0"
-                        className="input-gym"
-                        aria-label={`${t('workout.set')} ${si + 1} — ${t('workout.reps')}`}
+                    <div
+                      key={si}
+                      className={`grid grid-cols-[1.5rem,1fr,1fr,3.25rem] items-start gap-x-2 transition-opacity ${
+                        set.done ? 'opacity-55' : ''
+                      }`}
+                    >
+                      <span className="pt-4 text-sm font-semibold text-fg-muted">{si + 1}</span>
+
+                      <NumberField
+                        inputRef={registerReps(`${ei}:${si}`)}
+                        value={set.reps}
+                        onChange={(reps) => updateSet(ei, si, { reps })}
+                        step={1}
+                        min={0}
+                        integer
+                        label={`${t('workout.set')} ${si + 1} — ${repsLabel}`}
+                        stepUpLabel={t('set.more', { label: repsLabel })}
+                        stepDownLabel={t('set.less', { label: repsLabel })}
                         placeholder={last ? String(last.reps) : '–'}
-                        value={set.reps ?? ''}
-                        onChange={(e) => updateSet(ei, si, 'reps', e.target.value)}
                       />
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        step="0.5"
-                        min="0"
-                        className="input-gym"
-                        aria-label={`${t('workout.set')} ${si + 1} — ${t('workout.weight')}`}
-                        placeholder={last?.weight != null ? String(last.weight) : '–'}
-                        value={set.weight ?? ''}
-                        onChange={(e) => updateSet(ei, si, 'weight', e.target.value)}
+
+                      <NumberField
+                        value={set.weight}
+                        onChange={(weight) => updateSet(ei, si, { weight })}
+                        step={weightStep(unit)}
+                        min={0}
+                        label={`${t('workout.set')} ${si + 1} — ${weightLabel}`}
+                        stepUpLabel={t('set.more', { label: weightLabel })}
+                        stepDownLabel={t('set.less', { label: weightLabel })}
+                        placeholder={
+                          last?.weight != null ? formatWeightInput(last.weight, unit) : '–'
+                        }
                       />
+
+                      <button
+                        type="button"
+                        onClick={() => toggleDone(ei, si)}
+                        aria-pressed={set.done}
+                        aria-label={t(set.done ? 'set.undone' : 'set.done', { n: si + 1 })}
+                        className={`flex h-14 w-full items-center justify-center rounded-xl border transition ${
+                          set.done
+                            ? 'border-accent bg-accent text-white'
+                            : 'border-border bg-surface-2 text-fg-subtle hover:border-accent hover:text-accent'
+                        }`}
+                      >
+                        <CheckIcon width={22} height={22} />
+                      </button>
                     </div>
                   );
                 })}
               </div>
+
               <button onClick={() => addSet(ei)} className="btn-ghost mt-3 w-full text-sm">
                 {t('workout.addSet')}
               </button>
@@ -354,7 +514,11 @@ function WorkoutEditor({
       )}
 
       {plateEntry !== null && (
-        <PlateCalculator initialKg={seedWeight(plateEntry)} onClose={() => setPlateEntry(null)} />
+        <PlateCalculator
+          initialKg={seedWeight(plateEntry)}
+          unit={unit}
+          onClose={() => setPlateEntry(null)}
+        />
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useOnline } from '../hooks/useOnline';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle } from './LanguageToggle';
+import { RestTimerBar } from './RestTimerBar';
 import { useT, type TKey } from '../i18n';
 import { DumbbellIcon, ClipboardIcon, TrendingIcon, SettingsIcon } from './icons';
 
@@ -59,6 +60,10 @@ export function MobileLayout() {
       <main className="flex-1 px-4 py-4 pb-24">
         <Outlet />
       </main>
+
+      {/* Layout-level, not page-level: a rest keeps running while you look up
+          the next exercise, and it has to stay visible when you do. */}
+      <RestTimerBar />
 
       <nav className="fixed bottom-0 left-1/2 z-20 w-full max-w-md -translate-x-1/2 border-t border-border bg-bg/95 backdrop-blur">
         <div className="grid grid-cols-3">

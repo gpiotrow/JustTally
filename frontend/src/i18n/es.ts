@@ -86,7 +86,8 @@ export const es: Record<TKey, string> = {
   'workout.remove': 'Quitar',
   'workout.set': 'Serie',
   'workout.reps': 'Reps.',
-  'workout.weight': 'Peso (kg)',
+  'workout.weight': 'Peso',
+  'workout.doneColumn': 'Hecho',
   'workout.addSet': '+ Serie',
   'workout.addExercise': '+ Añadir ejercicio',
   'workout.pickTitle': 'Elegir ejercicio',
@@ -98,17 +99,35 @@ export const es: Record<TKey, string> = {
   'workout.notes': 'Notas',
   'workout.notesPlaceholder': 'Tus propias notas…',
 
+  // Set execution
+  'set.done': 'Marcar la serie {n}',
+  'set.undone': 'Desmarcar la serie {n}',
+  'set.more': 'Aumentar {label}',
+  'set.less': 'Reducir {label}',
+
+  // Rest timer
+  'rest.label': 'Descanso',
+  'rest.done': 'Descanso terminado',
+  'rest.skip': 'Listo',
+  'rest.plus': 'Añadir {seconds} segundos al descanso',
+  'rest.minus': 'Quitar {seconds} segundos al descanso',
+  'rest.default': 'Duración de descanso por defecto',
+  'rest.seconds': 'segundos',
+  'rest.wakeLock': 'Mantener la pantalla encendida durante el descanso',
+  'rest.wakeLockHint':
+    'Con la pantalla bloqueada, una aplicación web no puede dar una alarma fiable — el navegador la suspende. Mantener la pantalla encendida es lo que hace que suene el aviso. En el iPhone tampoco hay vibración, así que allí solo queda el sonido.',
+
   // Plate calculator
   'plates.title': 'Discos',
   'plates.open': 'Abrir la calculadora de discos',
-  'plates.target': 'Peso objetivo (kg)',
+  'plates.target': 'Peso objetivo',
   'plates.bar': 'Barra',
   'plates.barNone': 'Sin barra',
   'plates.perSide': 'Por lado',
   'plates.onlyBar': 'Solo la barra — no hacen falta discos.',
   'plates.belowBar': 'El peso objetivo es menor que el de la barra.',
-  'plates.total': 'Total: {kg} kg.',
-  'plates.remainder': 'No se pueden cargar {kg} kg con estos discos.',
+  'plates.total': 'Total: {weight}.',
+  'plates.remainder': 'No se pueden cargar {weight} con estos discos.',
 
   // History
   'history.title': 'Historial',
@@ -248,6 +267,9 @@ export const es: Record<TKey, string> = {
   // Settings — offline photos
   'settings.title': 'Ajustes',
   'settings.open': 'Abrir ajustes',
+  'settings.units': 'Unidades',
+  'settings.unitsHint': 'Se aplica a todos tus dispositivos. Todo se guarda en kilogramos — cambiarlo solo afecta a la visualización, nunca a tus datos.',
+  'settings.unitError': 'No se pudo guardar la unidad',
   'settings.offlineMedia': 'Fotos sin conexión',
   'settings.offlineMediaHint':
     'Guarda las fotos de tus favoritos en este dispositivo para tenerlas disponibles sin red. El ajuste solo se aplica aquí, no a tus otros dispositivos.',

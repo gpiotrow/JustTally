@@ -86,7 +86,8 @@ export const en: Record<TKey, string> = {
   'workout.remove': 'Remove',
   'workout.set': 'Set',
   'workout.reps': 'Reps',
-  'workout.weight': 'Weight (kg)',
+  'workout.weight': 'Weight',
+  'workout.doneColumn': 'Done',
   'workout.addSet': '+ Set',
   'workout.addExercise': '+ Add exercise',
   'workout.pickTitle': 'Choose exercise',
@@ -98,17 +99,35 @@ export const en: Record<TKey, string> = {
   'workout.notes': 'Notes',
   'workout.notesPlaceholder': 'Your own notes…',
 
+  // Set execution
+  'set.done': 'Check off set {n}',
+  'set.undone': 'Uncheck set {n}',
+  'set.more': 'Increase {label}',
+  'set.less': 'Decrease {label}',
+
+  // Rest timer
+  'rest.label': 'Rest',
+  'rest.done': 'Rest over',
+  'rest.skip': 'Done',
+  'rest.plus': 'Add {seconds} seconds to the rest',
+  'rest.minus': 'Take {seconds} seconds off the rest',
+  'rest.default': 'Default rest duration',
+  'rest.seconds': 'seconds',
+  'rest.wakeLock': 'Keep the screen on during rest',
+  'rest.wakeLockHint':
+    'With the display locked, a web app cannot raise a reliable alarm — the browser suspends it. Keeping the screen on is what makes the beep arrive. On iPhone there is also no vibration, so the sound has to carry it there.',
+
   // Plate calculator
   'plates.title': 'Plates',
   'plates.open': 'Open plate calculator',
-  'plates.target': 'Target weight (kg)',
+  'plates.target': 'Target weight',
   'plates.bar': 'Bar',
   'plates.barNone': 'No bar',
   'plates.perSide': 'Per side',
   'plates.onlyBar': 'Just the bar — no plates needed.',
   'plates.belowBar': 'The target is lighter than the bar itself.',
-  'plates.total': 'Comes to {kg} kg in total.',
-  'plates.remainder': '{kg} kg cannot be loaded with these plates.',
+  'plates.total': 'Comes to {weight} in total.',
+  'plates.remainder': '{weight} cannot be loaded with these plates.',
 
   // History
   'history.title': 'History',
@@ -248,6 +267,9 @@ export const en: Record<TKey, string> = {
   // Settings — offline photos
   'settings.title': 'Settings',
   'settings.open': 'Open settings',
+  'settings.units': 'Units',
+  'settings.unitsHint': 'Applies to all your devices. Everything is stored in kilograms — switching changes the display only, never your data.',
+  'settings.unitError': 'Could not save the unit',
   'settings.offlineMedia': 'Offline photos',
   'settings.offlineMediaHint':
     "Stores your favorites' photos on this device so they are available without a network. The setting applies here only, not to your other devices.",

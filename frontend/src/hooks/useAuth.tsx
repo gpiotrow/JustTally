@@ -8,7 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 import { ApiError, api, getToken, setToken } from '../api/client';
-import type { User } from '../lib/types';
+import type { Sex, User } from '../lib/types';
+import { isUnit, type Unit } from '../lib/units';
 
 /**
  * Last identity the server confirmed. Kept so an offline start can restore the
@@ -34,12 +35,20 @@ function cacheUser(user: User | null) {
   else localStorage.removeItem(USER_KEY);
 }
 
+export interface ProfileUpdate {
+  unitPreference?: Unit;
+  sex?: Sex | null;
+}
+
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
+  /** Display unit for weights; `kg` until the server says otherwise. */
+  unit: Unit;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  updateProfile: (update: ProfileUpdate) => Promise<void>;
   logout: () => void;
 }
 
@@ -101,6 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     cacheUser(res.user);
   }, []);
 
+  /**
+   * Writes the preference through to the server and caches the confirmed
+   * result, so the next offline start opens with the unit the user chose
+   * rather than falling back to kg and silently rescaling every number.
+   */
+  const updateProfile = useCallback(async (update: ProfileUpdate) => {
+    const res = await api<{ user: User }>('/auth/me', { method: 'PATCH', body: update });
+    setUser(res.user);
+    cacheUser(res.user);
+  }, []);
+
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
@@ -108,8 +128,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, isAdmin: user?.role === 'admin', login, register, logout }),
-    [user, loading, login, register, logout]
+    () => ({
+      user,
+      loading,
+      isAdmin: user?.role === 'admin',
+      // Guarded rather than trusted: the cached user is JSON from localStorage,
+      // and an unrecognised unit would otherwise reach the conversion helpers.
+      unit: isUnit(user?.unitPreference) ? user.unitPreference : 'kg',
+      login,
+      register,
+      updateProfile,
+      logout,
+    }),
+    [user, loading, login, register, updateProfile, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

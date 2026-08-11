@@ -87,7 +87,9 @@ export const de = {
   'workout.remove': 'Entfernen',
   'workout.set': 'Satz',
   'workout.reps': 'Wdh.',
-  'workout.weight': 'Gewicht (kg)',
+  // Ohne Einheit im Text: die hängt an der Nutzereinstellung und wird angehängt.
+  'workout.weight': 'Gewicht',
+  'workout.doneColumn': 'Erledigt',
   'workout.addSet': '+ Satz',
   'workout.addExercise': '+ Übung hinzufügen',
   'workout.pickTitle': 'Übung wählen',
@@ -99,17 +101,35 @@ export const de = {
   'workout.notes': 'Notizen',
   'workout.notesPlaceholder': 'Eigene Notizen…',
 
+  // Set execution
+  'set.done': 'Satz {n} abhaken',
+  'set.undone': 'Haken bei Satz {n} entfernen',
+  'set.more': '{label} erhöhen',
+  'set.less': '{label} verringern',
+
+  // Rest timer
+  'rest.label': 'Pause',
+  'rest.done': 'Pause vorbei',
+  'rest.skip': 'Fertig',
+  'rest.plus': 'Pause um {seconds} Sekunden verlängern',
+  'rest.minus': 'Pause um {seconds} Sekunden verkürzen',
+  'rest.default': 'Standard-Pausendauer',
+  'rest.seconds': 'Sekunden',
+  'rest.wakeLock': 'Bildschirm während der Pause anlassen',
+  'rest.wakeLockHint':
+    'Bei gesperrtem Display kann eine Web-App keinen zuverlässigen Alarm auslösen — der Browser stoppt sie. Bleibt der Bildschirm an, kommt der Signalton sicher an. Auf dem iPhone gibt es zusätzlich keine Vibration, dort bleibt es beim Ton.',
+
   // Plate calculator
   'plates.title': 'Hantelscheiben',
   'plates.open': 'Scheibenrechner öffnen',
-  'plates.target': 'Zielgewicht (kg)',
+  'plates.target': 'Zielgewicht',
   'plates.bar': 'Stange',
   'plates.barNone': 'Ohne Stange',
   'plates.perSide': 'Pro Seite',
   'plates.onlyBar': 'Nur die Stange — keine Scheiben nötig.',
   'plates.belowBar': 'Das Zielgewicht liegt unter dem Gewicht der Stange.',
-  'plates.total': 'Ergibt {kg} kg gesamt.',
-  'plates.remainder': '{kg} kg lassen sich mit diesen Scheiben nicht auflegen.',
+  'plates.total': 'Ergibt {weight} gesamt.',
+  'plates.remainder': '{weight} lassen sich mit diesen Scheiben nicht auflegen.',
 
   // History
   'history.title': 'Verlauf',
@@ -249,6 +269,9 @@ export const de = {
   // Settings — offline photos
   'settings.title': 'Einstellungen',
   'settings.open': 'Einstellungen öffnen',
+  'settings.units': 'Einheiten',
+  'settings.unitsHint': 'Gilt für alle deine Geräte. Gespeichert wird immer in Kilogramm — die Umstellung ändert nur die Anzeige, nie deine Daten.',
+  'settings.unitError': 'Einheit konnte nicht gespeichert werden',
   'settings.offlineMedia': 'Offline-Fotos',
   'settings.offlineMediaHint':
     'Speichert die Fotos deiner Favoriten auf diesem Gerät, damit sie ohne Netz verfügbar sind. Die Einstellung gilt nur hier, nicht für deine anderen Geräte.',

@@ -24,6 +24,29 @@ function serialize(row) {
   };
 }
 
+const SET_TYPES = new Set(['warmup', 'working', 'drop']);
+
+/**
+ * Every field beyond `reps` is optional so clients that predate it keep
+ * syncing, but a field that *is* present must be the right shape. Storing a
+ * malformed one would corrupt exactly what it was added for: an `rpe` of
+ * "hard" or a `type` of "warmupp" silently skews later statistics instead of
+ * failing where it can be seen.
+ */
+function isValidSet(s) {
+  return (
+    s &&
+    typeof s.reps === 'number' &&
+    (s.weight === undefined || typeof s.weight === 'number') &&
+    (s.type === undefined || SET_TYPES.has(s.type)) &&
+    (s.done === undefined || typeof s.done === 'boolean') &&
+    (s.completedAt === undefined || (Number.isFinite(s.completedAt) && s.completedAt > 0)) &&
+    // 5–10 in half steps, matching the scale the UI offers.
+    (s.rpe === undefined ||
+      (Number.isFinite(s.rpe) && s.rpe >= 5 && s.rpe <= 10 && s.rpe * 2 === Math.round(s.rpe * 2)))
+  );
+}
+
 function isValidEntries(entries) {
   return (
     Array.isArray(entries) &&
@@ -38,7 +61,7 @@ function isValidEntries(entries) {
         (e.exerciseRef === undefined ||
           (Number.isInteger(e.exerciseRef) && e.exerciseRef > 0)) &&
         Array.isArray(e.sets) &&
-        e.sets.every((s) => s && typeof s.reps === 'number')
+        e.sets.every(isValidSet)
     )
   );
 }

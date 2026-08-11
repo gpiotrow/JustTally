@@ -167,6 +167,65 @@ describe('writing workouts', () => {
     expect(captured.entries).toBeUndefined();
   });
 
+  it('persists the set execution fields', async () => {
+    const captured = captureInsertedEntries();
+    const entry = {
+      ...validEntry,
+      sets: [
+        { reps: 10, weight: 40, type: 'warmup', done: true, completedAt: 1786400000000 },
+        { reps: 8, weight: 80, type: 'working', done: true, rpe: 8.5 },
+        { reps: 6, weight: 62.5, type: 'drop', done: false },
+      ],
+    };
+
+    await request(app)
+      .post('/api/workouts/sync')
+      .send({ upserts: [{ id: 'w1', updatedAt: 10, date: 10, entries: [entry] }] });
+
+    expect(JSON.parse(captured.entries)[0].sets).toEqual(entry.sets);
+  });
+
+  it('accepts sets with only reps, so older clients keep syncing', async () => {
+    const captured = captureInsertedEntries();
+
+    await request(app)
+      .post('/api/workouts/sync')
+      .send({
+        upserts: [
+          { id: 'w1', updatedAt: 10, date: 10, entries: [{ ...validEntry, sets: [{ reps: 5 }] }] },
+        ],
+      });
+
+    expect(captured.entries).toBeDefined();
+  });
+
+  it.each([
+    ['an unknown set type', { reps: 5, type: 'warmupp' }],
+    ['a non-string set type', { reps: 5, type: 1 }],
+    ['a non-boolean done', { reps: 5, done: 'yes' }],
+    ['a non-numeric weight', { reps: 5, weight: '60' }],
+    ['a non-numeric completedAt', { reps: 5, completedAt: 'now' }],
+    ['a zero completedAt', { reps: 5, completedAt: 0 }],
+    ['an rpe below the scale', { reps: 5, rpe: 4.5 }],
+    ['an rpe above the scale', { reps: 5, rpe: 10.5 }],
+    ['an rpe off the half-step grid', { reps: 5, rpe: 8.3 }],
+    ['a non-numeric rpe', { reps: 5, rpe: 'hard' }],
+  ])('rejects %s rather than storing it', async (_label, set) => {
+    const captured = captureInsertedEntries();
+
+    await request(app)
+      .post('/api/workouts/sync')
+      .send({
+        upserts: [
+          { id: 'w1', updatedAt: 10, date: 10, entries: [{ ...validEntry, sets: [set] }] },
+        ],
+      });
+
+    // Malformed values would skew the statistics these fields exist to feed,
+    // and would do it silently — so the session is skipped instead.
+    expect(captured.entries).toBeUndefined();
+  });
+
   it('ignores a stale write whose updatedAt predates the stored row', async () => {
     onQuery(/SELECT \* FROM workouts WHERE id = \$1/, () => ({
       rows: [{ id: 'w1', updated_at: 100, entries: [] }],
