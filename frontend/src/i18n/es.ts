@@ -104,6 +104,18 @@ export const es: Record<TKey, string> = {
   'set.undone': 'Desmarcar la serie {n}',
   'set.more': 'Aumentar {label}',
   'set.less': 'Reducir {label}',
+  'set.type.warmup': 'Serie de calentamiento',
+  'set.type.working': 'Serie de trabajo',
+  'set.type.drop': 'Serie descendente',
+  'set.typeToggle': 'Tipo de serie {n}: {type}. Toca para cambiar.',
+
+  // Agrupación en superseries
+  'workout.selectForGroup': 'Seleccionar {name} para superserie',
+  'workout.selectedCount': '{count} seleccionado(s)',
+  'workout.groupConfirm': 'Agrupar como superserie',
+  'workout.ungroup': 'Desagrupar',
+  'workout.supersetLabel': 'Superserie',
+  'workout.rpeGroupLabel': 'RPE de la serie {n}',
 
   // Rest timer
   'rest.label': 'Descanso',
@@ -271,6 +283,10 @@ export const es: Record<TKey, string> = {
   'settings.units': 'Unidades',
   'settings.unitsHint': 'Se aplica a todos tus dispositivos. Todo se guarda en kilogramos — cambiarlo solo afecta a la visualización, nunca a tus datos.',
   'settings.unitError': 'No se pudo guardar la unidad',
+  'settings.rpe': 'RPE',
+  'settings.rpeVisible': 'Mostrar entrada de RPE',
+  'settings.rpeVisibleHint':
+    'Muestra u oculta la fila de esfuerzo percibido en cada serie. Si no usas el RPE, no necesitas ver la fila.',
   'settings.offlineMedia': 'Fotos sin conexión',
   'settings.offlineMediaHint':
     'Guarda las fotos de tus favoritos en este dispositivo para tenerlas disponibles sin red. El ajuste solo se aplica aquí, no a tus otros dispositivos.',

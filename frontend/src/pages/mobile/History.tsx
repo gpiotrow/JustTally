@@ -4,6 +4,7 @@ import { useWorkouts } from '../../hooks/useWorkouts';
 import { useOnline } from '../../hooks/useOnline';
 import { useAuth } from '../../hooks/useAuth';
 import { formatWeightWithUnit } from '../../lib/units';
+import { setType } from '../../lib/types';
 import { EmptyState, ErrorBanner, Spinner } from '../../components/ui';
 import { useLanguage } from '../../i18n';
 
@@ -72,7 +73,11 @@ export function History() {
       ) : (
         <ul className="space-y-3">
           {sessions.map((s) => {
-            const totalSets = s.entries.reduce((sum, e) => sum + e.sets.length, 0);
+            // Warm-ups don't count as work done, so they stay out of the total.
+            const totalSets = s.entries.reduce(
+              (sum, e) => sum + e.sets.filter((set) => setType(set) !== 'warmup').length,
+              0
+            );
             return (
               <li key={s.id} className="card p-4">
                 <div className="mb-2 flex items-start justify-between gap-3">

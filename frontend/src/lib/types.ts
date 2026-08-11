@@ -95,6 +95,9 @@ export interface WorkoutSet {
 export const setType = (set: WorkoutSet): SetType => set.type ?? 'working';
 export const isSetDone = (set: WorkoutSet): boolean => set.done ?? true;
 
+/** RPE scale offered in the UI: whole numbers below 7, half-steps from 7 up. */
+export const RPE_VALUES = [5, 6, 7, 7.5, 8, 8.5, 9, 9.5, 10] as const;
+
 export interface WorkoutEntry {
   exerciseId: string;
   /**
@@ -105,6 +108,14 @@ export interface WorkoutEntry {
   exerciseRef?: number;
   exerciseName: string;
   sets: WorkoutSet[];
+  /** Superset: entries sharing the same id are clamped together as one unit. */
+  groupId?: string;
+  /**
+   * Which routine exercise this entry started from, kept even after swapping
+   * to an alternative. Not writable yet — routines (§ 7) are what sets it —
+   * but carried through so an entry never silently loses it in the meantime.
+   */
+  plannedExerciseId?: string;
 }
 
 export interface WorkoutSession {

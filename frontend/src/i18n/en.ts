@@ -104,6 +104,18 @@ export const en: Record<TKey, string> = {
   'set.undone': 'Uncheck set {n}',
   'set.more': 'Increase {label}',
   'set.less': 'Decrease {label}',
+  'set.type.warmup': 'Warm-up set',
+  'set.type.working': 'Working set',
+  'set.type.drop': 'Drop set',
+  'set.typeToggle': 'Set type for set {n}: {type}. Tap to change.',
+
+  // Superset grouping
+  'workout.selectForGroup': 'Select {name} for superset',
+  'workout.selectedCount': '{count} selected',
+  'workout.groupConfirm': 'Group as superset',
+  'workout.ungroup': 'Ungroup',
+  'workout.supersetLabel': 'Superset',
+  'workout.rpeGroupLabel': 'RPE for set {n}',
 
   // Rest timer
   'rest.label': 'Rest',
@@ -271,6 +283,10 @@ export const en: Record<TKey, string> = {
   'settings.units': 'Units',
   'settings.unitsHint': 'Applies to all your devices. Everything is stored in kilograms — switching changes the display only, never your data.',
   'settings.unitError': 'Could not save the unit',
+  'settings.rpe': 'RPE',
+  'settings.rpeVisible': 'Show RPE input',
+  'settings.rpeVisibleHint':
+    "Shows or hides the perceived-exertion picker on every set. If you don't use RPE, you don't need to see the row.",
   'settings.offlineMedia': 'Offline photos',
   'settings.offlineMediaHint':
     "Stores your favorites' photos on this device so they are available without a network. The setting applies here only, not to your other devices.",

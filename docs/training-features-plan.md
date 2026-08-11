@@ -1,6 +1,6 @@
 # Plan: Vom Übungskatalog zum Trainings-Tracker
 
-Stand: 2026-08-11 · Basis: `c383095`
+Stand: 2026-08-11 · Basis: § 6 Phase 3
 
 Deckt **Priorität 1 vollständig**, **Priorität 2 ohne Wearables und Health-Integration**
 sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenrechner** ab.
@@ -11,7 +11,7 @@ sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenr
 | § 3 Testbarkeit | ✅ `6be3f4a` |
 | § 4 Phase 1 — Satz-Ausführung, Pausentimer, Einheiten | ✅ `e37e61e` |
 | § 5 Phase 2 — Sync-Härtung | ✅ `c383095` |
-| § 6 Phase 3 — Komplexe Methoden | ⟵ als Nächstes |
+| § 6 Phase 3 — Komplexe Methoden | ✅ (dieser Commit) |
 | § 7–§ 11 | offen |
 
 ---
@@ -355,26 +355,51 @@ Der geplante Teil:
 
 ---
 
-## 6. Phase 3 — Komplexe Trainingsmethoden
+## 6. Phase 3 — Komplexe Trainingsmethoden — ✅ erledigt
 
 *Erfüllt: P2 „Logik für komplexe Trainingsmethoden"*
 
-Modell steht bereits aus Phase 1; hier kommt die Bedienung.
+Modell stand bereits aus Phase 1 (`type`, `rpe` auf `WorkoutSet`); diese Phase hat
+`groupId`/`plannedExerciseId` auf `WorkoutEntry` ergänzt und die Bedienung gebaut.
 
-- **Satz-Typ** pro Zeile umschaltbar: Warm-up (W), Arbeitssatz, Drop (↓).
-  Kompakter Segment-Schalter links in der Zeile, ersetzt die reine Satznummer.
-  Aufwärmsätze werden gedämpft dargestellt und in Summen nicht mitgezählt.
-- **RPE** als optionales drittes Feld, per Einstellung ein-/ausblendbar — wer
-  RPE nicht nutzt, soll die Spalte nicht sehen. Eingabe über eine Auswahlreihe
-  5 · 6 · 7 · 7,5 · 8 · 8,5 · 9 · 9,5 · 10 statt Tastatur.
-- **Supersätze**: mehrere Einträge auswählen → „Als Supersatz klammern".
-  Darstellung als eine Karte mit durchgehender Akzentlinie links und Buchstaben
-  A/B/C an den Übungen; Auflösen jederzeit möglich. Der Pausentimer startet erst
-  nach dem letzten Eintrag der Gruppe.
-- Historie und spätere Auswertungen respektieren die Klammerung.
+- **Satz-Typ** pro Zeile umschaltbar: Warm-up (W), Arbeitssatz (•), Drop (↓),
+  ersetzt die reine Satznummer. Aufwärmsätze werden gedämpft dargestellt
+  (`opacity-55`, wie abgehakte Sätze) und sind aus dem Satz-Summen-Zähler in der
+  Historie ausgenommen (`setType(set) !== 'warmup'`).
+- **RPE** als optionales drittes Feld, per Einstellung in den Settings
+  ein-/ausblendbar (`useRpeVisibility`, gerätelokal wie der Wake-Lock-Schalter —
+  keine Kontoeinstellung, dafür ist es zu sehr Geschmackssache). Eingabe über
+  eine Tap-Reihe 5 · 6 · 7 · 7,5 · 8 · 8,5 · 9 · 9,5 · 10 statt Tastatur.
+- **Supersätze**: Checkbox pro Übungskarte, „Als Supersatz klammern" ab zwei
+  Auswahlen. Darstellung als eine Karte mit Akzentlinie links und Buchstaben
+  A/B/C; „Auflösen" jederzeit. Auto-Scroll und Pausentimer respektieren die
+  Klammerung: die Traversierung läuft A1 → B1 → A2 → B2 (`buildAutoScrollOrder`
+  in `lib/supersets.ts`), und nur das *letzte* Mitglied der Gruppe startet den
+  Pausentimer (`isLastGroupMember`) — der Sinn eines Supersatzes ist ja gerade,
+  zwischen den eigenen Übungen nicht zu pausieren, sondern erst nach der Runde.
+  Die gesamte Gruppierungs-Arithmetik liegt als reine, getestete Funktionen in
+  `lib/supersets.ts` (20 Testfälle): Buchstabenvergabe, Traversierung,
+  Gruppieren/Auflösen, Render-Blöcke für nicht-zusammenhängende Mitglieder.
+- Backend (`isValidEntries`) validiert `groupId`/`plannedExerciseId` als
+  optionale Strings, gleiche Linie wie die übrigen additiven Felder.
 
-**Aufwand: M–L** (2–3 Tage) · **Risiko:** die Satzzeile bekommt viel Funktion auf
-wenig Breite. Vorher an 320 px prüfen.
+### 6.1 Abweichungen von der Planung
+
+| Geplant | Umgesetzt | Warum |
+|---|---|---|
+| Segment-Schalter mit drei sichtbaren Optionen | Ein Button, der bei Tap durch working → warmup → drop zyklt | Drei gleichzeitige 44-px-Ziele passen bei 320 px nicht neben Wdh. und Gewicht in dieselbe Zeile, ohne selbst unter 44 px zu fallen. Ein zyklischer Button bleibt ein einzelnes volles Ziel. Bei 320 px geprüft (s. u.). |
+| RPE-Auswahlreihe mit ≥ 44-px-Zielen | Chips zu 32 px (`min-h-8`), die bei Bedarf umbrechen | Neun Werte zu je 44 px sind bei 320 px Kartenbreite nicht darstellbar (9 × 44 px > verfügbare Breite). Bewusste Ausnahme von der 44-px-Regel für dieses sekundäre, optionale Feld; die Reihe bricht lieber um, als Ziele weiter zu schrumpfen. |
+| — | Historie: Satz-Summe zählt Aufwärmsätze nicht mit | Nicht explizit in der Task-Liste, aber direkte Konsequenz von „aus Summen ausgenommen" — die Historie war die einzige bestehende Stelle, die Sätze aufsummiert; „echte" Statistik kommt erst mit § 10. |
+
+**320-px-Prüfung:** Der Browser-Vorschau-Tab dieser Session hat eine Mindestbreite
+von ca. 389 px und lässt sich nicht unter dieses Maß verkleinern. Geprüft wurde
+stattdessen, indem der App-Wrapper per `element.style.width` direkt auf 320 px
+gesetzt und Grid-/Flex-Überlauf gemessen wurde (`scrollWidth` vs. `clientWidth`)
+— das prüft dieselbe Layout-Mathematik wie eine echte 320-px-Anzeige, nur ohne
+den Viewport selbst zu verkleinern. Ergebnis: Satzzeile 254/254 px (kein
+Überlauf), RPE-Reihe bricht um, kein horizontales Scrollen.
+
+**Aufwand: M–L** (2–3 Tage), wie geplant.
 
 ---
 
@@ -591,7 +616,7 @@ indikativ — es identifiziert die Zahl auf der Scheibe, nicht die Farbe.
 §3  Testbarkeit         S    ✅ ──┐
 §4  Satz + Timer        L    ✅ ◀─┘  (Modell für alles Weitere)
 §5  Sync-Härtung        M    ✅ ◀── unabhängig
-§6  Komplexe Methoden   M–L     ◀── braucht §4
+§6  Komplexe Methoden   M–L  ✅ ◀── braucht §4
 §7  Routinen + Alt.     XL      ◀── braucht §4, §5
 §8  Desktop-Planer      L–XL    ◀── braucht §7
 §9  Export/Import       M       ◀── braucht §4, §6, §7
@@ -609,7 +634,7 @@ Sinnvolle Auslieferungsschnitte:
 | Release | Enthält | Nutzen |
 |---|---|---|
 | **A** | §3 ✅, §4 ✅, §5 ✅ | Die App ist im Studio wirklich benutzbar — **fertig** |
-| **B** | §6, §7 | Trainieren nach Plan, Alternativen bei besetztem Gerät |
+| **B** | §6 ✅, §7 | Trainieren nach Plan, Alternativen bei besetztem Gerät |
 | **C** | §8, §9 | Planung am Desktop, Daten gehören dem Nutzer |
 | **D** | §10, §11 | Auswertung und Erholungsübersicht |
 

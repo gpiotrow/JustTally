@@ -7,6 +7,8 @@ import { useRestTimer } from '../../hooks/useRestTimer';
 import { Modal, Spinner, EmptyState, CategoryBadge } from '../../components/ui';
 import { PlateCalculator } from '../../components/PlateCalculator';
 import { NumberField } from '../../components/NumberField';
+import { SetTypeToggle } from '../../components/SetTypeToggle';
+import { RpePicker } from '../../components/RpePicker';
 import { PlatesIcon, CheckIcon } from '../../components/icons';
 import { setType, type WorkoutEntry, type WorkoutSession, type WorkoutSet, type SetType } from '../../lib/types';
 import {
@@ -17,8 +19,17 @@ import {
   weightStep,
   type Unit,
 } from '../../lib/units';
+import {
+  groupLetters,
+  isLastGroupMember,
+  buildRenderBlocks,
+  groupEntries,
+  ungroupEntries,
+  nextOpenInOrder,
+} from '../../lib/supersets';
 import { useLanguage } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
+import { useRpeVisibility } from '../../hooks/useRpeVisibility';
 
 /**
  * Sets under edit hold the raw text of each field rather than a number.
@@ -43,6 +54,10 @@ interface DraftEntry {
   exerciseRef?: number;
   exerciseName: string;
   sets: DraftSet[];
+  /** Superset membership; entries sharing this render as one card. */
+  groupId?: string;
+  /** No UI yet (that comes with routines); carried so editing never drops it. */
+  plannedExerciseId?: string;
 }
 
 const blankSet = (): DraftSet => ({ reps: '', weight: '', type: 'working', done: false });
@@ -65,6 +80,8 @@ function toDraftEntries(entries: WorkoutEntry[], unit: Unit): DraftEntry[] {
     exerciseId: entry.exerciseId,
     exerciseRef: entry.exerciseRef,
     exerciseName: entry.exerciseName,
+    groupId: entry.groupId,
+    plannedExerciseId: entry.plannedExerciseId,
     sets: entry.sets.map((s) => ({
       reps: String(s.reps),
       weight: formatWeightInput(s.weight, unit),
@@ -91,6 +108,10 @@ function toSavedEntries(entries: DraftEntry[], unit: Unit): WorkoutEntry[] {
       exerciseId: entry.exerciseId,
       ...(entry.exerciseRef !== undefined ? { exerciseRef: entry.exerciseRef } : {}),
       exerciseName: entry.exerciseName,
+      ...(entry.groupId !== undefined ? { groupId: entry.groupId } : {}),
+      ...(entry.plannedExerciseId !== undefined
+        ? { plannedExerciseId: entry.plannedExerciseId }
+        : {}),
       sets: entry.sets.filter((s) => !isBlank(s)).map((s): WorkoutSet => {
         const weight = weightInputToKg(s.weight, unit);
         return {
@@ -140,10 +161,13 @@ function WorkoutEditor({
   const rest = useRestTimer();
   const navigate = useNavigate();
   const { lang, t } = useLanguage();
+  const [rpeVisible] = useRpeVisibility();
 
   const [entries, setEntries] = useState<DraftEntry[]>(() =>
     toDraftEntries(initial?.entries ?? [], unit)
   );
+  /** Entries checked for the next "group as superset" action. */
+  const [selectedForGroup, setSelectedForGroup] = useState<Set<number>>(new Set());
   const [picking, setPicking] = useState(false);
   const [plateEntry, setPlateEntry] = useState<number | null>(null);
   const [title, setTitle] = useState(initial?.title ?? '');
@@ -221,6 +245,11 @@ function WorkoutEditor({
 
   const savedEntries = useMemo(() => toSavedEntries(entries, unit), [entries, unit]);
 
+  /** A/B/C per entry within its superset; `undefined` for ungrouped entries. */
+  const letters = useMemo(() => groupLetters(entries), [entries]);
+  /** Render units: `[i]` for a standalone entry, every member's index for a group. */
+  const blocks = useMemo(() => buildRenderBlocks(entries), [entries]);
+
   if (loading) return <Spinner label={t('common.loading')} />;
 
   /**
@@ -266,19 +295,42 @@ function WorkoutEditor({
   }
 
   function removeEntry(ei: number) {
-    setEntries((prev) => prev.filter((_, i) => i !== ei));
+    setEntries((prev) => {
+      const groupId = prev[ei].groupId;
+      const next = prev.filter((_, i) => i !== ei);
+      if (!groupId) return next;
+      // A "group" of one left behind by the removal is not a superset anymore.
+      const remaining = next.filter((e) => e.groupId === groupId).length;
+      return remaining >= 2 ? next : ungroupEntries(next, groupId);
+    });
+    setSelectedForGroup((prev) => {
+      const next = new Set<number>();
+      prev.forEach((i) => {
+        if (i === ei) return;
+        next.add(i > ei ? i - 1 : i);
+      });
+      return next;
+    });
   }
 
-  /** The next set still open, scanning forward from the one just finished. */
-  function nextOpenKey(ei: number, si: number): string | null {
-    for (let j = si + 1; j < entries[ei].sets.length; j += 1) {
-      if (!entries[ei].sets[j].done) return `${ei}:${j}`;
-    }
-    for (let i = ei + 1; i < entries.length; i += 1) {
-      const j = entries[i].sets.findIndex((s) => !s.done);
-      if (j !== -1) return `${i}:${j}`;
-    }
-    return null;
+  function toggleSelectedForGroup(ei: number) {
+    setSelectedForGroup((prev) => {
+      const next = new Set(prev);
+      if (next.has(ei)) next.delete(ei);
+      else next.add(ei);
+      return next;
+    });
+  }
+
+  function groupSelected() {
+    if (selectedForGroup.size < 2) return;
+    const groupId = crypto.randomUUID();
+    setEntries((prev) => groupEntries(prev, [...selectedForGroup], groupId));
+    setSelectedForGroup(new Set());
+  }
+
+  function ungroup(groupId: string) {
+    setEntries((prev) => ungroupEntries(prev, groupId));
   }
 
   function toggleDone(ei: number, si: number) {
@@ -291,10 +343,13 @@ function WorkoutEditor({
     updateSet(ei, si, { done: true, completedAt: Date.now() });
 
     // A drop set is by definition taken without a pause, so it starts none.
+    // Inside a superset, only the group's last exercise starts a rest — the
+    // point of pairing them is no rest in between, only after the round.
     // `start` must run inside this tap: arming the audio alarm needs a gesture.
-    if (set.type !== 'drop') rest.start();
+    if (set.type !== 'drop' && isLastGroupMember(entries, ei)) rest.start();
 
-    pendingFocus.current = nextOpenKey(ei, si);
+    const next = nextOpenInOrder(entries, ei, si);
+    pendingFocus.current = next ? `${next[0]}:${next[1]}` : null;
   }
 
   /** Weight to open the plate calculator with: what is loaded now, else last time's. */
@@ -326,6 +381,118 @@ function WorkoutEditor({
     if (initial) await updateSession(session);
     else await addSession(session);
     navigate('/history');
+  }
+
+  /** Plate calculator / remove — shared between a standalone card and a group member's row. */
+  function renderEntryActions(ei: number) {
+    return (
+      <div className="flex shrink-0 items-center">
+        <button
+          onClick={() => setPlateEntry(ei)}
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-fg-subtle transition hover:bg-surface-2 hover:text-fg"
+          aria-label={t('plates.open')}
+          title={t('plates.open')}
+        >
+          <PlatesIcon width={20} height={20} />
+        </button>
+        <button
+          onClick={() => removeEntry(ei)}
+          className="inline-flex min-h-11 items-center rounded-xl px-3 text-xs text-fg-subtle transition hover:bg-surface-2 hover:text-danger"
+        >
+          {t('workout.remove')}
+        </button>
+      </div>
+    );
+  }
+
+  /** Set rows for one entry — shared between a standalone card and a group member. */
+  function renderSetRows(ei: number, entry: DraftEntry) {
+    return (
+      <>
+        <div className="grid grid-cols-[2.75rem,1fr,1fr,3.25rem] gap-x-2 text-xs font-semibold uppercase text-fg-subtle">
+          <span>{t('workout.set')}</span>
+          <span>{t('workout.reps')}</span>
+          <span>{`${t('workout.weight')} (${unit})`}</span>
+          <span className="sr-only">{t('workout.doneColumn')}</span>
+        </div>
+
+        <div className="mt-2 space-y-2">
+          {entry.sets.map((set, si) => {
+            const last = previousSet(entry.exerciseId, si);
+            const repsLabel = t('workout.reps');
+            const weightLabel = t('workout.weight');
+            const dampened = set.done || set.type === 'warmup';
+            return (
+              <div key={si} className="space-y-1.5">
+                <div
+                  className={`grid grid-cols-[2.75rem,1fr,1fr,3.25rem] items-start gap-x-2 transition-opacity ${
+                    dampened ? 'opacity-55' : ''
+                  }`}
+                >
+                  <SetTypeToggle
+                    value={set.type}
+                    setNumber={si + 1}
+                    onChange={(type) => updateSet(ei, si, { type })}
+                  />
+
+                  <NumberField
+                    inputRef={registerReps(`${ei}:${si}`)}
+                    value={set.reps}
+                    onChange={(reps) => updateSet(ei, si, { reps })}
+                    step={1}
+                    min={0}
+                    integer
+                    label={`${t('workout.set')} ${si + 1} — ${repsLabel}`}
+                    stepUpLabel={t('set.more', { label: repsLabel })}
+                    stepDownLabel={t('set.less', { label: repsLabel })}
+                    placeholder={last ? String(last.reps) : '–'}
+                  />
+
+                  <NumberField
+                    value={set.weight}
+                    onChange={(weight) => updateSet(ei, si, { weight })}
+                    step={weightStep(unit)}
+                    min={0}
+                    label={`${t('workout.set')} ${si + 1} — ${weightLabel}`}
+                    stepUpLabel={t('set.more', { label: weightLabel })}
+                    stepDownLabel={t('set.less', { label: weightLabel })}
+                    placeholder={
+                      last?.weight != null ? formatWeightInput(last.weight, unit) : '–'
+                    }
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => toggleDone(ei, si)}
+                    aria-pressed={set.done}
+                    aria-label={t(set.done ? 'set.undone' : 'set.done', { n: si + 1 })}
+                    className={`flex h-14 w-full items-center justify-center rounded-xl border transition ${
+                      set.done
+                        ? 'border-accent bg-accent text-white'
+                        : 'border-border bg-surface-2 text-fg-subtle hover:border-accent hover:text-accent'
+                    }`}
+                  >
+                    <CheckIcon width={22} height={22} />
+                  </button>
+                </div>
+
+                {rpeVisible && (
+                  <RpePicker
+                    value={set.rpe}
+                    setNumber={si + 1}
+                    onChange={(rpe) => updateSet(ei, si, { rpe })}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <button onClick={() => addSet(ei)} className="btn-ghost mt-3 w-full text-sm">
+          {t('workout.addSet')}
+        </button>
+      </>
+    );
   }
 
   return (
@@ -389,102 +556,96 @@ function WorkoutEditor({
         </div>
       </div>
 
+      {selectedForGroup.size > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-accent/40 bg-accent/5 px-4 py-3">
+          <span className="text-sm text-fg-muted">
+            {t('workout.selectedCount', { count: selectedForGroup.size })}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedForGroup(new Set())}
+              className="btn-ghost px-3 py-1.5 text-sm"
+            >
+              {t('common.close')}
+            </button>
+            <button
+              onClick={groupSelected}
+              disabled={selectedForGroup.size < 2}
+              className="btn-primary px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {t('workout.groupConfirm')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {entries.length === 0 ? (
         <EmptyState title={t('workout.emptyTitle')} hint={t('workout.emptyHint')} />
       ) : (
         <div className="space-y-4">
-          {entries.map((entry, ei) => (
-            <div key={ei} className="card p-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate font-semibold text-fg">{entry.exerciseName}</p>
-                <div className="flex shrink-0 items-center">
+          {blocks.map((memberIndices) => {
+            const groupId = entries[memberIndices[0]].groupId;
+
+            if (memberIndices.length === 1 && !groupId) {
+              const ei = memberIndices[0];
+              const entry = entries[ei];
+              return (
+                <div key={ei} className="card p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <label className="flex min-w-0 items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedForGroup.has(ei)}
+                        onChange={() => toggleSelectedForGroup(ei)}
+                        aria-label={t('workout.selectForGroup', { name: entry.exerciseName })}
+                        className="h-5 w-5 shrink-0 accent-accent"
+                      />
+                      <p className="min-w-0 truncate font-semibold text-fg">{entry.exerciseName}</p>
+                    </label>
+                    {renderEntryActions(ei)}
+                  </div>
+                  {renderSetRows(ei, entry)}
+                </div>
+              );
+            }
+
+            // groupId is set here: a multi-member block always shares one.
+            return (
+              <div key={groupId} className="card space-y-4 border-l-4 border-l-accent p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase text-fg-subtle">
+                    {t('workout.supersetLabel')}
+                  </span>
                   <button
-                    onClick={() => setPlateEntry(ei)}
-                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-fg-subtle transition hover:bg-surface-2 hover:text-fg"
-                    aria-label={t('plates.open')}
-                    title={t('plates.open')}
+                    onClick={() => ungroup(groupId!)}
+                    className="btn-ghost px-3 py-1.5 text-xs"
                   >
-                    <PlatesIcon width={20} height={20} />
-                  </button>
-                  <button
-                    onClick={() => removeEntry(ei)}
-                    className="inline-flex min-h-11 items-center rounded-xl px-3 text-xs text-fg-subtle transition hover:bg-surface-2 hover:text-danger"
-                  >
-                    {t('workout.remove')}
+                    {t('workout.ungroup')}
                   </button>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-[1.5rem,1fr,1fr,3.25rem] gap-x-2 text-xs font-semibold uppercase text-fg-subtle">
-                <span>{t('workout.set')}</span>
-                <span>{t('workout.reps')}</span>
-                <span>{`${t('workout.weight')} (${unit})`}</span>
-                <span className="sr-only">{t('workout.doneColumn')}</span>
-              </div>
-
-              <div className="mt-2 space-y-3">
-                {entry.sets.map((set, si) => {
-                  const last = previousSet(entry.exerciseId, si);
-                  const repsLabel = t('workout.reps');
-                  const weightLabel = t('workout.weight');
+                {memberIndices.map((ei, memberPosition) => {
+                  const entry = entries[ei];
                   return (
                     <div
-                      key={si}
-                      className={`grid grid-cols-[1.5rem,1fr,1fr,3.25rem] items-start gap-x-2 transition-opacity ${
-                        set.done ? 'opacity-55' : ''
-                      }`}
+                      key={ei}
+                      className={memberPosition > 0 ? 'border-t border-border pt-4' : ''}
                     >
-                      <span className="pt-4 text-sm font-semibold text-fg-muted">{si + 1}</span>
-
-                      <NumberField
-                        inputRef={registerReps(`${ei}:${si}`)}
-                        value={set.reps}
-                        onChange={(reps) => updateSet(ei, si, { reps })}
-                        step={1}
-                        min={0}
-                        integer
-                        label={`${t('workout.set')} ${si + 1} — ${repsLabel}`}
-                        stepUpLabel={t('set.more', { label: repsLabel })}
-                        stepDownLabel={t('set.less', { label: repsLabel })}
-                        placeholder={last ? String(last.reps) : '–'}
-                      />
-
-                      <NumberField
-                        value={set.weight}
-                        onChange={(weight) => updateSet(ei, si, { weight })}
-                        step={weightStep(unit)}
-                        min={0}
-                        label={`${t('workout.set')} ${si + 1} — ${weightLabel}`}
-                        stepUpLabel={t('set.more', { label: weightLabel })}
-                        stepDownLabel={t('set.less', { label: weightLabel })}
-                        placeholder={
-                          last?.weight != null ? formatWeightInput(last.weight, unit) : '–'
-                        }
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => toggleDone(ei, si)}
-                        aria-pressed={set.done}
-                        aria-label={t(set.done ? 'set.undone' : 'set.done', { n: si + 1 })}
-                        className={`flex h-14 w-full items-center justify-center rounded-xl border transition ${
-                          set.done
-                            ? 'border-accent bg-accent text-white'
-                            : 'border-border bg-surface-2 text-fg-subtle hover:border-accent hover:text-accent'
-                        }`}
-                      >
-                        <CheckIcon width={22} height={22} />
-                      </button>
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <p className="flex min-w-0 items-center gap-1.5 truncate font-semibold text-fg">
+                          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">
+                            {letters[ei]}
+                          </span>
+                          <span className="min-w-0 truncate">{entry.exerciseName}</span>
+                        </p>
+                        {renderEntryActions(ei)}
+                      </div>
+                      {renderSetRows(ei, entry)}
                     </div>
                   );
                 })}
               </div>
-
-              <button onClick={() => addSet(ei)} className="btn-ghost mt-3 w-full text-sm">
-                {t('workout.addSet')}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

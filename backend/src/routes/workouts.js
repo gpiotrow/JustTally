@@ -60,6 +60,10 @@ function isValidEntries(entries) {
         // during recovery, so reject it rather than store it.
         (e.exerciseRef === undefined ||
           (Number.isInteger(e.exerciseRef) && e.exerciseRef > 0)) &&
+        // Superset grouping and the routine-origin link are both plain ids —
+        // any non-empty string is a valid one, there is nothing else to check.
+        (e.groupId === undefined || typeof e.groupId === 'string') &&
+        (e.plannedExerciseId === undefined || typeof e.plannedExerciseId === 'string') &&
         Array.isArray(e.sets) &&
         e.sets.every(isValidSet)
     )

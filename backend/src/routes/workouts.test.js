@@ -185,6 +185,34 @@ describe('writing workouts', () => {
     expect(JSON.parse(captured.entries)[0].sets).toEqual(entry.sets);
   });
 
+  it('persists groupId and plannedExerciseId', async () => {
+    const captured = captureInsertedEntries();
+    const entry = { ...validEntry, groupId: 'g1', plannedExerciseId: 'planned-1' };
+
+    await request(app)
+      .post('/api/workouts/sync')
+      .send({ upserts: [{ id: 'w1', updatedAt: 10, date: 10, entries: [entry] }] });
+
+    const stored = JSON.parse(captured.entries)[0];
+    expect(stored.groupId).toBe('g1');
+    expect(stored.plannedExerciseId).toBe('planned-1');
+  });
+
+  it.each([
+    ['a non-string groupId', { groupId: 42 }],
+    ['a non-string plannedExerciseId', { plannedExerciseId: 42 }],
+  ])('rejects %s rather than storing it', async (_label, patch) => {
+    const captured = captureInsertedEntries();
+
+    await request(app)
+      .post('/api/workouts/sync')
+      .send({
+        upserts: [{ id: 'w1', updatedAt: 10, date: 10, entries: [{ ...validEntry, ...patch }] }],
+      });
+
+    expect(captured.entries).toBeUndefined();
+  });
+
   it('accepts sets with only reps, so older clients keep syncing', async () => {
     const captured = captureInsertedEntries();
 

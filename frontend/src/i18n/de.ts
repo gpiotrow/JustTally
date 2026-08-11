@@ -106,6 +106,18 @@ export const de = {
   'set.undone': 'Haken bei Satz {n} entfernen',
   'set.more': '{label} erhöhen',
   'set.less': '{label} verringern',
+  'set.type.warmup': 'Aufwärmsatz',
+  'set.type.working': 'Arbeitssatz',
+  'set.type.drop': 'Dropsatz',
+  'set.typeToggle': 'Satztyp für Satz {n}: {type}. Tippen zum Wechseln.',
+
+  // Superset grouping
+  'workout.selectForGroup': '{name} für Supersatz auswählen',
+  'workout.selectedCount': '{count} ausgewählt',
+  'workout.groupConfirm': 'Als Supersatz klammern',
+  'workout.ungroup': 'Auflösen',
+  'workout.supersetLabel': 'Supersatz',
+  'workout.rpeGroupLabel': 'RPE für Satz {n}',
 
   // Rest timer
   'rest.label': 'Pause',
@@ -273,6 +285,10 @@ export const de = {
   'settings.units': 'Einheiten',
   'settings.unitsHint': 'Gilt für alle deine Geräte. Gespeichert wird immer in Kilogramm — die Umstellung ändert nur die Anzeige, nie deine Daten.',
   'settings.unitError': 'Einheit konnte nicht gespeichert werden',
+  'settings.rpe': 'RPE',
+  'settings.rpeVisible': 'RPE-Eingabe anzeigen',
+  'settings.rpeVisibleHint':
+    'Blendet die Auswahlreihe für die gefühlte Anstrengung bei jedem Satz ein oder aus. Wer RPE nicht nutzt, muss die Zeile nicht sehen.',
   'settings.offlineMedia': 'Offline-Fotos',
   'settings.offlineMediaHint':
     'Speichert die Fotos deiner Favoriten auf diesem Gerät, damit sie ohne Netz verfügbar sind. Die Einstellung gilt nur hier, nicht für deine anderen Geräte.',

@@ -5,6 +5,7 @@ import { useFavorites } from '../../hooks/useFavorites';
 import { useOfflineMedia } from '../../hooks/useOfflineMedia';
 import { useAuth } from '../../hooks/useAuth';
 import { useRestTimer } from '../../hooks/useRestTimer';
+import { useRpeVisibility } from '../../hooks/useRpeVisibility';
 import { ErrorBanner, Spinner } from '../../components/ui';
 import { UNITS, type Unit } from '../../lib/units';
 import { useT } from '../../i18n';
@@ -28,6 +29,7 @@ export function Settings() {
   const { favoriteIds, loading: favoritesLoading } = useFavorites();
   const { unit, updateProfile } = useAuth();
   const { defaultSeconds, setDefaultSeconds, wakeLockEnabled, setWakeLockEnabled } = useRestTimer();
+  const [rpeVisible, setRpeVisible] = useRpeVisibility();
   const [savingUnit, setSavingUnit] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -153,6 +155,24 @@ export function Settings() {
                 sound an alarm from a web app. Better read here than discovered
                 mid-workout. */}
             <span className="mt-1 block text-xs text-fg-subtle">{t('rest.wakeLockHint')}</span>
+          </span>
+        </label>
+      </section>
+
+      <section className="card space-y-3 p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+          {t('settings.rpe')}
+        </h2>
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={rpeVisible}
+            onChange={(e) => setRpeVisible(e.target.checked)}
+            className="mt-0.5 h-5 w-5 shrink-0 accent-accent"
+          />
+          <span>
+            <span className="block text-sm font-medium text-fg">{t('settings.rpeVisible')}</span>
+            <span className="mt-1 block text-xs text-fg-subtle">{t('settings.rpeVisibleHint')}</span>
           </span>
         </label>
       </section>
