@@ -99,6 +99,18 @@ export const de = {
   'workout.notes': 'Notizen',
   'workout.notesPlaceholder': 'Eigene Notizen…',
 
+  // Plate calculator
+  'plates.title': 'Hantelscheiben',
+  'plates.open': 'Scheibenrechner öffnen',
+  'plates.target': 'Zielgewicht (kg)',
+  'plates.bar': 'Stange',
+  'plates.barNone': 'Ohne Stange',
+  'plates.perSide': 'Pro Seite',
+  'plates.onlyBar': 'Nur die Stange — keine Scheiben nötig.',
+  'plates.belowBar': 'Das Zielgewicht liegt unter dem Gewicht der Stange.',
+  'plates.total': 'Ergibt {kg} kg gesamt.',
+  'plates.remainder': '{kg} kg lassen sich mit diesen Scheiben nicht auflegen.',
+
   // History
   'history.title': 'Verlauf',
   'history.emptyTitle': 'Noch keine Trainings',

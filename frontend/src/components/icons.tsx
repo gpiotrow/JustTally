@@ -92,6 +92,16 @@ export function SettingsIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Loaded barbell, seen from the side — entry point to the plate calculator. */
+export function PlatesIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 9v6M7.5 6v12M16.5 6v12M20 9v6" />
+      <path d="M7.5 12h9" />
+    </svg>
+  );
+}
+
 /**
  * Heart for the favorites toggle. `filled` swaps the outline for a solid shape
  * so the on/off state reads at a glance rather than only through color — the

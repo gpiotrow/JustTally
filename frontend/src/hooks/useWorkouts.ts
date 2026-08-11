@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { del, get, set } from 'idb-keyval';
 import type { WorkoutSession } from '../lib/types';
 import { syncWorkouts, type WorkoutDelete } from '../api/workouts';
@@ -65,6 +65,36 @@ export interface SyncResult {
 }
 
 /**
+ * Every mounted instance of this hook holds its own copy of the sessions, so a
+ * write in one leaves the others showing yesterday's list until they remount.
+ * That was survivable while the only writer was the screen you were looking
+ * at; with a sync that fires on its own it is not — the History list would
+ * quietly keep rendering pre-sync data.
+ *
+ * Writers call `notifyChanged()`, every instance re-reads from IndexedDB.
+ */
+const changeListeners = new Set<() => void>();
+
+function notifyChanged() {
+  for (const listener of [...changeListeners]) listener();
+}
+
+/**
+ * One sync at a time, process-wide. Two mounted instances both reacting to the
+ * same `online` event would otherwise push the same sessions twice.
+ */
+let inFlightSync: Promise<SyncResult> | null = null;
+
+/**
+ * Mount-triggered syncs are throttled: navigating between Training and Verlauf
+ * remounts the hook, and the sync protocol pushes the *entire* session list
+ * every time. Coming back online bypasses this — that is the moment the queue
+ * is meant to drain.
+ */
+const AUTO_SYNC_MIN_INTERVAL_MS = 60_000;
+let lastAutoSyncAt = 0;
+
+/**
  * Workout sessions live on the device first (IndexedDB via idb-keyval) and can
  * optionally be pushed/pulled to the server on demand via `sync()`.
  */
@@ -75,6 +105,17 @@ export function useWorkouts() {
   const [loaded, setLoaded] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [revision, setRevision] = useState(0);
+
+  // Re-read whenever another instance writes. Reads never notify, so this
+  // cannot feed itself.
+  useEffect(() => {
+    const onChange = () => setRevision((r) => r + 1);
+    changeListeners.add(onChange);
+    return () => {
+      changeListeners.delete(onChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!userId) {
@@ -99,7 +140,7 @@ export function useWorkouts() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, revision]);
 
   const persist = useCallback(
     async (next: WorkoutSession[]) => {
@@ -110,13 +151,18 @@ export function useWorkouts() {
   );
 
   const addSession = useCallback(
-    (session: WorkoutSession) => persist([session, ...sessions]),
+    async (session: WorkoutSession) => {
+      await persist([session, ...sessions]);
+      notifyChanged();
+    },
     [sessions, persist]
   );
 
   const updateSession = useCallback(
-    (session: WorkoutSession) =>
-      persist(sessions.map((s) => (s.id === session.id ? session : s))),
+    async (session: WorkoutSession) => {
+      await persist(sessions.map((s) => (s.id === session.id ? session : s)));
+      notifyChanged();
+    },
     [sessions, persist]
   );
 
@@ -129,14 +175,18 @@ export function useWorkouts() {
         { id, deletedAt: Date.now() },
       ]);
       await persist(sessions.filter((s) => s.id !== id));
+      notifyChanged();
     },
     [sessions, persist, userId]
   );
 
   const sync = useCallback(async (): Promise<SyncResult> => {
     if (!userId) return { pulled: 0, pushed: 0, deleted: 0 };
+    // Join the run already in progress rather than starting a second one.
+    if (inFlightSync) return inFlightSync;
+
     setSyncing(true);
-    try {
+    inFlightSync = (async () => {
       const deletes = (await get<WorkoutDelete[]>(pendingDeletesKey(userId))) ?? [];
       const response = await syncWorkouts({
         lastSyncedAt: lastSyncedAt ?? 0,
@@ -154,16 +204,59 @@ export function useWorkouts() {
       await set(pendingDeletesKey(userId), []);
       await set(lastSyncedKey(userId), response.serverTime);
       setLastSyncedAt(response.serverTime);
+      // After the timestamp, not before: an instance re-reading in between
+      // would pick up the merged sessions with a stale last-synced stamp.
+      notifyChanged();
 
       return {
         pulled: response.workouts.length,
         pushed: sessions.length,
         deleted: response.deletedIds.length,
       };
+    })();
+
+    try {
+      return await inFlightSync;
     } finally {
+      inFlightSync = null;
       setSyncing(false);
     }
   }, [sessions, lastSyncedAt, persist, userId]);
+
+  // `sync` gets a new identity on every session change; the listener below must
+  // not be torn down and re-armed each time, so it reaches the current one
+  // through a ref instead of a dependency.
+  const syncRef = useRef(sync);
+  useEffect(() => {
+    syncRef.current = sync;
+  });
+
+  /**
+   * The queue drains on its own: once on mount (throttled) and again the
+   * moment the device reports a connection. Without this, everything logged
+   * offline stayed on the one device until someone remembered to press Sync —
+   * which is not something anyone remembers after a workout.
+   */
+  useEffect(() => {
+    if (!userId || !loaded) return;
+
+    const flush = (force: boolean) => {
+      if (!navigator.onLine) return;
+      if (!force && Date.now() - lastAutoSyncAt < AUTO_SYNC_MIN_INTERVAL_MS) return;
+      lastAutoSyncAt = Date.now();
+      // Swallowed deliberately: a background attempt that fails means the
+      // connection is not usable yet, which is the normal case this exists
+      // for. Nothing was lost — the sessions stay queued locally and History
+      // shows how stale they are via its last-synced stamp. Errors the user
+      // asked for still surface, through the manual Sync button.
+      void syncRef.current().catch(() => {});
+    };
+
+    flush(false);
+    const onOnline = () => flush(true);
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [userId, loaded]);
 
   return {
     sessions,

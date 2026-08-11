@@ -98,6 +98,18 @@ export const es: Record<TKey, string> = {
   'workout.notes': 'Notas',
   'workout.notesPlaceholder': 'Tus propias notas…',
 
+  // Plate calculator
+  'plates.title': 'Discos',
+  'plates.open': 'Abrir la calculadora de discos',
+  'plates.target': 'Peso objetivo (kg)',
+  'plates.bar': 'Barra',
+  'plates.barNone': 'Sin barra',
+  'plates.perSide': 'Por lado',
+  'plates.onlyBar': 'Solo la barra — no hacen falta discos.',
+  'plates.belowBar': 'El peso objetivo es menor que el de la barra.',
+  'plates.total': 'Total: {kg} kg.',
+  'plates.remainder': 'No se pueden cargar {kg} kg con estos discos.',
+
   // History
   'history.title': 'Historial',
   'history.emptyTitle': 'Aún no hay entrenamientos',

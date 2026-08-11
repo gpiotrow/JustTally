@@ -98,6 +98,18 @@ export const en: Record<TKey, string> = {
   'workout.notes': 'Notes',
   'workout.notesPlaceholder': 'Your own notes…',
 
+  // Plate calculator
+  'plates.title': 'Plates',
+  'plates.open': 'Open plate calculator',
+  'plates.target': 'Target weight (kg)',
+  'plates.bar': 'Bar',
+  'plates.barNone': 'No bar',
+  'plates.perSide': 'Per side',
+  'plates.onlyBar': 'Just the bar — no plates needed.',
+  'plates.belowBar': 'The target is lighter than the bar itself.',
+  'plates.total': 'Comes to {kg} kg in total.',
+  'plates.remainder': '{kg} kg cannot be loaded with these plates.',
+
   // History
   'history.title': 'History',
   'history.emptyTitle': 'No workouts yet',

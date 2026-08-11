@@ -60,9 +60,11 @@ body {
 }
 
 @layer components {
+  /* min-h-11 = 44px, the smallest target Apple and Google both consider
+     reliable. Everything tapped mid-set has to clear it. */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
-      transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm
+      font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none
       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2
       focus-visible:ring-offset-bg;
   }
@@ -76,9 +78,29 @@ body {
     @apply btn bg-danger text-white hover:opacity-90;
   }
   .input {
-    @apply w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-fg
+    @apply min-h-11 w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-fg
       placeholder:text-fg-subtle outline-none transition focus:border-accent
       focus:ring-2 focus:ring-accent/25;
+  }
+  /*
+   * Set logging happens between working sets, one-handed, with a pulse. The
+   * field is oversized (56px), centred and heavy so it can be hit and read
+   * without aiming; the placeholder carries last session's number, which is
+   * why it is toned down rather than bold.
+   */
+  .input-gym {
+    @apply min-h-14 w-full rounded-xl border border-border bg-surface px-2 text-center text-lg
+      font-semibold tabular-nums text-fg placeholder:font-normal placeholder:text-fg-subtle
+      outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25;
+  }
+  /* Native spinners steal a third of the tap area and are useless on touch. */
+  .input-gym::-webkit-outer-spin-button,
+  .input-gym::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .input-gym[type='number'] {
+    -moz-appearance: textfield;
   }
   .label {
     @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-fg-muted;
