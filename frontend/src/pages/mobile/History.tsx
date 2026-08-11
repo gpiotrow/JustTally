@@ -16,7 +16,8 @@ const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 };
 
 export function History() {
-  const { sessions, loaded, deleteSession, sync, syncing, lastSyncedAt } = useWorkouts();
+  const { sessions, loaded, deleteSession, sync, syncing, lastSyncedAt, pendingCount } =
+    useWorkouts();
   const online = useOnline();
   const { unit } = useAuth();
   const { lang, t } = useLanguage();
@@ -48,11 +49,23 @@ export function History() {
       </div>
 
       {syncError && <ErrorBanner message={syncError} />}
-      {!syncError && lastSyncedAt ? (
-        <p className="text-xs text-fg-subtle">
-          {t('history.lastSynced')} {dateFmt.format(lastSyncedAt)}
-        </p>
-      ) : null}
+      {!syncError && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          {/* What is actually at stake, rather than only how long ago the last
+              round succeeded: a timestamp reads the same whether nothing has
+              changed since or a whole workout is sitting on this device. */}
+          {pendingCount > 0 && (
+            <span className="chip bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+              {t('history.pending', { count: pendingCount })}
+            </span>
+          )}
+          {lastSyncedAt ? (
+            <span className="text-fg-subtle">
+              {t('history.lastSynced')} {dateFmt.format(lastSyncedAt)}
+            </span>
+          ) : null}
+        </div>
+      )}
 
       {sessions.length === 0 ? (
         <EmptyState title={t('history.emptyTitle')} hint={t('history.emptyHint')} />

@@ -140,6 +140,7 @@ export const es: Record<TKey, string> = {
   'history.sync': 'Sincronizar',
   'history.syncing': 'Sincronizando…',
   'history.syncError': 'Error de sincronización',
+  'history.pending': '{count} cambio(s) en espera',
   'history.lastSynced': 'Última sincronización:',
 
   // Admin — exercises

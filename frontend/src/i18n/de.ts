@@ -142,6 +142,7 @@ export const de = {
   'history.sync': 'Sync',
   'history.syncing': 'Synchronisiere…',
   'history.syncError': 'Synchronisierung fehlgeschlagen',
+  'history.pending': '{count} Änderung(en) warten',
   'history.lastSynced': 'Zuletzt synchronisiert:',
 
   // Admin — exercises
