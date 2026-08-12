@@ -36,6 +36,7 @@ import {
   nextOpenInOrder,
 } from '../../lib/supersets';
 import { shouldSwipe } from '../../lib/swipeGesture';
+import { findNewRecords, newRecordKinds, type NewPR } from '../../lib/analytics/records';
 import type { RoutineInstantiation } from '../../lib/routineInstantiate';
 import { useLanguage } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
@@ -526,9 +527,22 @@ function WorkoutEditor({
       ...(routineId !== undefined ? { routineId, weekIndex, dayId } : {}),
       entries: savedEntries,
     };
+    // Computed against the account's history *without* this session — an
+    // edit to an already-saved workout must not be compared against itself.
+    const priorSessions = sessions.filter((s) => s.id !== session.id);
+    const exerciseIds = [...new Set(savedEntries.map((e) => e.exerciseId))];
+    const newPRs: NewPR[] = exerciseIds
+      .map((exerciseId): NewPR | null => {
+        const kinds = newRecordKinds(findNewRecords(priorSessions, session, exerciseId));
+        if (kinds.length === 0) return null;
+        const exerciseName = savedEntries.find((e) => e.exerciseId === exerciseId)!.exerciseName;
+        return { exerciseId, exerciseName, kinds };
+      })
+      .filter((pr): pr is NewPR => pr !== null);
+
     if (initial) await updateSession(session);
     else await addSession(session);
-    navigate('/history');
+    navigate('/history', newPRs.length > 0 ? { state: { newPRs } } : undefined);
   }
 
   /** Plate calculator / remove — shared between a standalone card and a group member's row. */

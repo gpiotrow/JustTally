@@ -8,13 +8,32 @@ import { useRestTimer } from '../../hooks/useRestTimer';
 import { useRpeVisibility } from '../../hooks/useRpeVisibility';
 import { useWorkouts } from '../../hooks/useWorkouts';
 import { useRoutines } from '../../hooks/useRoutines';
+import { useBodyWeights } from '../../hooks/useBodyWeights';
 import { ErrorBanner, Spinner } from '../../components/ui';
-import { UNITS, type Unit } from '../../lib/units';
+import { TrendChart } from '../../components/charts/TrendChart';
+import { UNITS, weightInputToKg, formatWeightInput, formatWeightWithUnit, type Unit } from '../../lib/units';
 import { buildExport } from '../../lib/exportWorkouts';
 import { parseExport, ExportFormatError } from '../../lib/importWorkouts';
 import { sessionsToCsv } from '../../lib/exportCsv';
 import { downloadAccountExport } from '../../api/export';
-import { useT } from '../../i18n';
+import type { Sex } from '../../lib/types';
+import { useLanguage } from '../../i18n';
+
+const SEX_OPTIONS: { value: Sex | null; labelKey: 'settings.sexMale' | 'settings.sexFemale' | 'settings.sexUnset' }[] = [
+  { value: 'male', labelKey: 'settings.sexMale' },
+  { value: 'female', labelKey: 'settings.sexFemale' },
+  { value: null, labelKey: 'settings.sexUnset' },
+];
+
+/** Today as a local `date` input value (`YYYY-MM-DD`) — a UTC-based `toISOString` slice
+ * would read as the wrong day near midnight in most timezones. */
+function todayLocalDateInputValue(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+const BODY_WEIGHT_DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
 
 /** Triggers a browser save prompt for in-memory content — no server round trip. */
 function downloadBlob(content: string, mimeType: string, filename: string) {
@@ -32,6 +51,7 @@ interface ImportSummary {
   skippedSessions: number;
   importedRoutines: number;
   skippedRoutines: number;
+  importedBodyWeights: number;
   rowErrors: string[];
 }
 
@@ -49,18 +69,33 @@ function formatBytes(bytes: number): string {
 }
 
 export function Settings() {
-  const t = useT();
+  const { lang, t } = useLanguage();
   const { exercises, loading } = useExercises();
   const { favoriteIds, loading: favoritesLoading } = useFavorites();
-  const { unit, updateProfile } = useAuth();
+  const { unit, updateProfile, user } = useAuth();
   const { defaultSeconds, setDefaultSeconds, wakeLockEnabled, setWakeLockEnabled } = useRestTimer();
   const [rpeVisible, setRpeVisible] = useRpeVisibility();
   const [savingUnit, setSavingUnit] = useState(false);
+  const [savingSex, setSavingSex] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
   const { sessions, loaded: sessionsLoaded, addSession } = useWorkouts();
   const { routines, loaded: routinesLoaded, saveRoutine } = useRoutines();
-  const dataReady = sessionsLoaded && routinesLoaded;
+  const {
+    bodyWeights,
+    loaded: bodyWeightsLoaded,
+    saveBodyWeight,
+    deleteBodyWeight,
+  } = useBodyWeights();
+  const dataReady = sessionsLoaded && routinesLoaded && bodyWeightsLoaded;
+  const bodyWeightDateFmt = useMemo(
+    () => new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-US', BODY_WEIGHT_DATE_OPTIONS),
+    [lang]
+  );
+  const [bwDate, setBwDate] = useState(todayLocalDateInputValue);
+  const [bwWeightInput, setBwWeightInput] = useState('');
+  const [bwError, setBwError] = useState<string | null>(null);
+  const [savingBw, setSavingBw] = useState(false);
   const [serverExporting, setServerExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
@@ -72,7 +107,10 @@ export function Settings() {
     const bundle = {
       exercises: exercises.map((e) => ({ id: e.id, ref: e.ref, name: e.name })),
       routines,
-      bodyWeights: [],
+      // The export format carries no identity for a body-weight entry (§ 9) —
+      // date and weight are all that make a person's own history meaningful,
+      // and two entries sharing both are indistinguishable anyway.
+      bodyWeights: bodyWeights.map((b) => ({ date: b.date, kg: b.kg })),
       sessions,
     };
     const file = buildExport(bundle, unit);
@@ -133,7 +171,23 @@ export function Settings() {
         importedRoutines += 1;
       }
 
-      setImportSummary({ importedSessions, skippedSessions, importedRoutines, skippedRoutines, rowErrors: errors });
+      // No identity to dedupe against (see the export side's comment) — every
+      // imported entry becomes a new row, deliberately, rather than guessing
+      // at which existing row it might "really" be.
+      let importedBodyWeights = 0;
+      for (const bw of bundle.bodyWeights) {
+        await saveBodyWeight({ id: crypto.randomUUID(), date: bw.date, kg: bw.kg, updatedAt: Date.now() });
+        importedBodyWeights += 1;
+      }
+
+      setImportSummary({
+        importedSessions,
+        skippedSessions,
+        importedRoutines,
+        skippedRoutines,
+        importedBodyWeights,
+        rowErrors: errors,
+      });
     } catch (err) {
       if (err instanceof ExportFormatError) setImportError(err.message);
       else setImportError(err instanceof Error ? err.message : t('settings.importError'));
@@ -159,6 +213,45 @@ export function Settings() {
       setProfileError(err instanceof Error ? err.message : t('settings.unitError'));
     } finally {
       setSavingUnit(false);
+    }
+  }
+
+  /**
+   * Optional and self-declared (§ 2.5) — exists only to pick the Wilks/DOTS
+   * coefficient set. `null` is a real, explicit answer meaning "withdrawn",
+   * not merely "not yet asked".
+   */
+  async function chooseSex(next: Sex | null) {
+    if (next === (user?.sex ?? null)) return;
+    setProfileError(null);
+    setSavingSex(true);
+    try {
+      await updateProfile({ sex: next });
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : t('settings.sexError'));
+    } finally {
+      setSavingSex(false);
+    }
+  }
+
+  async function handleAddBodyWeight() {
+    const kg = weightInputToKg(bwWeightInput, unit);
+    if (kg === undefined || kg <= 0) {
+      setBwError(t('settings.bodyWeightInvalid'));
+      return;
+    }
+    const date = new Date(`${bwDate}T00:00`).getTime();
+    if (Number.isNaN(date)) {
+      setBwError(t('settings.bodyWeightInvalid'));
+      return;
+    }
+    setBwError(null);
+    setSavingBw(true);
+    try {
+      await saveBodyWeight({ id: crypto.randomUUID(), date, kg, updatedAt: Date.now() });
+      setBwWeightInput('');
+    } finally {
+      setSavingBw(false);
     }
   }
 
@@ -231,6 +324,33 @@ export function Settings() {
       <section className="card space-y-4 p-4">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+            {t('settings.sex')}
+          </h2>
+          <p className="mt-1 text-sm text-fg-subtle">{t('settings.sexHint')}</p>
+        </div>
+        <div className="flex gap-2">
+          {SEX_OPTIONS.map((opt) => (
+            <button
+              key={String(opt.value)}
+              type="button"
+              onClick={() => void chooseSex(opt.value)}
+              disabled={savingSex}
+              aria-pressed={(user?.sex ?? null) === opt.value}
+              className={`min-h-11 flex-1 rounded-xl border text-sm font-medium transition disabled:opacity-50 ${
+                (user?.sex ?? null) === opt.value
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border text-fg-muted hover:bg-surface-2'
+              }`}
+            >
+              {t(opt.labelKey)}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="card space-y-4 p-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
             {t('rest.label')}
           </h2>
         </div>
@@ -285,6 +405,79 @@ export function Settings() {
             <span className="mt-1 block text-xs text-fg-subtle">{t('settings.rpeVisibleHint')}</span>
           </span>
         </label>
+      </section>
+
+      <section className="card space-y-4 p-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+            {t('settings.bodyWeight')}
+          </h2>
+          <p className="mt-1 text-sm text-fg-subtle">{t('settings.bodyWeightHint')}</p>
+        </div>
+
+        {bwError && <ErrorBanner message={bwError} />}
+
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <label className="label" htmlFor="bw-date">{t('settings.bodyWeightDate')}</label>
+            <input
+              id="bw-date"
+              type="date"
+              className="input"
+              value={bwDate}
+              onChange={(e) => setBwDate(e.target.value)}
+            />
+          </div>
+          <div className="flex-1">
+            <label className="label" htmlFor="bw-weight">{`${t('settings.bodyWeightValue')} (${unit})`}</label>
+            <input
+              id="bw-weight"
+              type="text"
+              inputMode="decimal"
+              className="input"
+              value={bwWeightInput}
+              onChange={(e) => setBwWeightInput(e.target.value)}
+              placeholder="–"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleAddBodyWeight()}
+            disabled={savingBw || bwWeightInput.trim() === ''}
+            className="btn-primary min-h-11 px-4 text-sm disabled:opacity-50"
+          >
+            {t('common.save')}
+          </button>
+        </div>
+
+        {bodyWeights.length > 0 && (
+          <>
+            <TrendChart
+              points={[...bodyWeights].reverse().map((b) => ({ date: b.date, value: b.kg }))}
+              variant="line"
+              label={t('settings.bodyWeight')}
+              formatValue={(v) => formatWeightWithUnit(v, unit)}
+              formatDate={(d) => bodyWeightDateFmt.format(d)}
+            />
+            <ul className="space-y-1.5 border-t border-border pt-3">
+              {bodyWeights.slice(0, 10).map((b) => (
+                <li key={b.id} className="flex items-center justify-between text-sm">
+                  <span className="text-fg-subtle">{bodyWeightDateFmt.format(b.date)}</span>
+                  <span className="flex items-center gap-3">
+                    <span className="font-medium text-fg">{formatWeightInput(b.kg, unit)} {unit}</span>
+                    <button
+                      type="button"
+                      onClick={() => void deleteBodyWeight(b.id)}
+                      className="text-xs text-fg-subtle hover:text-danger"
+                    >
+                      {t('common.delete')}
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
 
       <section className="card space-y-4 p-4">
@@ -348,6 +541,7 @@ export function Settings() {
                 {t('settings.importSummary', {
                   sessions: importSummary.importedSessions,
                   routines: importSummary.importedRoutines,
+                  bodyWeights: importSummary.importedBodyWeights,
                 })}
               </p>
               {(importSummary.skippedSessions > 0 || importSummary.skippedRoutines > 0) && (

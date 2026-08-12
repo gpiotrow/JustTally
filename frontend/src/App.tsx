@@ -9,6 +9,7 @@ import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { ExerciseList } from './pages/mobile/ExerciseList';
 import { ExerciseDetail } from './pages/mobile/ExerciseDetail';
+import { ExerciseStats } from './pages/mobile/ExerciseStats';
 import { Workout } from './pages/mobile/Workout';
 import { Routines } from './pages/mobile/Routines';
 import { History } from './pages/mobile/History';
@@ -37,6 +38,7 @@ export default function App() {
             >
               <Route path="/" element={<ExerciseList />} />
               <Route path="/exercise/:id" element={<ExerciseDetail />} />
+              <Route path="/exercise/:id/stats" element={<ExerciseStats />} />
               <Route path="/workout" element={<Workout />} />
               <Route path="/workout/:id" element={<Workout />} />
               <Route path="/routines" element={<Routines />} />

@@ -150,6 +150,10 @@ export function ExerciseDetail() {
         )}
       </section>
 
+      <Link to={`/exercise/${exercise.id}/stats`} className="btn-ghost w-full">
+        {t('detail.viewStats')}
+      </Link>
+
       <Link to="/workout" className="btn-primary w-full">
         {t('detail.addToWorkout')}
       </Link>

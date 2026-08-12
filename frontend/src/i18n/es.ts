@@ -75,6 +75,7 @@ export const es: Record<TKey, string> = {
   'detail.purpose': 'Propósito',
   'detail.addToWorkout': 'Añadir al entrenamiento',
   'detail.archived': 'Archivado',
+  'detail.viewStats': 'Ver estadísticas',
 
   // Image lightbox
   'lightbox.previous': 'Foto anterior',
@@ -155,6 +156,30 @@ export const es: Record<TKey, string> = {
   'history.syncError': 'Error de sincronización',
   'history.pending': '{count} cambio(s) en espera',
   'history.lastSynced': 'Última sincronización:',
+  'history.newRecordsTitle': '¡Nuevos récords!',
+  'history.recordKind.weight': 'peso',
+  'history.recordKind.e1rm': '1RM estimado',
+  'history.recordKind.setVolume': 'volumen de la serie',
+
+  // Exercise stats
+  'stats.title': 'Estadísticas: {name}',
+  'stats.unknownExercise': 'Ejercicio',
+  'stats.emptyTitle': 'Aún no hay datos',
+  'stats.emptyHint': 'En cuanto registres este ejercicio, aquí aparecerán los récords y el historial.',
+  'stats.records': 'Récords',
+  'stats.maxWeight': 'Peso máximo',
+  'stats.maxE1rm': 'Mejor 1RM estimado',
+  'stats.maxSetVolume': 'Mayor volumen de una serie',
+  'stats.e1rmCaveat': 'Estimación aproximada — muchas repeticiones hacen la fórmula poco fiable',
+  'stats.e1rmHistory': 'Historial: 1RM estimado',
+  'stats.e1rmHint':
+    'Estimado con la fórmula de Epley. A partir de {maxReps}+ repeticiones en la mejor serie, la estimación deja de ser fiable — esos puntos aparecen como un círculo hueco.',
+  'stats.volumeHistory': 'Historial: volumen',
+  'stats.relativeStrength': 'Fuerza relativa',
+  'stats.wilks': 'Wilks',
+  'stats.dots': 'DOTS',
+  'stats.relativeStrengthHint':
+    'Wilks y DOTS están pensados para el total de tres levantamientos de competición. Aplicados a un solo ejercicio son una aproximación para compararte contigo mismo en el tiempo, no un valor de liga. Calculado a partir de tu mejor 1RM estimado y el registro de peso corporal más cercano a esa fecha.',
 
   // Admin — exercises
   'admin.ex.title': 'Gestionar ejercicios',
@@ -284,6 +309,19 @@ export const es: Record<TKey, string> = {
   'settings.units': 'Unidades',
   'settings.unitsHint': 'Se aplica a todos tus dispositivos. Todo se guarda en kilogramos — cambiarlo solo afecta a la visualización, nunca a tus datos.',
   'settings.unitError': 'No se pudo guardar la unidad',
+  'settings.sex': 'Sexo',
+  'settings.sexHint':
+    'Opcional. Solo se usa para elegir el conjunto de coeficientes de Wilks/DOTS (fuerza relativa) — no es necesario para usar la app.',
+  'settings.sexMale': 'Masculino',
+  'settings.sexFemale': 'Femenino',
+  'settings.sexUnset': 'Prefiero no decirlo',
+  'settings.sexError': 'No se pudo guardar',
+  'settings.bodyWeight': 'Peso corporal',
+  'settings.bodyWeightHint':
+    'Entradas manuales — no hay integración con apps de salud, así que nada se importa automáticamente. Es la base de la fuerza relativa (Wilks/DOTS) en las estadísticas del ejercicio.',
+  'settings.bodyWeightDate': 'Fecha',
+  'settings.bodyWeightValue': 'Peso',
+  'settings.bodyWeightInvalid': 'Introduce una fecha y un peso válidos',
   'settings.rpe': 'RPE',
   'settings.rpeVisible': 'Mostrar entrada de RPE',
   'settings.rpeVisibleHint':
@@ -298,7 +336,7 @@ export const es: Record<TKey, string> = {
   'settings.exportError': 'No se pudo cargar la exportación',
   'settings.importLabel': 'Importar un archivo JSON',
   'settings.importError': 'No se pudo importar el archivo',
-  'settings.importSummary': '{sessions} entrenamiento(s), {routines} plan(es) importados',
+  'settings.importSummary': '{sessions} entrenamiento(s), {routines} plan(es), {bodyWeights} registro(s) de peso importados',
   'settings.importSkipped':
     '{count} entrada(s) omitidas — este dispositivo ya tiene una versión más reciente',
   'settings.importRowErrors': '{count} fila(s) con errores en el archivo, omitidas',

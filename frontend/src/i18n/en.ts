@@ -75,6 +75,7 @@ export const en: Record<TKey, string> = {
   'detail.purpose': 'Purpose',
   'detail.addToWorkout': 'Add to workout',
   'detail.archived': 'Archived',
+  'detail.viewStats': 'View stats',
 
   // Image lightbox
   'lightbox.previous': 'Previous photo',
@@ -155,6 +156,30 @@ export const en: Record<TKey, string> = {
   'history.syncError': 'Sync failed',
   'history.pending': '{count} change(s) waiting',
   'history.lastSynced': 'Last synced:',
+  'history.newRecordsTitle': 'New records!',
+  'history.recordKind.weight': 'weight',
+  'history.recordKind.e1rm': 'estimated 1RM',
+  'history.recordKind.setVolume': 'set volume',
+
+  // Exercise stats
+  'stats.title': 'Stats: {name}',
+  'stats.unknownExercise': 'Exercise',
+  'stats.emptyTitle': 'No data yet',
+  'stats.emptyHint': 'Once you log this exercise, records and history will show up here.',
+  'stats.records': 'Records',
+  'stats.maxWeight': 'Heaviest weight',
+  'stats.maxE1rm': 'Best estimated 1RM',
+  'stats.maxSetVolume': 'Biggest set volume',
+  'stats.e1rmCaveat': 'Rough estimate — a high rep count makes the formula unreliable',
+  'stats.e1rmHistory': 'History: estimated 1RM',
+  'stats.e1rmHint':
+    "Estimated with the Epley formula. Past {maxReps}+ reps in the best set, the estimate becomes unreliable — those points show as a hollow circle.",
+  'stats.volumeHistory': 'History: volume',
+  'stats.relativeStrength': 'Relative strength',
+  'stats.wilks': 'Wilks',
+  'stats.dots': 'DOTS',
+  'stats.relativeStrengthHint':
+    'Wilks and DOTS are designed for a competition three-lift total. Applied to a single exercise, they are an approximation for comparing yourself over time, not a league value. Computed from your best estimated 1RM and the body-weight entry closest to that date.',
 
   // Admin — exercises
   'admin.ex.title': 'Manage exercises',
@@ -284,6 +309,19 @@ export const en: Record<TKey, string> = {
   'settings.units': 'Units',
   'settings.unitsHint': 'Applies to all your devices. Everything is stored in kilograms — switching changes the display only, never your data.',
   'settings.unitError': 'Could not save the unit',
+  'settings.sex': 'Sex',
+  'settings.sexHint':
+    'Optional. Only used to pick the coefficient set for Wilks/DOTS (relative strength) — not required to use the app.',
+  'settings.sexMale': 'Male',
+  'settings.sexFemale': 'Female',
+  'settings.sexUnset': "Prefer not to say",
+  'settings.sexError': 'Could not save',
+  'settings.bodyWeight': 'Body weight',
+  'settings.bodyWeightHint':
+    'Manual entries — there is no Health-app integration, so nothing imports automatically. The basis for relative strength (Wilks/DOTS) on the exercise stats page.',
+  'settings.bodyWeightDate': 'Date',
+  'settings.bodyWeightValue': 'Weight',
+  'settings.bodyWeightInvalid': 'Please enter a valid date and weight',
   'settings.rpe': 'RPE',
   'settings.rpeVisible': 'Show RPE input',
   'settings.rpeVisibleHint':
@@ -298,7 +336,7 @@ export const en: Record<TKey, string> = {
   'settings.exportError': 'Could not load the export',
   'settings.importLabel': 'Import a JSON file',
   'settings.importError': 'Could not import the file',
-  'settings.importSummary': 'Imported {sessions} session(s), {routines} routine(s)',
+  'settings.importSummary': 'Imported {sessions} session(s), {routines} routine(s), {bodyWeights} body-weight entr(y/ies)',
   'settings.importSkipped': '{count} entry/entries skipped — this device already has a newer version',
   'settings.importRowErrors': '{count} malformed row(s) in the file were skipped',
   'settings.offlineMedia': 'Offline photos',

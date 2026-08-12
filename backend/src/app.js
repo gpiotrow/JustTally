@@ -13,6 +13,7 @@ import workoutRoutes from './routes/workouts.js';
 import favoriteRoutes from './routes/favorites.js';
 import routineRoutes from './routes/routines.js';
 import exportRoutes from './routes/export.js';
+import bodyWeightRoutes from './routes/bodyWeights.js';
 
 await initSchema();
 
@@ -49,6 +50,7 @@ app.use('/api/workouts', workoutRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/routines', routineRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/body-weights', bodyWeightRoutes);
 
 // Serve frontend static files (production build)
 const frontendDist = path.join(__dirname, '../../frontend/dist');

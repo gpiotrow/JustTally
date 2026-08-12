@@ -218,6 +218,26 @@ export async function initSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_routines_user ON routines(user_id);
   `);
+
+  // Manual body-weight log entries — the input for relative-strength scores
+  // (§ 10) and the one figure Health-app integration would otherwise supply
+  // (§ 1.1: no such integration exists, so this is entirely hand-entered).
+  // Synced like workouts/routines: last-write-wins on updated_at, deleted_at
+  // as the tombstone. Weight is always kilograms, same invariant as every
+  // other stored weight in the app.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS body_weights (
+      id           TEXT PRIMARY KEY,
+      user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date         BIGINT NOT NULL,
+      kg           DOUBLE PRECISION NOT NULL,
+      created_at   BIGINT NOT NULL,
+      updated_at   BIGINT NOT NULL,
+      deleted_at   BIGINT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_body_weights_user ON body_weights(user_id);
+  `);
 }
 
 /**

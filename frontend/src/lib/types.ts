@@ -190,6 +190,19 @@ export interface Routine {
   updatedAt: number;
 }
 
+/**
+ * A single manual body-weight log entry. There is no Health-app integration
+ * (§ 1.1 — deliberately out of scope), so this is always hand-entered.
+ */
+export interface BodyWeight {
+  id: string;
+  /** When the weight was recorded (epoch ms) — not when the row was saved. */
+  date: number;
+  /** Always kilograms, the same invariant as every other stored weight. */
+  kg: number;
+  updatedAt: number;
+}
+
 export const CATEGORIES = [
   'chest',
   'back',

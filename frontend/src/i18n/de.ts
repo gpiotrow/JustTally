@@ -76,6 +76,7 @@ export const de = {
   'detail.purpose': 'Zweck',
   'detail.addToWorkout': 'Zum Training hinzufügen',
   'detail.archived': 'Archiviert',
+  'detail.viewStats': 'Statistiken ansehen',
 
   // Image lightbox
   'lightbox.previous': 'Vorheriges Foto',
@@ -157,6 +158,30 @@ export const de = {
   'history.syncError': 'Synchronisierung fehlgeschlagen',
   'history.pending': '{count} Änderung(en) warten',
   'history.lastSynced': 'Zuletzt synchronisiert:',
+  'history.newRecordsTitle': 'Neue Rekorde!',
+  'history.recordKind.weight': 'Gewicht',
+  'history.recordKind.e1rm': 'geschätztes 1RM',
+  'history.recordKind.setVolume': 'Satzvolumen',
+
+  // Exercise stats
+  'stats.title': 'Statistik: {name}',
+  'stats.unknownExercise': 'Übung',
+  'stats.emptyTitle': 'Noch keine Daten',
+  'stats.emptyHint': 'Sobald du diese Übung protokollierst, erscheinen hier Rekorde und Verlauf.',
+  'stats.records': 'Rekorde',
+  'stats.maxWeight': 'Höchstes Gewicht',
+  'stats.maxE1rm': 'Bestes geschätztes 1RM',
+  'stats.maxSetVolume': 'Größtes Satzvolumen',
+  'stats.e1rmCaveat': 'Grobe Schätzung — viele Wiederholungen machen die Formel unzuverlässig',
+  'stats.e1rmHistory': 'Verlauf: geschätztes 1RM',
+  'stats.e1rmHint':
+    'Geschätzt nach der Epley-Formel. Ab {maxReps}+ Wiederholungen im besten Satz wird die Schätzung unzuverlässig — solche Punkte erscheinen als Kreis ohne Füllung.',
+  'stats.volumeHistory': 'Verlauf: Volumen',
+  'stats.relativeStrength': 'Relative Kraft',
+  'stats.wilks': 'Wilks',
+  'stats.dots': 'DOTS',
+  'stats.relativeStrengthHint':
+    'Wilks und DOTS sind für den Wettkampf-Dreikampf-Total gedacht. Auf eine einzelne Übung angewandt sind sie eine Näherung zum Vergleich mit dir selbst über die Zeit, kein Ligawert. Berechnet aus deinem besten geschätzten 1RM und dem Körpergewichtseintrag, der diesem Datum am nächsten liegt.',
 
   // Admin — exercises
   'admin.ex.title': 'Übungen verwalten',
@@ -286,6 +311,19 @@ export const de = {
   'settings.units': 'Einheiten',
   'settings.unitsHint': 'Gilt für alle deine Geräte. Gespeichert wird immer in Kilogramm — die Umstellung ändert nur die Anzeige, nie deine Daten.',
   'settings.unitError': 'Einheit konnte nicht gespeichert werden',
+  'settings.sex': 'Geschlecht',
+  'settings.sexHint':
+    'Optional. Wird nur verwendet, um den Koeffizientensatz für Wilks/DOTS (relative Kraft) zu wählen — für die Nutzung der App nicht erforderlich.',
+  'settings.sexMale': 'Männlich',
+  'settings.sexFemale': 'Weiblich',
+  'settings.sexUnset': 'Keine Angabe',
+  'settings.sexError': 'Konnte nicht gespeichert werden',
+  'settings.bodyWeight': 'Körpergewicht',
+  'settings.bodyWeightHint':
+    'Manuelle Einträge — ohne Health-Anbindung gibt es keinen automatischen Import. Grundlage für die relative Kraft (Wilks/DOTS) in der Übungsstatistik.',
+  'settings.bodyWeightDate': 'Datum',
+  'settings.bodyWeightValue': 'Gewicht',
+  'settings.bodyWeightInvalid': 'Bitte ein gültiges Datum und Gewicht eingeben',
   'settings.rpe': 'RPE',
   'settings.rpeVisible': 'RPE-Eingabe anzeigen',
   'settings.rpeVisibleHint':
@@ -300,7 +338,7 @@ export const de = {
   'settings.exportError': 'Export konnte nicht geladen werden',
   'settings.importLabel': 'JSON-Datei importieren',
   'settings.importError': 'Datei konnte nicht importiert werden',
-  'settings.importSummary': '{sessions} Training(s), {routines} Plan/Pläne importiert',
+  'settings.importSummary': '{sessions} Training(s), {routines} Plan/Pläne, {bodyWeights} Körpergewichtseintrag/-einträge importiert',
   'settings.importSkipped':
     '{count} Eintrag/Einträge übersprungen — auf diesem Gerät liegt bereits eine neuere Version',
   'settings.importRowErrors': '{count} fehlerhafte Zeile(n) in der Datei übersprungen',

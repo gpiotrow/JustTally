@@ -14,8 +14,9 @@ sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenr
 | § 6 Phase 3 — Komplexe Methoden | ✅ `69e274b` |
 | § 7 Phase 4 — Routinen und Alternativen | ✅ `c78aedb` |
 | § 8 Phase 5 — Desktop-Planer | ✅ |
-| § 9 Phase 6 — Export und Import | ✅ (dieser Commit) |
-| § 10–§ 11 | offen |
+| § 9 Phase 6 — Export und Import | ✅ |
+| § 10 Phase 7 — Analytics | ✅ (dieser Commit) |
+| § 11 | offen |
 
 ---
 
@@ -595,12 +596,22 @@ nicht nur per Unit-Test.
 
 ---
 
-## 10. Phase 7 — Analytics
+## 10. Phase 7 — Analytics — ✅ erledigt
 
 *Erfüllt: P3 „Tiefgreifende Post-Workout-Analytics"*
 
 Rechnet vollständig im Client aus den ohnehin lokalen Daten: kein Backend-Aufwand,
 funktioniert offline, keine zusätzliche Latenz.
+
+Umgesetzt wie geplant: `frontend/src/lib/analytics/` (Volumen, e1RM, Rekorde,
+Verlauf, Wilks/DOTS — 96 Testfälle), `lib/charts.ts` + `components/charts/TrendChart.tsx`
+(handgeschriebenes SVG), neue Seite `pages/mobile/ExerciseStats.tsx`
+(verlinkt von `ExerciseDetail.tsx`), PR-Banner in `History.tsx` nach dem Speichern
+in `Workout.tsx`, neue synchronisierte Kollektion `body_weights`
+(`backend/src/routes/bodyWeights.js` + `hooks/useBodyWeights.ts`) und ein
+Geschlecht-Auswahlfeld in `Settings.tsx` — die Backend-Route und das
+Frontend-Feld dafür existierten aus § 4 bereits vollständig, nur ohne
+UI-Einstiegspunkt.
 
 - `lib/analytics/` mit reinen, getesteten Funktionen:
   - **Volumen** = Σ (Wdh. × Gewicht) über Arbeits- und Dropsätze. Aufwärmsätze
@@ -623,7 +634,21 @@ funktioniert offline, keine zusätzliche Latenz.
   Diagrammtypen um ein Vielfaches der eigenen Lösung vergrößern — bei einem
   Bundle-Budget von 300 kB für App-Seiten ein schlechter Tausch.
 
-**Aufwand: L** (3–4 Tage)
+### 10.1 Abweichungen von der Planung
+
+| Geplant | Umgesetzt | Warum |
+|---|---|---|
+| Wilks/DOTS-Koeffizienten aus einer Referenz übernehmen | Koeffizienten aus den öffentlich dokumentierten Formeln (Wilks 1994, DOTS 2020) übernommen, aber nur gegen eine unabhängig berechnete Kontrollrechnung getestet — nicht gegen einen dritten Taschenrechner/Dienst gegengeprüft | In dieser Session stand kein externer Referenzrechner zur Verfügung. Die Tests (`relativeStrength.test.ts`) fangen Tippfehler in der Formel ab (das eigentliche Risiko bei einer Konstantenliste), sind aber ausdrücklich keine Bestätigung, dass die Koeffizienten selbst korrekt sind — nur, dass der Code sie korrekt anwendet. Vor einem Produktiveinsatz lohnt ein Abgleich gegen einen etablierten Rechner. |
+| „Wilks/DOTS mit klarer Einordnung in der UI" | Umgesetzt als Hinweistext unter den beiden Werten auf der Statistikseite | Wie geplant — hier nur festgehalten, weil es der einzige Ort ist, an dem die Formel überhaupt auftaucht: kein Wilks/DOTS-Wert erscheint ohne den Einordnungssatz direkt daneben. |
+| Relative Kraft je Punkt im e1RM-Verlauf | Nur für den e1RM-**Rekord** berechnet (ein Wert, nicht eine Kurve) | Eine Kurve hätte für jeden Sitzungspunkt den zeitlich nächsten Körpergewichtseintrag gesucht — machbar, aber ohne zusätzlichen Erkenntnisgewinn gegenüber dem einen Rekordwert, den die App tatsächlich hervorhebt. Kleinerer, ehrlicherer Schnitt für die erste Version. |
+| PR-Erkennung als Teil des Speicherns | Umgesetzt über `router`-State: `Workout.tsx` berechnet die Rekorde vor dem Speichern und übergibt sie an `/history`, das den Banner zeigt | „Direkt nach dem Speichern" ist wörtlich genommen — die Seite wechselt ohnehin zu `/history`, ein Banner dort ist die natürliche Stelle, ohne die Navigation aufzuhalten oder einen Modal-Dialog einzuschieben. |
+
+**Aufwand: L** (3–4 Tage), wie geplant. **Offen geblieben:** wie schon bei § 9
+war in dieser Session kein Postgres verfügbar; `bodyWeights.test.js` läuft nur
+gegen den SQL-Mock. Der komplette Client-Pfad (Rekorde, Diagramme inkl. des
+hohlen Markers für unzuverlässige e1RM-Schätzungen, Körpergewicht speichern,
+PR-Banner nach dem Speichern eines Trainings) wurde dagegen live im Browser
+gegen echte IndexedDB-Daten und von Hand nachgerechnete Werte geprüft.
 
 ---
 
@@ -690,7 +715,7 @@ indikativ — es identifiziert die Zahl auf der Scheibe, nicht die Farbe.
 §7  Routinen + Alt.     XL   ✅ ◀── braucht §4, §5
 §8  Desktop-Planer      L–XL ✅ ◀── braucht §7
 §9  Export/Import       M    ✅ ◀── braucht §4, §6, §7
-§10 Analytics           L       ◀── braucht §4 (Satz-Typen)
+§10 Analytics           L    ✅ ◀── braucht §4 (Satz-Typen)
 §11 Heatmap             L       ◀── braucht §10 + Datenpflege
 ```
 
@@ -706,7 +731,7 @@ Sinnvolle Auslieferungsschnitte:
 | **A** | §3 ✅, §4 ✅, §5 ✅ | Die App ist im Studio wirklich benutzbar — **fertig** |
 | **B** | §6 ✅, §7 ✅ | Trainieren nach Plan, Alternativen bei besetztem Gerät — **fertig** |
 | **C** | §8 ✅, §9 ✅ | Planung am Desktop, Daten gehören dem Nutzer — **fertig** |
-| **D** | §10, §11 | Auswertung und Erholungsübersicht |
+| **D** | §10 ✅, §11 | Auswertung und Erholungsübersicht |
 
 ---
 

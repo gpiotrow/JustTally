@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useWorkouts } from '../../hooks/useWorkouts';
 import { useOnline } from '../../hooks/useOnline';
 import { useAuth } from '../../hooks/useAuth';
 import { formatWeightWithUnit } from '../../lib/units';
 import { setType } from '../../lib/types';
+import type { NewPR } from '../../lib/analytics/records';
 import { EmptyState, ErrorBanner, Spinner } from '../../components/ui';
 import { useLanguage } from '../../i18n';
 
@@ -24,6 +25,14 @@ export function History() {
   const { lang, t } = useLanguage();
   const [syncError, setSyncError] = useState<string | null>(null);
   const dateFmt = new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-US', DATE_OPTIONS);
+
+  const location = useLocation();
+  // Shown once, right after a save that beat a prior record — cleared
+  // locally on dismiss; router state doesn't survive a reload, so it never
+  // reappears on its own either.
+  const [newPRs, setNewPRs] = useState<NewPR[] | null>(
+    (location.state as { newPRs?: NewPR[] } | null)?.newPRs ?? null
+  );
 
   if (!loaded) return <Spinner label={t('common.loading')} />;
 
@@ -48,6 +57,30 @@ export function History() {
           {syncing ? t('history.syncing') : t('history.sync')}
         </button>
       </div>
+
+      {newPRs && newPRs.length > 0 && (
+        <div className="card space-y-2 border-accent/40 bg-accent/5 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-accent">{t('history.newRecordsTitle')}</h2>
+            <button
+              onClick={() => setNewPRs(null)}
+              className="text-xs text-fg-subtle hover:text-fg"
+            >
+              {t('common.close')}
+            </button>
+          </div>
+          <ul className="space-y-1 text-sm text-fg">
+            {newPRs.map((pr) => (
+              <li key={pr.exerciseId}>
+                <span className="font-medium">{pr.exerciseName}</span>{' '}
+                <span className="text-fg-subtle">
+                  ({pr.kinds.map((kind) => t(`history.recordKind.${kind}`)).join(', ')})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {syncError && <ErrorBanner message={syncError} />}
       {!syncError && (
