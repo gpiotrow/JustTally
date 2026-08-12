@@ -13,8 +13,9 @@ sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenr
 | § 5 Phase 2 — Sync-Härtung | ✅ `c383095` |
 | § 6 Phase 3 — Komplexe Methoden | ✅ `69e274b` |
 | § 7 Phase 4 — Routinen und Alternativen | ✅ `c78aedb` |
-| § 8 Phase 5 — Desktop-Planer | ✅ (dieser Commit) |
-| § 9–§ 11 | offen |
+| § 8 Phase 5 — Desktop-Planer | ✅ |
+| § 9 Phase 6 — Export und Import | ✅ (dieser Commit) |
+| § 10–§ 11 | offen |
 
 ---
 
@@ -522,9 +523,18 @@ Kollektion mit eigenem Schreibpfad handelt.
 
 ---
 
-## 9. Phase 6 — Verlustfreier Export und Import
+## 9. Phase 6 — Verlustfreier Export und Import — ✅ erledigt
 
 *Erfüllt: P1 „Verlustfreier Datenexport"*
+
+Umgesetzt wie geplant: eigenes Schema `justtally-export/v1`
+(`frontend/src/lib/exportSchema.ts`), dokumentiert in
+[docs/export-format.md](export-format.md), Client-Export aus IndexedDB
+(`lib/exportWorkouts.ts`), Server-Endpunkt `GET /api/export`
+(`backend/src/routes/export.js` + `services/exportAccount.js`), Import mit
+Validierung und Last-Write-Wins gegen den lokalen Stand (`lib/importWorkouts.ts`),
+flacher CSV-Export (`lib/exportCsv.ts`), UI-Einstiegspunkt in
+`pages/mobile/Settings.tsx`.
 
 - **Eigenes, dokumentiertes Schema** `justtally-export/v1` — entschieden, s. § 15.1.
   Das Vertrauensversprechen entsteht durch ein **dokumentiertes Format mit
@@ -567,8 +577,21 @@ Kollektion mit eigenem Schreibpfad handelt.
 - Zusätzlich ein flacher CSV-Export für Tabellenkalkulation — ausdrücklich als
   verlustbehaftete Bequemlichkeit gekennzeichnet.
 
-**Aufwand: M** (2 Tage) · Muss nach Phase 1, 3 und 4 liegen, sonst beschreibt das
-Format nur die Hälfte.
+### 9.1 Abweichungen von der Planung
+
+| Geplant | Umgesetzt | Warum |
+|---|---|---|
+| `musclesPrimary`/`musclesSecondary` im Export-Beispiel gesetzt | Felder existieren im Schema (optional), werden aber nie befüllt | § 11 (Muskeltaxonomie) ist noch offen — `Exercise` trägt diese Daten heute schlicht nicht. Die Felder sind additiv reserviert, damit § 11 keinen Format-Sprung braucht, sondern nur anfängt, ein längst vorhandenes optionales Feld zu füllen. |
+| `bodyWeights` mit Beispieldaten | Immer `[]` | Die Körpergewichts-Kollektion (§ 10) existiert noch nicht. Dasselbe additive Muster wie bei den Muskelgruppen. |
+| Import-Verhalten nicht im Detail spezifiziert | Last-Write-Wins gegen den lokalen Stand (`updatedAt`-Vergleich), fehlerhafte Zeilen werden übersprungen und gemeldet statt die ganze Datei abzulehnen | Ein altes Backup darf frischere lokale Änderungen nicht stumm überschreiben — dieselbe Regel, die das Sync-Protokoll schon für genau diesen Fall durchsetzt (`syncMerge.ts`). Und eine einzelne kaputte Zeile in einer sonst gültigen Fremddatei sollte den Import nicht insgesamt verhindern. |
+
+**Aufwand: M** (2 Tage), wie geplant. **Offen geblieben:** der Server-Export
+(`GET /api/export`) ist nur gegen einen SQL-Mock getestet — ein echter
+Ende-zu-Ende-Lauf gegen Postgres steht aus, da in dieser Session weiterhin kein
+`DATABASE_URL` verfügbar war (wie bereits in § 4–§ 8 vermerkt). Der Client-Pfad
+(Export → Import, inklusive Round-Trip mit Dropsätzen, Supersätzen, RPE und
+Alternativen) wurde dagegen live im Browser gegen echte IndexedDB-Daten geprüft,
+nicht nur per Unit-Test.
 
 ---
 
@@ -666,7 +689,7 @@ indikativ — es identifiziert die Zahl auf der Scheibe, nicht die Farbe.
 §6  Komplexe Methoden   M–L  ✅ ◀── braucht §4
 §7  Routinen + Alt.     XL   ✅ ◀── braucht §4, §5
 §8  Desktop-Planer      L–XL ✅ ◀── braucht §7
-§9  Export/Import       M       ◀── braucht §4, §6, §7
+§9  Export/Import       M    ✅ ◀── braucht §4, §6, §7
 §10 Analytics           L       ◀── braucht §4 (Satz-Typen)
 §11 Heatmap             L       ◀── braucht §10 + Datenpflege
 ```
@@ -682,7 +705,7 @@ Sinnvolle Auslieferungsschnitte:
 |---|---|---|
 | **A** | §3 ✅, §4 ✅, §5 ✅ | Die App ist im Studio wirklich benutzbar — **fertig** |
 | **B** | §6 ✅, §7 ✅ | Trainieren nach Plan, Alternativen bei besetztem Gerät — **fertig** |
-| **C** | §8 ✅, §9 | Planung am Desktop, Daten gehören dem Nutzer |
+| **C** | §8 ✅, §9 ✅ | Planung am Desktop, Daten gehören dem Nutzer — **fertig** |
 | **D** | §10, §11 | Auswertung und Erholungsübersicht |
 
 ---

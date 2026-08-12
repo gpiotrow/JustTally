@@ -288,6 +288,19 @@ export const en: Record<TKey, string> = {
   'settings.rpeVisible': 'Show RPE input',
   'settings.rpeVisibleHint':
     "Shows or hides the perceived-exertion picker on every set. If you don't use RPE, you don't need to see the row.",
+  'settings.exportTitle': 'Export and import',
+  'settings.exportHint':
+    'The JSON export is lossless and contains all your data. Weights are always in kilograms in the file, regardless of your display unit.',
+  'settings.exportJson': 'Export as JSON (this device, offline)',
+  'settings.exportJsonServer': 'Download server export',
+  'settings.exportCsv': 'Export as CSV',
+  'settings.exportCsvHint': 'For spreadsheets — lossy, not a basis for a later import.',
+  'settings.exportError': 'Could not load the export',
+  'settings.importLabel': 'Import a JSON file',
+  'settings.importError': 'Could not import the file',
+  'settings.importSummary': 'Imported {sessions} session(s), {routines} routine(s)',
+  'settings.importSkipped': '{count} entry/entries skipped — this device already has a newer version',
+  'settings.importRowErrors': '{count} malformed row(s) in the file were skipped',
   'settings.offlineMedia': 'Offline photos',
   'settings.offlineMediaHint':
     "Stores your favorites' photos on this device so they are available without a network. The setting applies here only, not to your other devices.",

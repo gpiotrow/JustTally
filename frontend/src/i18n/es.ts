@@ -288,6 +288,20 @@ export const es: Record<TKey, string> = {
   'settings.rpeVisible': 'Mostrar entrada de RPE',
   'settings.rpeVisibleHint':
     'Muestra u oculta la fila de esfuerzo percibido en cada serie. Si no usas el RPE, no necesitas ver la fila.',
+  'settings.exportTitle': 'Exportar e importar',
+  'settings.exportHint':
+    'La exportación JSON no pierde datos e incluye todo. Los pesos siempre están en kilogramos en el archivo, sea cual sea tu unidad de visualización.',
+  'settings.exportJson': 'Exportar como JSON (este dispositivo, sin conexión)',
+  'settings.exportJsonServer': 'Descargar exportación del servidor',
+  'settings.exportCsv': 'Exportar como CSV',
+  'settings.exportCsvHint': 'Para hojas de cálculo — con pérdida de datos, no sirve para una importación posterior.',
+  'settings.exportError': 'No se pudo cargar la exportación',
+  'settings.importLabel': 'Importar un archivo JSON',
+  'settings.importError': 'No se pudo importar el archivo',
+  'settings.importSummary': '{sessions} entrenamiento(s), {routines} plan(es) importados',
+  'settings.importSkipped':
+    '{count} entrada(s) omitidas — este dispositivo ya tiene una versión más reciente',
+  'settings.importRowErrors': '{count} fila(s) con errores en el archivo, omitidas',
   'settings.offlineMedia': 'Fotos sin conexión',
   'settings.offlineMediaHint':
     'Guarda las fotos de tus favoritos en este dispositivo para tenerlas disponibles sin red. El ajuste solo se aplica aquí, no a tus otros dispositivos.',

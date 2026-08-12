@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useFavorites } from '../../hooks/useFavorites';
@@ -6,9 +6,34 @@ import { useOfflineMedia } from '../../hooks/useOfflineMedia';
 import { useAuth } from '../../hooks/useAuth';
 import { useRestTimer } from '../../hooks/useRestTimer';
 import { useRpeVisibility } from '../../hooks/useRpeVisibility';
+import { useWorkouts } from '../../hooks/useWorkouts';
+import { useRoutines } from '../../hooks/useRoutines';
 import { ErrorBanner, Spinner } from '../../components/ui';
 import { UNITS, type Unit } from '../../lib/units';
+import { buildExport } from '../../lib/exportWorkouts';
+import { parseExport, ExportFormatError } from '../../lib/importWorkouts';
+import { sessionsToCsv } from '../../lib/exportCsv';
+import { downloadAccountExport } from '../../api/export';
 import { useT } from '../../i18n';
+
+/** Triggers a browser save prompt for in-memory content — no server round trip. */
+function downloadBlob(content: string, mimeType: string, filename: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+interface ImportSummary {
+  importedSessions: number;
+  skippedSessions: number;
+  importedRoutines: number;
+  skippedRoutines: number;
+  rowErrors: string[];
+}
 
 /** Bytes as a short human-readable string; the exact figure is never the point. */
 function formatBytes(bytes: number): string {
@@ -32,6 +57,91 @@ export function Settings() {
   const [rpeVisible, setRpeVisible] = useRpeVisibility();
   const [savingUnit, setSavingUnit] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+
+  const { sessions, loaded: sessionsLoaded, addSession } = useWorkouts();
+  const { routines, loaded: routinesLoaded, saveRoutine } = useRoutines();
+  const dataReady = sessionsLoaded && routinesLoaded;
+  const [serverExporting, setServerExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  function handleExportJson() {
+    const bundle = {
+      exercises: exercises.map((e) => ({ id: e.id, ref: e.ref, name: e.name })),
+      routines,
+      bodyWeights: [],
+      sessions,
+    };
+    const file = buildExport(bundle, unit);
+    downloadBlob(JSON.stringify(file, null, 2), 'application/json', 'just-tally-export.json');
+  }
+
+  function handleExportCsv() {
+    downloadBlob(sessionsToCsv(sessions), 'text/csv;charset=utf-8', 'just-tally-sessions.csv');
+  }
+
+  async function handleServerExport() {
+    setExportError(null);
+    setServerExporting(true);
+    try {
+      await downloadAccountExport();
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : t('settings.exportError'));
+    } finally {
+      setServerExporting(false);
+    }
+  }
+
+  /**
+   * A local edit made since the last export must not be clobbered by an
+   * older backup — the same last-write-wins rule the sync protocol already
+   * applies, applied here between the imported row and what is on-device.
+   */
+  async function handleImportFile(file: File) {
+    setImportError(null);
+    setImportSummary(null);
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const { bundle, errors } = parseExport(json);
+
+      let importedSessions = 0;
+      let skippedSessions = 0;
+      for (const session of bundle.sessions) {
+        const existing = sessions.find((s) => s.id === session.id);
+        if (existing && existing.updatedAt >= session.updatedAt) {
+          skippedSessions += 1;
+          continue;
+        }
+        await addSession(session);
+        importedSessions += 1;
+      }
+
+      let importedRoutines = 0;
+      let skippedRoutines = 0;
+      for (const routine of bundle.routines) {
+        const existing = routines.find((r) => r.id === routine.id);
+        if (existing && existing.updatedAt >= routine.updatedAt) {
+          skippedRoutines += 1;
+          continue;
+        }
+        await saveRoutine(routine);
+        importedRoutines += 1;
+      }
+
+      setImportSummary({ importedSessions, skippedSessions, importedRoutines, skippedRoutines, rowErrors: errors });
+    } catch (err) {
+      if (err instanceof ExportFormatError) setImportError(err.message);
+      else setImportError(err instanceof Error ? err.message : t('settings.importError'));
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  }
 
   /**
    * The unit lives on the account, so switching it needs the server. Offline
@@ -175,6 +285,86 @@ export function Settings() {
             <span className="mt-1 block text-xs text-fg-subtle">{t('settings.rpeVisibleHint')}</span>
           </span>
         </label>
+      </section>
+
+      <section className="card space-y-4 p-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+            {t('settings.exportTitle')}
+          </h2>
+          <p className="mt-1 text-sm text-fg-subtle">{t('settings.exportHint')}</p>
+        </div>
+
+        {exportError && <ErrorBanner message={exportError} />}
+
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={handleExportJson}
+            disabled={!dataReady}
+            className="btn-ghost w-full justify-center px-3 py-2 text-sm disabled:opacity-50"
+          >
+            {t('settings.exportJson')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleServerExport()}
+            disabled={serverExporting}
+            className="btn-ghost w-full justify-center px-3 py-2 text-sm disabled:opacity-50"
+          >
+            {serverExporting ? t('common.loading') : t('settings.exportJsonServer')}
+          </button>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={!dataReady}
+            className="btn-ghost w-full justify-center px-3 py-2 text-sm disabled:opacity-50"
+          >
+            {t('settings.exportCsv')}
+          </button>
+          <p className="text-xs text-fg-subtle">{t('settings.exportCsvHint')}</p>
+        </div>
+
+        <div className="space-y-2 border-t border-border pt-3">
+          <label className="label" htmlFor="import-file">
+            {t('settings.importLabel')}
+          </label>
+          <input
+            id="import-file"
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            disabled={importing}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleImportFile(file);
+            }}
+            className="block w-full text-sm text-fg-muted file:mr-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-2 file:text-sm file:font-medium"
+          />
+          {importError && <ErrorBanner message={importError} />}
+          {importSummary && (
+            <div className="space-y-1 text-xs text-fg-subtle">
+              <p>
+                {t('settings.importSummary', {
+                  sessions: importSummary.importedSessions,
+                  routines: importSummary.importedRoutines,
+                })}
+              </p>
+              {(importSummary.skippedSessions > 0 || importSummary.skippedRoutines > 0) && (
+                <p>
+                  {t('settings.importSkipped', {
+                    count: importSummary.skippedSessions + importSummary.skippedRoutines,
+                  })}
+                </p>
+              )}
+              {importSummary.rowErrors.length > 0 && (
+                <p className="text-amber-700 dark:text-amber-300">
+                  {t('settings.importRowErrors', { count: importSummary.rowErrors.length })}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="card space-y-3 p-4">

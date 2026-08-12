@@ -290,6 +290,20 @@ export const de = {
   'settings.rpeVisible': 'RPE-Eingabe anzeigen',
   'settings.rpeVisibleHint':
     'Blendet die Auswahlreihe für die gefühlte Anstrengung bei jedem Satz ein oder aus. Wer RPE nicht nutzt, muss die Zeile nicht sehen.',
+  'settings.exportTitle': 'Export und Import',
+  'settings.exportHint':
+    'Der JSON-Export ist verlustfrei und enthält alle deine Daten. Gewichte stehen darin immer in Kilogramm, unabhängig von deiner Anzeigeeinheit.',
+  'settings.exportJson': 'Als JSON exportieren (dieses Gerät, offline)',
+  'settings.exportJsonServer': 'Serverexport laden',
+  'settings.exportCsv': 'Als CSV exportieren',
+  'settings.exportCsvHint': 'Für Tabellenkalkulation — verlustbehaftet, keine Grundlage für einen späteren Import.',
+  'settings.exportError': 'Export konnte nicht geladen werden',
+  'settings.importLabel': 'JSON-Datei importieren',
+  'settings.importError': 'Datei konnte nicht importiert werden',
+  'settings.importSummary': '{sessions} Training(s), {routines} Plan/Pläne importiert',
+  'settings.importSkipped':
+    '{count} Eintrag/Einträge übersprungen — auf diesem Gerät liegt bereits eine neuere Version',
+  'settings.importRowErrors': '{count} fehlerhafte Zeile(n) in der Datei übersprungen',
   'settings.offlineMedia': 'Offline-Fotos',
   'settings.offlineMediaHint':
     'Speichert die Fotos deiner Favoriten auf diesem Gerät, damit sie ohne Netz verfügbar sind. Die Einstellung gilt nur hier, nicht für deine anderen Geräte.',
