@@ -1,6 +1,12 @@
 # ---- Frontend build ----
 FROM node:22-slim AS frontend
 WORKDIR /app/frontend
+# node:22-slim's bundled npm is old enough to mishandle optional platform
+# packages (esbuild's per-OS binaries) in a lockfile written by a newer npm —
+# it tries to install ones for the wrong OS/arch instead of skipping them
+# (EBADPLATFORM), aborting `npm ci` outright. Matching npm's major version to
+# what generates the lockfile avoids the mismatch.
+RUN npm install -g npm@11
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
