@@ -16,7 +16,8 @@ sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenr
 | § 8 Phase 5 — Desktop-Planer | ✅ |
 | § 9 Phase 6 — Export und Import | ✅ |
 | § 10 Phase 7 — Analytics | ✅ |
-| § 11 Phase 8 — Muskel-Erholungs-Heatmap | ✅ (dieser Commit) |
+| § 11 Phase 8 — Muskel-Erholungs-Heatmap | ✅ |
+| § 16 Übungsauswahl (Favoriten, Muskelgruppen, Suche) | ✅ (dieser Commit) |
 
 ---
 
@@ -816,3 +817,49 @@ Sinnvolle Auslieferungsschnitte:
    bekommt einen zweiten, imperialen Scheiben-/Stangensatz und rechnet nativ in
    der gewählten Einheit statt über Umrechnung — die Mathematik muss auf echten
    Scheiben landen.
+
+---
+
+## 16. Übungsauswahl — Favoriten, Muskelgruppen, Suche — ✅ erledigt
+
+*Eigenständiger Auftrag, unabhängig von § 1–§ 15 — dieser Plan war bereits
+vollständig abgearbeitet. Detailkonzept in
+`C:\Users\maiks\.claude\plans\das-bungen-hinzuf-gen-funktioniert-quirky-glacier.md`
+(genehmigt). Umgesetzt in zwei Modell-Stufen: Opus 5 (API-Entwurf, `Modal`-Umbau,
+`lib/`-Kern) → Sonnet 5 (Aufrufer-Migration, Feinschliff, Verifikation).*
+
+Ersetzt die ungefilterte Vollliste beim Hinzufügen einer Übung durch
+`components/ExercisePicker.tsx`: vier Einstiege (Favoriten+Zuletzt, Muskelgruppe,
+Alle, Suche — Suche schlägt immer den aktiven Modus), Mehrfachauswahl beim
+Hinzufügen, Einzelauswahl mit sofortigem Commit beim Ersetzen/bei Alternativen.
+Eine Komponente ersetzt die beiden zuvor zeilengleich duplizierten Picker-Modals
+in `Workout.tsx` und `Routines.tsx` (inkl. des dort verschachtelten Falls).
+
+Reine Logik in `lib/exerciseSearch.ts` (Diakritika-faltende Suche),
+`lib/exerciseRecency.ts` (Zuletzt-verwendet-Auswertung aus den Sessions) und
+`lib/exercisePicker.ts` (Gruppierung: Favoriten vor Zuletzt dedupliziert, primär
+vor sekundär, leere Blöcke fallen weg) — 44 Tests. `components/ui.tsx`s `Modal`
+wurde additiv um optionale `toolbar`/`footer`-Slots erweitert (Panel als
+Flex-Spalte, nur der Rumpf scrollt); alle acht bestehenden Aufrufer unverändert
+geprüft.
+
+### 16.1 Abweichungen von der Planung
+
+| Geplant | Umgesetzt | Warum |
+|---|---|---|
+| Keine Aussage zur Mehrfachauswahl beim Hinzufügen einer Übung *innerhalb einer Routine* | Einzelauswahl mit sofortigem Commit, wie beim Ersetzen/bei Alternativen — nicht Mehrfachauswahl wie im Workout-„Hinzufügen" | Das bestehende Verhalten von `Routines.tsx` committete schon immer mit einem Tap pro Übung; das Additiv-Prinzip des Umbaus („bestehende Aufrufer dürfen sich nicht verhalten ändern") hatte hier Vorrang vor einer stillschweigenden Funktionserweiterung, die der Plan nicht verlangt hatte. |
+| Suche via `name.toLowerCase().includes(query.toLowerCase())` implizit als Referenzverhalten | `matchesQuery` prüft whitespace-getrennte Tokens statt eines einzigen Substrings | Echte Obermenge des alten Verhaltens (kein Treffer geht verloren) und nötig, damit „bank drucken" (mit Leerzeichen) „Bankdrücken" findet — ein Fall, den ein einzelner `includes`-Test nie abdeckt hätte. |
+| — (nicht Teil des Auftrags) | `FavoriteButton` um ein optionales `className`-Prop erweitert, im Picker auf `min-h-11 min-w-11` gesetzt | Die geteilte Komponente lag mit `p-2` bei 36×36 px — unter der projektweiten 44-px-Vorgabe. Im Browser bei 320 px gemessen und additiv behoben (Default für `ExerciseList.tsx`/`ExerciseDetail.tsx` unverändert), statt die Vorgabe für die neue, tap-dichte Liste zu unterlaufen. |
+
+**Verifikation:** `npx tsc -b`, `npm test` (295/295 Frontend, 233/233 Backend),
+`npm run build` — alle grün. Im Browser gegen eine vorbefüllte IndexedDB
+geprüft (kein lokaler Postgres verfügbar, wie bereits in § 4–§ 11 vermerkt):
+alle vier Picker-Modi, Mehrfachauswahl, das verschachtelte Routine-Modal, der
+Plattenrechner als unveränderter `Modal`-Aufrufer, 320 px ohne Überlauf (nach
+der Herz-Korrektur oben), beide Themes, Offline-Zustand (Herz deaktiviert,
+Liste bleibt aus dem Cache lesbar).
+
+**Nicht behoben, weil außerhalb des Auftrags:** bei 320 px überläuft die
+Kopfzeile der App (Sprachumschalter, Theme, Einstellungen, Abmelden) unabhängig
+von diesem Feature um rund 69 px — vorbestehend, nicht durch diese Änderung
+verursacht. Als separate Aufgabe vorgemerkt.

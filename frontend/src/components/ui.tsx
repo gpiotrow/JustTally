@@ -53,14 +53,29 @@ export function CategoryBadge({ category }: { category: string }) {
   return <span className="chip bg-surface-2 text-fg-muted capitalize">{label}</span>;
 }
 
+/**
+ * Bottom sheet on a phone, centred dialog from `sm` up.
+ *
+ * The panel is a flex column so that only the body scrolls: a search field that
+ * scrolls out of reach, or a "3 hinzufügen" button that has to be scrolled back
+ * to, would defeat the point of having them. `toolbar` and `footer` are both
+ * optional and additive — a modal that passes neither is a title plus a
+ * scrolling body, which is what every existing caller already gets.
+ */
 export function Modal({
   title,
   children,
   onClose,
+  toolbar,
+  footer,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  /** Stays put under the title — search fields, filters, mode switches. */
+  toolbar?: ReactNode;
+  /** Stays put at the bottom — the one action that commits the dialog. */
+  footer?: ReactNode;
 }) {
   const t = useT();
   return (
@@ -69,16 +84,20 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className="card max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-b-none rounded-t-2xl p-5 sm:rounded-2xl"
+        className="card flex max-h-[90vh] w-full max-w-lg flex-col rounded-b-none rounded-t-2xl p-5 sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex shrink-0 items-center justify-between">
           <h2 className="text-lg font-bold text-fg">{title}</h2>
           <button onClick={onClose} className="btn-ghost px-2.5 py-1.5" aria-label={t('common.close')}>
             ✕
           </button>
         </div>
-        {children}
+        {toolbar && <div className="mb-3 shrink-0">{toolbar}</div>}
+        {/* `min-h-0` is what actually lets this shrink inside the flex column —
+            without it the body keeps its content height and the panel overflows. */}
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        {footer && <div className="mt-4 shrink-0">{footer}</div>}
       </div>
     </div>
   );

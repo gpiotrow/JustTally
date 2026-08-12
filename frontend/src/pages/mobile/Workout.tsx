@@ -4,7 +4,8 @@ import { useExercises } from '../../hooks/useExercises';
 import { useWorkouts } from '../../hooks/useWorkouts';
 import { useAuth } from '../../hooks/useAuth';
 import { useRestTimer } from '../../hooks/useRestTimer';
-import { Modal, Spinner, EmptyState, CategoryBadge } from '../../components/ui';
+import { Modal, Spinner, EmptyState } from '../../components/ui';
+import { ExercisePicker } from '../../components/ExercisePicker';
 import { PlateCalculator } from '../../components/PlateCalculator';
 import { NumberField } from '../../components/NumberField';
 import { SetTypeToggle } from '../../components/SetTypeToggle';
@@ -36,6 +37,7 @@ import {
   nextOpenInOrder,
 } from '../../lib/supersets';
 import { shouldSwipe } from '../../lib/swipeGesture';
+import { exerciseRecency } from '../../lib/exerciseRecency';
 import { findNewRecords, newRecordKinds, type NewPR } from '../../lib/analytics/records';
 import type { RoutineInstantiation } from '../../lib/routineInstantiate';
 import { useLanguage } from '../../i18n';
@@ -320,20 +322,14 @@ function WorkoutEditor({
   /**
    * What was lifted last time, per exercise — shown as the placeholder in each
    * empty field so the number to beat is where the eyes already are, without
-   * pre-filling anything that could be saved unread.
+   * pre-filling anything that could be saved unread. The session under edit is
+   * excluded, the same way it always was: comparing a workout against itself
+   * would show today's numbers as "last time".
    */
-  const previousSets = useMemo(() => {
-    const byExercise = new Map<string, WorkoutSet[]>();
-    const newestFirst = [...sessions]
-      .filter((s) => s.id !== initial?.id)
-      .sort((a, b) => (b.startedAt ?? b.date) - (a.startedAt ?? a.date));
-    for (const session of newestFirst) {
-      for (const entry of session.entries) {
-        if (!byExercise.has(entry.exerciseId)) byExercise.set(entry.exerciseId, entry.sets);
-      }
-    }
-    return byExercise;
-  }, [sessions, initial?.id]);
+  const previousSets = useMemo(
+    () => exerciseRecency(sessions, { excludeSessionId: initial?.id }),
+    [sessions, initial?.id]
+  );
 
   const savedEntries = useMemo(() => toSavedEntries(entries, unit), [entries, unit]);
 
@@ -349,7 +345,7 @@ function WorkoutEditor({
    * final set — a fourth set has more to learn from the third than from nothing.
    */
   function previousSet(exerciseId: string, index: number): WorkoutSet | undefined {
-    const sets = previousSets.get(exerciseId);
+    const sets = previousSets.get(exerciseId)?.lastSets;
     if (!sets || sets.length === 0) return undefined;
     return sets[Math.min(index, sets.length - 1)];
   }
@@ -861,28 +857,25 @@ function WorkoutEditor({
       </button>
 
       {picking !== false && (
-        <Modal title={t('workout.pickTitle')} onClose={() => setPicking(false)}>
-          <ul className="space-y-2">
-            {exercises.map((ex) => {
-              const name = localizedExercise(ex, lang).name;
-              return (
-                <li key={ex.id}>
-                  <button
-                    onClick={() => {
-                      if (picking === 'add') addExercise(ex.id, name, ex.ref);
-                      else replaceExercise(picking, { exerciseId: ex.id, exerciseRef: ex.ref, exerciseName: name });
-                      setPicking(false);
-                    }}
-                    className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3 text-left text-fg hover:bg-border"
-                  >
-                    <span>{name}</span>
-                    <CategoryBadge category={ex.category} />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </Modal>
+        <ExercisePicker
+          exercises={exercises}
+          mode={picking === 'add' ? 'add' : 'single'}
+          onSelect={(picked) => {
+            if (picking === 'add') {
+              for (const ex of picked) {
+                addExercise(ex.id, localizedExercise(ex, lang).name, ex.ref);
+              }
+            } else {
+              const ex = picked[0];
+              replaceExercise(picking, {
+                exerciseId: ex.id,
+                exerciseRef: ex.ref,
+                exerciseName: localizedExercise(ex, lang).name,
+              });
+            }
+          }}
+          onClose={() => setPicking(false)}
+        />
       )}
 
       {alternativesFor !== null && entries[alternativesFor] && (

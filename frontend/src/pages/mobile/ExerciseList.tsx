@@ -8,6 +8,7 @@ import { DumbbellIcon, HeartIcon } from '../../components/icons';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { useLanguage, type TKey } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
+import { matchesQuery } from '../../lib/exerciseSearch';
 
 export function ExerciseList() {
   const { exercises, loading, error, fromCache } = useExercises();
@@ -24,10 +25,9 @@ export function ExerciseList() {
 
   const filtered = useMemo(() => {
     return localized.filter(({ ex, name }) => {
-      const matchesQuery = name.toLowerCase().includes(query.toLowerCase());
       const matchesCat = category === 'all' || ex.category === category;
       const matchesFavorite = !favoritesOnly || isFavorite(ex.id);
-      return matchesQuery && matchesCat && matchesFavorite;
+      return matchesQuery(name, query) && matchesCat && matchesFavorite;
     });
   }, [localized, query, category, favoritesOnly, isFavorite]);
 

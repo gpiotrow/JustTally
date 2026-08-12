@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useRoutines } from '../../hooks/useRoutines';
-import { Modal, Spinner, EmptyState, CategoryBadge } from '../../components/ui';
+import { Modal, Spinner, EmptyState } from '../../components/ui';
+import { ExercisePicker } from '../../components/ExercisePicker';
 import { NumberField } from '../../components/NumberField';
 import { instantiateRoutineDay } from '../../lib/routineInstantiate';
 import type { Routine, RoutineDay, RoutineExercise } from '../../lib/types';
@@ -433,28 +434,20 @@ function RoutineEditor({
       </div>
 
       {picking && (
-        <Modal title={t('workout.pickTitle')} onClose={() => setPicking(null)}>
-          <ul className="space-y-2">
-            {exercises.map((ex) => {
-              const localized = localizedExercise(ex, lang).name;
-              return (
-                <li key={ex.id}>
-                  <button
-                    onClick={() =>
-                      picking.exerciseIndex === undefined
-                        ? addExerciseToDay(picking.dayIndex, ex.id, localized, ex.ref)
-                        : addAlternative(picking.dayIndex, picking.exerciseIndex, ex.id, localized, ex.ref)
-                    }
-                    className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl bg-surface-2 px-4 py-3 text-left text-fg hover:bg-border"
-                  >
-                    <span>{localized}</span>
-                    <CategoryBadge category={ex.category} />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </Modal>
+        <ExercisePicker
+          exercises={exercises}
+          mode="single"
+          onSelect={(picked) => {
+            const ex = picked[0];
+            const localized = localizedExercise(ex, lang).name;
+            if (picking.exerciseIndex === undefined) {
+              addExerciseToDay(picking.dayIndex, ex.id, localized, ex.ref);
+            } else {
+              addAlternative(picking.dayIndex, picking.exerciseIndex, ex.id, localized, ex.ref);
+            }
+          }}
+          onClose={() => setPicking(null)}
+        />
       )}
     </Modal>
   );

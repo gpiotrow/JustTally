@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { Exercise } from '../../lib/types';
 import { localizedExercise } from '../../lib/exerciseText';
+import { matchesQuery } from '../../lib/exerciseSearch';
 import { CategoryBadge } from '../../components/ui';
 import { useLanguage } from '../../i18n';
 
@@ -35,10 +36,15 @@ export function PlanCatalog({ exercises }: { exercises: Exercise[] }) {
   const { lang, t } = useLanguage();
   const [query, setQuery] = useState('');
 
-  const filtered = exercises.filter((ex) => {
-    const name = localizedExercise(ex, lang).name;
-    return name.toLowerCase().includes(query.trim().toLowerCase());
-  });
+  const localized = useMemo(
+    () => exercises.map((ex) => ({ ex, name: localizedExercise(ex, lang).name })),
+    [exercises, lang]
+  );
+
+  const filtered = useMemo(
+    () => localized.filter(({ name }) => matchesQuery(name, query)),
+    [localized, query]
+  );
 
   return (
     <div className="flex h-full flex-col border-r border-border">
@@ -51,8 +57,8 @@ export function PlanCatalog({ exercises }: { exercises: Exercise[] }) {
         />
       </div>
       <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
-        {filtered.map((ex) => (
-          <CatalogItem key={ex.id} exercise={ex} name={localizedExercise(ex, lang).name} />
+        {filtered.map(({ ex, name }) => (
+          <CatalogItem key={ex.id} exercise={ex} name={name} />
         ))}
       </ul>
     </div>

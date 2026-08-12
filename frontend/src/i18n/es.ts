@@ -102,6 +102,24 @@ export const es: Record<TKey, string> = {
   'workout.notes': 'Notas',
   'workout.notesPlaceholder': 'Tus propias notas…',
 
+  // Selector de ejercicios
+  'picker.forYou': 'Para ti',
+  'picker.muscle': 'Músculo',
+  'picker.favorites': 'Favoritos',
+  'picker.recent': 'Entrenado hace poco',
+  'picker.primary': 'Trabaja principalmente',
+  'picker.secondary': 'También trabaja',
+  'picker.add': 'Añadir {count}',
+  'picker.chooseMuscle': 'Elegir grupo muscular',
+  'picker.allMuscles': 'Todos los grupos musculares',
+  'picker.muscleEmpty': 'Aún no hay ningún ejercicio para este grupo muscular.',
+  'picker.noResults': 'Ningún ejercicio encontrado',
+  'picker.noResultsHint': 'Revisa la ortografía o cambia de modo.',
+  'picker.forYouEmptyTitle': 'Aquí todavía no hay nada',
+  'picker.forYouEmptyHint':
+    'Toca el corazón en un ejercicio o entrénalo — así aparecerá arriba la próxima vez.',
+  'picker.showAll': 'Mostrar todos los ejercicios',
+
   // Set execution
   'set.done': 'Marcar la serie {n}',
   'set.undone': 'Desmarcar la serie {n}',

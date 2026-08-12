@@ -104,6 +104,24 @@ export const de = {
   'workout.notes': 'Notizen',
   'workout.notesPlaceholder': 'Eigene Notizen…',
 
+  // Übungsauswahl
+  'picker.forYou': 'Für dich',
+  'picker.muscle': 'Muskel',
+  'picker.favorites': 'Favoriten',
+  'picker.recent': 'Zuletzt trainiert',
+  'picker.primary': 'Trainiert primär',
+  'picker.secondary': 'Trainiert mit',
+  'picker.add': '{count} hinzufügen',
+  'picker.chooseMuscle': 'Muskelgruppe wählen',
+  'picker.allMuscles': 'Alle Muskelgruppen',
+  'picker.muscleEmpty': 'Für diese Muskelgruppe ist noch keine Übung hinterlegt.',
+  'picker.noResults': 'Keine Übung gefunden',
+  'picker.noResultsHint': 'Prüfe die Schreibweise oder wechsle den Modus.',
+  'picker.forYouEmptyTitle': 'Hier ist noch nichts',
+  'picker.forYouEmptyHint':
+    'Markiere Übungen mit dem Herz oder trainiere sie — dann stehen sie beim nächsten Mal ganz oben.',
+  'picker.showAll': 'Alle Übungen zeigen',
+
   // Set execution
   'set.done': 'Satz {n} abhaken',
   'set.undone': 'Haken bei Satz {n} entfernen',

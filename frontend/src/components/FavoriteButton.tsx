@@ -12,12 +12,19 @@ export function FavoriteButton({
   label,
   title,
   onClick,
+  className = '',
 }: {
   favorite: boolean;
   disabled: boolean;
   label: string;
   title?: string;
   onClick: () => void;
+  /**
+   * Extra classes merged onto the button — lets a dense list (the exercise
+   * picker) grow the tap target to the 44 px minimum without changing the
+   * smaller default every other caller already uses.
+   */
+  className?: string;
 }) {
   return (
     <button
@@ -27,9 +34,9 @@ export function FavoriteButton({
       aria-pressed={favorite}
       aria-label={label}
       title={title ?? label}
-      className={`shrink-0 rounded-full p-2 transition disabled:opacity-40 ${
+      className={`inline-flex shrink-0 items-center justify-center rounded-full p-2 transition disabled:opacity-40 ${
         favorite ? 'text-rose-500 hover:text-rose-600' : 'text-fg-subtle hover:text-fg-muted'
-      }`}
+      } ${className}`}
     >
       <HeartIcon width={20} height={20} filled={favorite} />
     </button>
