@@ -30,8 +30,8 @@ export function MobileLayout() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-bg/80 px-4 py-3 backdrop-blur">
-        <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-border bg-bg/80 px-4 py-3 backdrop-blur">
+        <div className="flex shrink-0 items-center gap-2">
           <span className="text-lg font-extrabold tracking-tight">
             Just<span className="text-accent">Tally</span>
           </span>
@@ -44,7 +44,10 @@ export function MobileLayout() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        {/* min-w-0 lets this flex item shrink below its content width so the
+            overflow-x-auto below can actually kick in instead of pushing the
+            header (and with it document.body) wider than the viewport. */}
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&>*]:shrink-0 [&::-webkit-scrollbar]:hidden">
           <LanguageToggle />
           <ThemeToggle />
           <button
