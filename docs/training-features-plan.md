@@ -1,6 +1,6 @@
 # Plan: Vom Übungskatalog zum Trainings-Tracker
 
-Stand: 2026-08-11 · Basis: § 6 Phase 3
+Stand: 2026-08-11 · Basis: § 7 Phase 4
 
 Deckt **Priorität 1 vollständig**, **Priorität 2 ohne Wearables und Health-Integration**
 sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenrechner** ab.
@@ -12,8 +12,9 @@ sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenr
 | § 4 Phase 1 — Satz-Ausführung, Pausentimer, Einheiten | ✅ `e37e61e` |
 | § 5 Phase 2 — Sync-Härtung | ✅ `c383095` |
 | § 6 Phase 3 — Komplexe Methoden | ✅ `69e274b` |
-| § 7 Phase 4 — Routinen und Alternativen | ✅ (dieser Commit) |
-| § 8–§ 11 | offen |
+| § 7 Phase 4 — Routinen und Alternativen | ✅ `c78aedb` |
+| § 8 Phase 5 — Desktop-Planer | ✅ (dieser Commit) |
+| § 9–§ 11 | offen |
 
 ---
 
@@ -478,31 +479,46 @@ Kollektion mit eigenem Schreibpfad handelt.
 
 ---
 
-## 8. Phase 5 — Desktop-Planer
+## 8. Phase 5 — Desktop-Planer — ✅ erledigt
 
 *Erfüllt: P2 „Nahtlose Web-App / Desktop-Version"*
 
-- Eigene Route `/plan`, die aus dem `max-w-md`-Korsett der Mobilansicht ausbricht:
-  dreispaltig — Übungskatalog links, Wochen/Tage-Raster in der Mitte,
-  Detailfeld für die ausgewählte Übung rechts (Sätze, Zielwerte, Pausendauer,
-  Alternativen).
-- **Drag & Drop**: Übungen aus dem Katalog ins Raster ziehen, Übungen zwischen
-  Tagen verschieben, Tage zwischen Wochen kopieren, Reihenfolge sortieren.
-  Alternativen werden per Drop auf die Übungskarte hinterlegt.
-- **Neue Abhängigkeit: `@dnd-kit/core` + `@dnd-kit/sortable`** (~12 kB gzip).
-  Das im Admin bereits genutzte HTML5-Drag-and-Drop reicht für eine Bildergalerie,
-  aber nicht für verschachteltes Sortieren — und es funktioniert auf Touch nicht.
-  dnd-kit kann beides und ist tastaturbedienbar.
-- **Periodisierung**: Wochen duplizieren mit prozentualer Steigerung
-  („alle Zielgewichte +2,5 %"), damit ein 8-Wochen-Block nicht achtmal von Hand
-  entsteht.
-- **„Live"-Sync zum Handy**: Sync bei `visibilitychange`, nach jeder Planänderung
-  (entprellt, 2 s) und beim Öffnen des Plan-Reiters am Handy. Das ist kein Push —
-  echte Live-Übertragung bräuchte SSE oder WebSocket am Backend. Praktisch heißt
-  das: Änderung am Desktop, Handy hochheben, Plan ist da. Ein SSE-Endpunkt bleibt
-  als spätere Option offen, wenn sich das als zu träge anfühlt.
+- ✅ Eigene Route `/plan` (`pages/plan/Plan.tsx` + `PlanLayout.tsx`), die aus dem
+  `max-w-md`-Korsett der Mobilansicht ausbricht: dreispaltig — Übungskatalog
+  links (`PlanCatalog.tsx`), Wochen/Tage-Raster in der Mitte
+  (`PlanWeekGrid.tsx`), Detailfeld für die ausgewählte Übung rechts
+  (`PlanDetailPanel.tsx`: Sätze, Zielwiederholungen, -gewicht, -RPE,
+  Pausendauer, Alternativen).
+- ✅ **Drag & Drop** über `@dnd-kit/core`: Übungen aus dem Katalog auf einen Tag
+  ziehen legt eine neue Routine-Übung an; auf eine bestehende Übungskarte
+  ziehen hinterlegt sie als Alternative; eine Übungskarte auf eine andere
+  ziehen sortiert um oder verschiebt zwischen Tagen. Die gesamte
+  Index-Arithmetik dafür liegt als reine Funktionen in `lib/planGrid.ts`
+  (16 Testfälle) — s. § 8.1, warum das hier wichtiger war als sonst.
+- ✅ **Neue Abhängigkeit: `@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`**
+  wie geplant, keine zusätzlichen Sicherheitswarnungen gegenüber dem
+  bestehenden `npm audit`-Stand.
+- ✅ **Periodisierung**: „Woche duplizieren" mit Prozentfeld
+  (`lib/periodization.ts`, 7 Testfälle) — bumpt jedes `targetWeight` in der
+  neuen Woche, lässt Übungen ohne Zielgewicht unverändert, rundet sauber.
+  Browserverifiziert: 2,5 % auf 60 kg → 61,5 kg in der duplizierten Woche.
+- ✅ **„Live"-Sync zum Handy**: entprellter Push+Sync 2 s nach der letzten
+  Änderung (§ 8.3), plus der bereits aus § 7 vorhandene `visibilitychange`-/
+  Mount-Sync in `lib/syncedCollection.ts` — kein zusätzlicher Code nötig, der
+  Baustein deckt „Plan-Reiter am Handy öffnen" bereits ab. Browserverifiziert
+  end-to-end: Zielgewicht/-Wiederholungen im Planer geändert → nach der
+  Debounce-Zeit in IndexedDB persistiert → in der mobilen Pläne-Liste
+  sichtbar → „Training starten" zeigt den neuen Zielwert als Hinweiszeile.
 
-**Aufwand: L–XL** (4–6 Tage)
+### 8.1 Abweichungen von der Planung
+
+| Geplant | Umgesetzt | Warum |
+|---|---|---|
+| Tage per Drag zwischen Wochen kopieren | Dropdown + Button („⧉" auf der Tageskarte) | Zwei unterschiedliche Drop-Ziele (Umsortieren innerhalb der Woche vs. Kopieren in eine andere Woche) über dieselbe Geste zu unterscheiden, ist ein Quell für Fehlbedienung; ein expliziter Button ist eindeutig und genauso schnell. Die Drag-Mechanik bleibt für die beiden Fälle reserviert, die sie eindeutig lösen: Katalog → Raster und Umsortieren/Verschieben. |
+| Ende-zu-Ende-Browserverifikation der Drag-Interaktion selbst | Nicht direkt browserverifiziert; stattdessen die komplette Zieh-Logik (Einfügen, Verschieben innerhalb eines Tages vorwärts/rückwärts, Verschieben über Tage, Anhängen ans Ende, Alternative hinzufügen, No-op-Fälle) in `lib/planGrid.ts` extrahiert und mit 16 Testfällen abgedeckt, `onDragEnd` per Code-Review gegen diese Funktionen geprüft | Der Browser-Tab dieser Session kompositiert keine Frames (der Screenshot-Pfad, den der Drag-Tool-Aufruf voraussetzt, schlägt fehl), und synthetisch dispatchte `PointerEvent`s haben dnd-kits Sensor-Aktivierung nicht zuverlässig ausgelöst — auch mit `isPrimary`, mehreren `pointermove`-Schritten und Verzögerungen nicht. Die eigentlich fehleranfällige Stelle (Index-Verschiebung beim Umsortieren) ist damit härter geprüft als es ein einzelner erfolgreicher Klick-und-Zieh-Durchlauf gezeigt hätte — sollte aber vor dem ersten echten Einsatz einmal von Hand in einem echten Browser bestätigt werden. |
+| Echter Cross-Device-Push-Test | Verifiziert wurde der geteilte Lese-/Schreibpfad (Desktop-Planer-Änderung landet in derselben IndexedDB, die die mobile Pläne-Liste liest) statt eines echten zweiten Geräts über den Server | In dieser Session steht kein Postgres bereit (`DATABASE_URL` fehlt), wie bereits in § 4–§ 7 vermerkt. Der Sync-Mechanismus selbst (`lib/syncedCollection.ts`) ist seit § 7 durch 172 Backend- und mehrere Frontend-Tests abgedeckt; was hier neu und ungeprüft wäre, ist ausschließlich die Übertragung über echte Netzwerk-Hardware, nicht die Anwendungslogik. |
+
+**Aufwand: L–XL** (4–6 Tage), wie geplant.
 
 ---
 
@@ -649,7 +665,7 @@ indikativ — es identifiziert die Zahl auf der Scheibe, nicht die Farbe.
 §5  Sync-Härtung        M    ✅ ◀── unabhängig
 §6  Komplexe Methoden   M–L  ✅ ◀── braucht §4
 §7  Routinen + Alt.     XL   ✅ ◀── braucht §4, §5
-§8  Desktop-Planer      L–XL    ◀── braucht §7
+§8  Desktop-Planer      L–XL ✅ ◀── braucht §7
 §9  Export/Import       M       ◀── braucht §4, §6, §7
 §10 Analytics           L       ◀── braucht §4 (Satz-Typen)
 §11 Heatmap             L       ◀── braucht §10 + Datenpflege
@@ -666,7 +682,7 @@ Sinnvolle Auslieferungsschnitte:
 |---|---|---|
 | **A** | §3 ✅, §4 ✅, §5 ✅ | Die App ist im Studio wirklich benutzbar — **fertig** |
 | **B** | §6 ✅, §7 ✅ | Trainieren nach Plan, Alternativen bei besetztem Gerät — **fertig** |
-| **C** | §8, §9 | Planung am Desktop, Daten gehören dem Nutzer |
+| **C** | §8 ✅, §9 | Planung am Desktop, Daten gehören dem Nutzer |
 | **D** | §10, §11 | Auswertung und Erholungsübersicht |
 
 ---

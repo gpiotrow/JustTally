@@ -332,6 +332,17 @@ export const en: Record<TKey, string> = {
   'routines.swapHint': 'Only for this workout — the plan stays unchanged.',
   'routines.undoSwap': 'Undo',
 
+  // Desktop planner
+  'plan.title': 'Planner',
+  'plan.week': 'Week',
+  'plan.dropHere': 'Drag an exercise here',
+  'plan.selectExercise': 'Select an exercise to edit its details.',
+  'plan.noAlternatives': 'No alternatives yet — drag an exercise from the catalog onto this card.',
+  'plan.dragAlternativeHint': 'Drag an exercise from the catalog onto this card to offer it as an alternative.',
+  'plan.bumpPercent': 'Increase in percent',
+  'plan.duplicateWeek': 'Duplicate week',
+  'plan.copyDayTo': 'Copy day to…',
+
   // Difficulty labels
   'difficulty.beginner': 'Beginner',
   'difficulty.intermediate': 'Intermediate',

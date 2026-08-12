@@ -54,11 +54,16 @@ export function Routines() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">{t('routines.title')}</h1>
-        <button onClick={() => setEditing(blankRoutine())} className="btn-primary px-4 text-sm">
-          {t('routines.new')}
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <button onClick={() => navigate('/plan')} className="btn-ghost px-3 text-sm">
+            {t('plan.title')}
+          </button>
+          <button onClick={() => setEditing(blankRoutine())} className="btn-primary px-4 text-sm">
+            {t('routines.new')}
+          </button>
+        </div>
       </div>
 
       {routines.length === 0 ? (

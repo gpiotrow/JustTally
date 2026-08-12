@@ -3,6 +3,7 @@ import { AuthProvider } from './hooks/useAuth';
 import { RestTimerProvider } from './hooks/useRestTimer';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MobileLayout } from './components/MobileLayout';
+import { PlanLayout } from './components/PlanLayout';
 import { AdminLayout } from './components/AdminLayout';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
@@ -12,6 +13,7 @@ import { Workout } from './pages/mobile/Workout';
 import { Routines } from './pages/mobile/Routines';
 import { History } from './pages/mobile/History';
 import { Settings } from './pages/mobile/Settings';
+import { Plan } from './pages/plan/Plan';
 import { ExerciseManager } from './pages/admin/ExerciseManager';
 import { UserManagement } from './pages/admin/UserManagement';
 
@@ -40,6 +42,17 @@ export default function App() {
               <Route path="/routines" element={<Routines />} />
               <Route path="/history" element={<History />} />
               <Route path="/settings" element={<Settings />} />
+            </Route>
+
+            {/* Desktop planner (any authenticated user, breaks out of the mobile shell) */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <PlanLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/plan" element={<Plan />} />
             </Route>
 
             {/* Admin web interface (admin only) */}

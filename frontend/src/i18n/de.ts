@@ -334,6 +334,17 @@ export const de = {
   'routines.swapHint': 'Gilt nur für dieses Training — der Plan bleibt unverändert.',
   'routines.undoSwap': 'Rückgängig',
 
+  // Desktop planner
+  'plan.title': 'Planer',
+  'plan.week': 'Woche',
+  'plan.dropHere': 'Übung hierher ziehen',
+  'plan.selectExercise': 'Übung auswählen, um Details zu bearbeiten.',
+  'plan.noAlternatives': 'Noch keine Alternativen — Übung aus dem Katalog auf diese Karte ziehen.',
+  'plan.dragAlternativeHint': 'Eine Übung aus dem Katalog auf diese Karte ziehen, um sie als Alternative zu hinterlegen.',
+  'plan.bumpPercent': 'Steigerung in Prozent',
+  'plan.duplicateWeek': 'Woche duplizieren',
+  'plan.copyDayTo': 'Tag kopieren nach…',
+
   // Difficulty labels
   'difficulty.beginner': 'Anfänger',
   'difficulty.intermediate': 'Fortgeschritten',

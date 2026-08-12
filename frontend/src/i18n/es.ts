@@ -332,6 +332,17 @@ export const es: Record<TKey, string> = {
   'routines.swapHint': 'Solo para este entrenamiento — el plan no cambia.',
   'routines.undoSwap': 'Deshacer',
 
+  // Planificador de escritorio
+  'plan.title': 'Planificador',
+  'plan.week': 'Semana',
+  'plan.dropHere': 'Arrastra un ejercicio aquí',
+  'plan.selectExercise': 'Selecciona un ejercicio para editar sus detalles.',
+  'plan.noAlternatives': 'Aún no hay alternativas — arrastra un ejercicio del catálogo a esta tarjeta.',
+  'plan.dragAlternativeHint': 'Arrastra un ejercicio del catálogo a esta tarjeta para ofrecerlo como alternativa.',
+  'plan.bumpPercent': 'Incremento en porcentaje',
+  'plan.duplicateWeek': 'Duplicar semana',
+  'plan.copyDayTo': 'Copiar día a…',
+
   // Difficulty labels
   'difficulty.beginner': 'Principiante',
   'difficulty.intermediate': 'Intermedio',
