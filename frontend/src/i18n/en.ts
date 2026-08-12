@@ -28,6 +28,7 @@ export const en: Record<TKey, string> = {
   'nav.workout': 'Workout',
   'nav.routines': 'Routines',
   'nav.history': 'History',
+  'nav.recovery': 'Recovery',
   'nav.users': 'Users',
   'layout.mobileView': 'Mobile view',
 
@@ -181,6 +182,20 @@ export const en: Record<TKey, string> = {
   'stats.relativeStrengthHint':
     'Wilks and DOTS are designed for a competition three-lift total. Applied to a single exercise, they are an approximation for comparing yourself over time, not a league value. Computed from your best estimated 1RM and the body-weight entry closest to that date.',
 
+  // Muscle recovery
+  'recovery.title': 'Recovery',
+  'recovery.front': 'Front',
+  'recovery.back': 'Back',
+  'recovery.emptyTitle': 'No data yet',
+  'recovery.emptyHint':
+    'This view needs exercises with muscle groups assigned. Once you train those, the map fills in.',
+  'recovery.never': 'Never trained',
+  'recovery.hoursAgo': '{hours} h ago',
+  'recovery.load': 'Current load: {percent}%',
+  'recovery.lastTrained': 'Last trained: {date} ({hours} h ago)',
+  'recovery.disclaimer':
+    'This is volume bookkeeping, not a physiological measurement: it counts reps × weight of your working sets, primary muscles fully and secondary ones at half, decaying over a fixed window per muscle group. The percentage compares muscle groups against each other, not against a target.',
+
   // Admin — exercises
   'admin.ex.title': 'Manage exercises',
   'admin.ex.subtitle': 'Create and maintain exercises with instructions, photos and videos.',
@@ -266,6 +281,11 @@ export const en: Record<TKey, string> = {
   'form.refNumberHint': 'Leave empty for automatic assignment. Used to match files during bulk media upload.',
   'form.category': 'Category',
   'form.difficulty': 'Difficulty',
+  'form.muscles': 'Muscle groups',
+  'form.musclesHint':
+    'The basis for the recovery view. Primary counts fully, secondary counts half. A muscle can only be one or the other.',
+  'form.musclesPrimary': 'Primary',
+  'form.musclesSecondary': 'Secondary',
   'form.instructionsPlaceholder': 'Step-by-step instructions…',
   'form.saveChanges': 'Save changes',
   'form.create': 'Create exercise',
@@ -408,4 +428,22 @@ export const en: Record<TKey, string> = {
   'category.core': 'Core',
   'category.cardio': 'Cardio',
   'category.other': 'Other',
+
+  // Muscle group labels
+  'muscle.chest': 'Chest',
+  'muscle.lats': 'Lats',
+  'muscle.traps': 'Traps',
+  'muscle.lower_back': 'Lower back',
+  'muscle.front_delts': 'Front delts',
+  'muscle.side_delts': 'Side delts',
+  'muscle.rear_delts': 'Rear delts',
+  'muscle.biceps': 'Biceps',
+  'muscle.triceps': 'Triceps',
+  'muscle.forearms': 'Forearms',
+  'muscle.abs': 'Abs',
+  'muscle.obliques': 'Obliques',
+  'muscle.glutes': 'Glutes',
+  'muscle.quads': 'Quads',
+  'muscle.hamstrings': 'Hamstrings',
+  'muscle.calves': 'Calves',
 };

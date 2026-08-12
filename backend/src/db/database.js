@@ -238,6 +238,24 @@ export async function initSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_body_weights_user ON body_weights(user_id);
   `);
+
+  // Muscle groups per exercise, for the recovery heatmap (§ 11). Two flat
+  // jsonb arrays of codes from the fixed 16-group taxonomy — the first flat
+  // string arrays in this schema; `workouts.entries` and `routines.weeks` are
+  // both nested object trees.
+  //
+  // No CHECK constraint on the contents: validating a jsonb array's elements
+  // against an allow-list needs a function, and `category` already sets the
+  // precedent that a fixed vocabulary is enforced in the route (VALID_*
+  // arrays) rather than the schema. The GIN index mirrors idx_workouts_entries
+  // so "which exercises train chest" stays a containment query.
+  await pool.query(`
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS muscles_primary   JSONB NOT NULL DEFAULT '[]';
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS muscles_secondary JSONB NOT NULL DEFAULT '[]';
+
+    CREATE INDEX IF NOT EXISTS idx_exercises_muscles_primary
+      ON exercises USING GIN (muscles_primary jsonb_path_ops);
+  `);
 }
 
 /**

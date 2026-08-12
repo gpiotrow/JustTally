@@ -28,6 +28,7 @@ export const es: Record<TKey, string> = {
   'nav.workout': 'Entrenamiento',
   'nav.routines': 'Planes',
   'nav.history': 'Historial',
+  'nav.recovery': 'Recuperación',
   'nav.users': 'Usuarios',
   'layout.mobileView': 'Vista móvil',
 
@@ -181,6 +182,20 @@ export const es: Record<TKey, string> = {
   'stats.relativeStrengthHint':
     'Wilks y DOTS están pensados para el total de tres levantamientos de competición. Aplicados a un solo ejercicio son una aproximación para compararte contigo mismo en el tiempo, no un valor de liga. Calculado a partir de tu mejor 1RM estimado y el registro de peso corporal más cercano a esa fecha.',
 
+  // Muscle recovery
+  'recovery.title': 'Recuperación',
+  'recovery.front': 'Frente',
+  'recovery.back': 'Espalda',
+  'recovery.emptyTitle': 'Aún no hay datos',
+  'recovery.emptyHint':
+    'Esta vista necesita ejercicios con grupos musculares asignados. En cuanto los entrenes, el mapa se llenará.',
+  'recovery.never': 'Nunca entrenado',
+  'recovery.hoursAgo': 'hace {hours} h',
+  'recovery.load': 'Carga actual: {percent} %',
+  'recovery.lastTrained': 'Último entrenamiento: {date} (hace {hours} h)',
+  'recovery.disclaimer':
+    'Esto es una contabilidad de volumen, no una medición fisiológica: cuenta repeticiones × peso de tus series de trabajo, el músculo primario entero y el secundario a la mitad, decayendo en una ventana fija por grupo muscular. El porcentaje compara los grupos musculares entre sí, no con un objetivo.',
+
   // Admin — exercises
   'admin.ex.title': 'Gestionar ejercicios',
   'admin.ex.subtitle': 'Crea y mantén ejercicios con instrucciones, fotos y videos.',
@@ -266,6 +281,11 @@ export const es: Record<TKey, string> = {
   'form.refNumberHint': 'Déjalo vacío para asignación automática. Se usa para asociar archivos en la carga masiva de medios.',
   'form.category': 'Categoría',
   'form.difficulty': 'Nivel',
+  'form.muscles': 'Grupos musculares',
+  'form.musclesHint':
+    'La base de la vista de recuperación. El primario cuenta entero, el secundario la mitad. Un músculo solo puede ser uno de los dos.',
+  'form.musclesPrimary': 'Primario',
+  'form.musclesSecondary': 'Secundario',
   'form.instructionsPlaceholder': 'Instrucciones paso a paso…',
   'form.saveChanges': 'Guardar cambios',
   'form.create': 'Crear ejercicio',
@@ -409,4 +429,22 @@ export const es: Record<TKey, string> = {
   'category.core': 'Core',
   'category.cardio': 'Cardio',
   'category.other': 'Otros',
+
+  // Muscle group labels
+  'muscle.chest': 'Pecho',
+  'muscle.lats': 'Dorsales',
+  'muscle.traps': 'Trapecios',
+  'muscle.lower_back': 'Zona lumbar',
+  'muscle.front_delts': 'Deltoides anterior',
+  'muscle.side_delts': 'Deltoides lateral',
+  'muscle.rear_delts': 'Deltoides posterior',
+  'muscle.biceps': 'Bíceps',
+  'muscle.triceps': 'Tríceps',
+  'muscle.forearms': 'Antebrazos',
+  'muscle.abs': 'Abdominales',
+  'muscle.obliques': 'Oblicuos',
+  'muscle.glutes': 'Glúteos',
+  'muscle.quads': 'Cuádriceps',
+  'muscle.hamstrings': 'Isquiotibiales',
+  'muscle.calves': 'Gemelos',
 };

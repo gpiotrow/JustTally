@@ -1,8 +1,45 @@
 import { parse } from 'csv-parse/sync';
 import { CSV_EXPORT_COLUMNS } from './csvExport.js';
+import { MUSCLE_GROUPS, isMuscleGroup } from './muscles.js';
 
 const VALID_DIFFICULTY = ['beginner', 'intermediate', 'advanced'];
 const MAX_ROWS = 1000;
+
+/**
+ * Parse one muscle-list cell (`chest,triceps`) into codes.
+ *
+ * Returns `{ list }` or `{ error }` — an unknown code is refused rather than
+ * dropped, because silently ignoring a typo would leave the exercise looking
+ * maintained while contributing nothing to the heatmap.
+ *
+ * A **missing column** yields `{ list: undefined }`, which callers must treat
+ * as "leave whatever is stored alone". Importing a CSV exported before this
+ * column existed must not wipe muscle data someone has since maintained; an
+ * empty cell in a file that *does* carry the column is a real instruction to
+ * clear it.
+ */
+function parseMuscleCell(raw, columnName) {
+  if (raw === undefined) return { list: undefined };
+
+  const text = (raw || '').trim();
+  if (!text) return { list: [] };
+
+  const codes = text
+    .split(',')
+    .map((c) => c.trim().toLowerCase())
+    .filter((c) => c !== '');
+
+  const unknown = codes.filter((c) => !isMuscleGroup(c));
+  if (unknown.length > 0) {
+    return {
+      error: `Invalid ${columnName} "${unknown.join(', ')}" (allowed: ${MUSCLE_GROUPS.join(', ')})`,
+    };
+  }
+  if (new Set(codes).size !== codes.length) {
+    return { error: `Duplicate entries in ${columnName}` };
+  }
+  return { list: codes };
+}
 
 /** Preferred resolution across three languages: de -> en -> es. */
 function resolve(de, en, es) {
@@ -76,6 +113,17 @@ export function parseExercisesCsv(buffer) {
       ref = n;
     }
 
+    const primary = parseMuscleCell(rec.muscles_primary, 'muscles_primary');
+    if (primary.error) {
+      errors.push({ row: rowNumber, message: primary.error });
+      return;
+    }
+    const secondary = parseMuscleCell(rec.muscles_secondary, 'muscles_secondary');
+    if (secondary.error) {
+      errors.push({ row: rowNumber, message: secondary.error });
+      return;
+    }
+
     rows.push({
       rowNumber,
       nameDe,
@@ -89,6 +137,8 @@ export function parseExercisesCsv(buffer) {
       instructionsEs: (rec.instructions_es || '').trim(),
       category: (rec.category || '').trim() || 'other',
       difficulty,
+      musclesPrimary: primary.list,
+      musclesSecondary: secondary.list,
       ref,
     });
   });

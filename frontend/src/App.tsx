@@ -13,6 +13,7 @@ import { ExerciseStats } from './pages/mobile/ExerciseStats';
 import { Workout } from './pages/mobile/Workout';
 import { Routines } from './pages/mobile/Routines';
 import { History } from './pages/mobile/History';
+import { Recovery } from './pages/mobile/Recovery';
 import { Settings } from './pages/mobile/Settings';
 import { Plan } from './pages/plan/Plan';
 import { ExerciseManager } from './pages/admin/ExerciseManager';
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/workout/:id" element={<Workout />} />
               <Route path="/routines" element={<Routines />} />
               <Route path="/history" element={<History />} />
+              <Route path="/recovery" element={<Recovery />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
 

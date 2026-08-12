@@ -1,5 +1,6 @@
 import { api, getToken, ApiError } from './client';
 import type { Exercise, Difficulty } from '../lib/types';
+import type { MuscleGroup } from '../lib/muscles';
 
 interface ExercisesResponse {
   exercises: Exercise[];
@@ -20,6 +21,9 @@ export interface ExerciseInput {
   difficulty: Difficulty;
   /** Optional reference number; leave undefined to auto-assign. */
   ref?: number;
+  /** Muscle-group codes (§ 2.4); omitted leaves whatever is stored unchanged. */
+  musclesPrimary?: MuscleGroup[];
+  musclesSecondary?: MuscleGroup[];
 }
 
 /**
@@ -56,6 +60,8 @@ const CSV_COLUMNS = [
   'ref',
   'category',
   'difficulty',
+  'muscles_primary',
+  'muscles_secondary',
   'name_de',
   'purpose_de',
   'instructions_de',
@@ -246,6 +252,9 @@ export function csvTemplate(): string {
     '',
     'shoulders',
     'intermediate',
+    // Comma-separated inside the cell; `;` already separates the columns.
+    'front_delts,side_delts',
+    'triceps,traps',
     'Schulterdrücken',
     'Kräftigt die Schultermuskulatur.',
     'Stange über Kopf drücken. Ellbogen leicht vor der Stange halten.',

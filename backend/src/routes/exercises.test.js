@@ -257,6 +257,62 @@ describe('GET /api/exercises/:id/usage', () => {
   });
 });
 
+describe('muscle groups', () => {
+  /** Let a create succeed: no ref collision, insert echoes a row back. */
+  function mockCreateSucceeds() {
+    onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
+    onQuery(/INSERT INTO exercises/, (_sql, params) => ({
+      rows: [{ ...exercise, muscles_primary: JSON.parse(params[15]), muscles_secondary: JSON.parse(params[16]) }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+  }
+
+  it('stores and echoes back valid muscle lists', async () => {
+    mockCreateSucceeds();
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Bankdrücken', musclesPrimary: ['chest'], musclesSecondary: ['triceps', 'front_delts'] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.exercise.musclesPrimary).toEqual(['chest']);
+    expect(res.body.exercise.musclesSecondary).toEqual(['triceps', 'front_delts']);
+  });
+
+  it('defaults both lists to empty when omitted', async () => {
+    mockCreateSucceeds();
+    const res = await request(app).post('/api/exercises').send({ nameDe: 'Bankdrücken' });
+    expect(res.body.exercise.musclesPrimary).toEqual([]);
+    expect(res.body.exercise.musclesSecondary).toEqual([]);
+  });
+
+  it.each([
+    ['an unknown code', { musclesPrimary: ['pecs'] }],
+    ['a non-array', { musclesPrimary: 'chest' }],
+    ['a duplicate entry', { musclesPrimary: ['chest', 'chest'] }],
+    ['a non-string element', { musclesPrimary: [42] }],
+    ['an invalid secondary list', { musclesSecondary: ['nope'] }],
+  ])('rejects %s with 400 rather than storing it', async (_label, body) => {
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Bankdrücken', ...body });
+
+    expect(res.status).toBe(400);
+    const inserted = queryMock.mock.calls.some(([sql]) => /INSERT INTO exercises/.test(sql));
+    expect(inserted).toBe(false);
+  });
+
+  it('reads a row written before the columns existed as empty lists', async () => {
+    onQuery(/UPDATE exercises SET archived_at = NULL/, () => ({
+      rows: [{ ...exercise, muscles_primary: null, muscles_secondary: undefined }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+
+    const res = await request(app).post('/api/exercises/ex-1/unarchive');
+    expect(res.body.exercise.musclesPrimary).toEqual([]);
+    expect(res.body.exercise.musclesSecondary).toEqual([]);
+  });
+});
+
 describe('serialized exercise', () => {
   it('exposes archived state so clients can mark it in history', async () => {
     onQuery(/UPDATE exercises SET archived_at = NULL/, () => ({

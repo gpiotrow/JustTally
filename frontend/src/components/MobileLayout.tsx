@@ -5,13 +5,21 @@ import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle } from './LanguageToggle';
 import { RestTimerBar } from './RestTimerBar';
 import { useT, type TKey } from '../i18n';
-import { DumbbellIcon, ClipboardIcon, CalendarIcon, TrendingIcon, SettingsIcon } from './icons';
+import {
+  DumbbellIcon,
+  ClipboardIcon,
+  CalendarIcon,
+  TrendingIcon,
+  SettingsIcon,
+  BodyIcon,
+} from './icons';
 
 const NAV: { to: string; labelKey: TKey; Icon: typeof DumbbellIcon; end: boolean }[] = [
   { to: '/', labelKey: 'nav.exercises', Icon: DumbbellIcon, end: true },
   { to: '/workout', labelKey: 'nav.workout', Icon: ClipboardIcon, end: false },
   { to: '/routines', labelKey: 'nav.routines', Icon: CalendarIcon, end: false },
   { to: '/history', labelKey: 'nav.history', Icon: TrendingIcon, end: false },
+  { to: '/recovery', labelKey: 'nav.recovery', Icon: BodyIcon, end: false },
 ];
 
 export function MobileLayout() {
@@ -67,7 +75,9 @@ export function MobileLayout() {
       <RestTimerBar />
 
       <nav className="fixed bottom-0 left-1/2 z-20 w-full max-w-md -translate-x-1/2 border-t border-border bg-bg/95 backdrop-blur">
-        <div className="grid grid-cols-4">
+        {/* Literal class, not computed from NAV.length — Tailwind only emits
+            classes it can find as complete strings in the source. */}
+        <div className="grid grid-cols-5">
           {NAV.map(({ to, labelKey, Icon, end }) => (
             <NavLink
               key={to}

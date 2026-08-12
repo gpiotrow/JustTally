@@ -15,8 +15,8 @@ sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenr
 | § 7 Phase 4 — Routinen und Alternativen | ✅ `c78aedb` |
 | § 8 Phase 5 — Desktop-Planer | ✅ |
 | § 9 Phase 6 — Export und Import | ✅ |
-| § 10 Phase 7 — Analytics | ✅ (dieser Commit) |
-| § 11 | offen |
+| § 10 Phase 7 — Analytics | ✅ |
+| § 11 Phase 8 — Muskel-Erholungs-Heatmap | ✅ (dieser Commit) |
 
 ---
 
@@ -652,9 +652,21 @@ gegen echte IndexedDB-Daten und von Hand nachgerechnete Werte geprüft.
 
 ---
 
-## 11. Phase 8 — Muskel-Erholungs-Heatmap
+## 11. Phase 8 — Muskel-Erholungs-Heatmap — ✅ erledigt
 
 *Erfüllt: P3 „Muskel-Erholungs-Heatmaps"*
+
+Umgesetzt wie geplant: 16er-Taxonomie als `muscles_primary`/`muscles_secondary`
+(JSONB, `backend/src/db/database.js`), Validierung in `backend/src/routes/exercises.js`
+gegen die Allow-Liste in `backend/src/services/muscles.js`, Backfill-Skript
+`backend/src/scripts/backfillMuscles.js` mit Trockenlauf (`--report`) als
+Standard und explizitem `--apply`, zwei neue CSV-Spalten (Komma-getrennt
+innerhalb der Zelle, `;` bleibt der Spaltentrenner) in `csvImport.js`/
+`csvExport.js`, Mehrfachauswahl-Felder im Admin-Formular
+(`pages/admin/ExerciseForm.tsx`), Belastungs-/Abklingmodell
+(`frontend/src/lib/recovery.ts`, 17 Testfälle) und die Körperkarte
+(`components/BodyMap.tsx`) auf der neuen Seite `pages/mobile/Recovery.tsx`,
+verlinkt über einen fünften Bottom-Nav-Eintrag.
 
 1. **Taxonomie und Daten** (§ 2.4): Migration, Backfill aus `category`, zwei neue
    CSV-Spalten in Im- und Export, Felder im Admin-Formular. **Das ist der
@@ -671,11 +683,30 @@ gegen echte IndexedDB-Daten und von Hand nachgerechnete Werte geprüft.
 4. Hinweis in der UI, dass dies eine Volumenbuchhaltung ist und keine
    physiologische Messung.
 
-> **Offene Beschaffung:** die Körperkarte braucht ein SVG mit sauber getrennten
-> Muskelpfaden. Entweder selbst gezeichnet (Aufwand) oder eine Vorlage mit
-> passender Lizenz (Prüfung nötig — keine Grafik ohne geklärte Lizenz ins Repo).
+> **Offene Beschaffung — entschieden:** selbst gezeichnet, vereinfacht. Zwei
+> schematische Körpersilhouetten (kein anatomischer Anspruch), ein `<path>`
+> je Muskelgruppe, im gleichen handgezeichneten SVG-Stil wie `icons.tsx` und
+> `TrendChart.tsx` — keine Lizenzfrage, weil nichts extern beschafft wurde.
 
-**Aufwand: L** (3–4 Tage, davon ein spürbarer Anteil Datenpflege)
+### 11.1 Abweichungen von der Planung
+
+| Geplant | Umgesetzt | Warum |
+|---|---|---|
+| „Summe aus Arbeitssatz-Volumen … Ergebnis je Muskel: 0…1" ohne Normierungsregel | Pro Sitzung wird die abklingend gewichtete Volumensumme je Muskel gebildet, das **Maximum über alle Sitzungen** genommen (nicht die Summe über Sitzungen) und gegen die eigene aktuell stärkstbelastete Muskelgruppe normiert | Eine reine Summe über mehrere Sitzungen hätte die 0…1-Zusage gebrochen, sobald ein Muskel z. B. zweimal innerhalb des Fensters trainiert wurde — der Wert wäre über 1 gestiegen. Das Maximum ist die konservative, immer beschränkte Variante, und die Normierung gegen die eigene stärkste Gruppe braucht keine globale, für jeden Nutzer unterschiedlich richtige Volumenkonstante — dieselbe „gegen sich selbst vergleichen"-Logik wie bei Wilks/DOTS in § 10. |
+| Abklingkurve nicht spezifiziert | Linear von 1 auf 0 über das Erholungsfenster | Eine Exponentialkurve erreicht nie exakt 0 — ein vor Wochen trainierter Muskel hätte für immer einen Rest-Wert behalten, was auf einer Karte, deren ganzer Zweck „was ist heute frisch" ist, als Rauschen gelesen würde. |
+| Backfill auch für Sekundärgruppen (eine der zur Wahl gestellten Optionen) | Backfill setzt nur `muscles_primary` aus `category`, `muscles_secondary` bleibt immer leer | Entscheidung im Dialog vor Beginn der Phase: Empfehlung „Backfill als Startpunkt, CSV zum Nachschärfen" angenommen, ausdrücklich ohne geratene Sekundärgruppen — eine geratene Sekundärzuordnung wäre schwerer als „noch ungepflegt" erkennbar als eine leere. |
+| CSV-Import einer alten Datei (ohne Muskel-Spalten) | Fehlende Spalten lassen gespeicherte Muskeldaten unangetastet (`COALESCE` gegen `NULL`), statt sie zu leeren | Nicht explizit im Plan, aber notwendige Konsequenz aus „Backfill als Startpunkt, CSV zum Nachschärfen": ein Reimport eines vor dieser Phase exportierten Katalogs darf gepflegte Daten nicht rückgängig machen. |
+| Muskel-Mehrfachauswahl im Admin-Formular als eigene Komponente | Primär- und Sekundärliste sind strukturell gegenseitig exklusiv — Auswahl eines Muskels als sekundär entfernt ihn automatisch aus der Primärliste und umgekehrt | Ein Muskel doppelt gelistet hätte im Belastungsmodell 1,0 **und** 0,5 seines Volumens erhalten. Als UI-Zustand unmöglich gemacht statt als Validierungsfehler abgefangen. |
+
+**Aufwand: L** (3–4 Tage, davon ein spürbarer Anteil Datenpflege), wie geplant.
+**Offen geblieben:** wie bei § 9–§ 10 war in dieser Session kein Postgres
+verfügbar — Backend-Tests laufen gegen den SQL-Mock, kein Lauf der Migration
+und des Backfill-Skripts gegen eine echte Datenbank. Die Wilks/DOTS-Einschränkung
+aus § 10.1 (Koeffizienten nicht gegen einen externen Rechner gegengeprüft)
+gilt unverändert fort. Der komplette Client-Pfad (Belastungsmodell mit von
+Hand nachgerechneten Werten, Körperkarte inkl. Farbwerte, Tippen für
+Zahl/Zeitpunkt, Admin-Formular inkl. gegenseitigem Ausschluss, beide Themes,
+320-px-Breite) wurde live im Browser geprüft.
 
 ---
 
@@ -731,7 +762,7 @@ Sinnvolle Auslieferungsschnitte:
 | **A** | §3 ✅, §4 ✅, §5 ✅ | Die App ist im Studio wirklich benutzbar — **fertig** |
 | **B** | §6 ✅, §7 ✅ | Trainieren nach Plan, Alternativen bei besetztem Gerät — **fertig** |
 | **C** | §8 ✅, §9 ✅ | Planung am Desktop, Daten gehören dem Nutzer — **fertig** |
-| **D** | §10 ✅, §11 | Auswertung und Erholungsübersicht |
+| **D** | §10 ✅, §11 ✅ | Auswertung und Erholungsübersicht — **fertig** |
 
 ---
 
@@ -772,11 +803,13 @@ Sinnvolle Auslieferungsschnitte:
 3. ~~**Geschlechtsangabe im Profil**~~ **Entschieden:** optionales Profilfeld.
    Ohne Angabe nur „Kraft pro Körpergewicht", mit Angabe zusätzlich Wilks/DOTS,
    jeweils mit Hinweis, dass die Formeln für den Wettkampf-Total gedacht sind.
-4. **Körperkarten-SVG**: selbst zeichnen oder nach lizenzfreier Vorlage suchen?
-   *Weiterhin offen* — Entscheidung fällt zu Beginn von § 11 / Phase 8.
-5. **Muskelzuordnung des Bestandskatalogs**: reicht der Backfill aus `category`
-   als Startpunkt, oder soll die Pflege gleich vollständig über CSV laufen?
-   *Weiterhin offen.*
+4. ~~**Körperkarten-SVG**~~ **Entschieden (im Dialog zu Beginn von § 11):**
+   selbst gezeichnet, vereinfacht — passend zum handgezeichneten Icon-Stil,
+   keine Lizenzfrage. S. § 11.1 für die konkrete Umsetzung.
+5. ~~**Muskelzuordnung des Bestandskatalogs**~~ **Entschieden (im Dialog zu
+   Beginn von § 11):** Backfill aus `category` als Startpunkt (nur
+   Primärgruppen, nie geraten für Sekundärgruppen), CSV und Admin-Formular
+   zum Nachschärfen. S. § 11.1.
 6. ~~**Einheiten**~~ **Entschieden:** kg + lb umschaltbar. kg bleibt intern
    kanonisch (Speicherung, Sync, Export); lb ist reine Anzeige-/Eingabeschicht
    pro Nutzerkonto (`unit_preference`, nicht gerätelokal). Der Plattenrechner

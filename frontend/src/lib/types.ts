@@ -1,4 +1,5 @@
 import type { Unit } from './units';
+import type { MuscleGroup } from './muscles';
 
 export type Role = 'admin' | 'user';
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
@@ -54,6 +55,13 @@ export interface Exercise {
   instructionsEs: string;
   category: string;
   difficulty: Difficulty;
+  /**
+   * Muscle-group codes (§ 2.4). Empty on exercises nobody has classified yet —
+   * those simply contribute nothing to the recovery heatmap rather than
+   * being guessed at.
+   */
+  musclesPrimary: MuscleGroup[];
+  musclesSecondary: MuscleGroup[];
   createdAt: number;
   updatedAt: number;
   /** Archived exercises are hidden from the catalog but stay readable from history. */

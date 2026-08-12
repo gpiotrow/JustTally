@@ -29,6 +29,7 @@ export const de = {
   'nav.workout': 'Training',
   'nav.routines': 'Pläne',
   'nav.history': 'Verlauf',
+  'nav.recovery': 'Erholung',
   'nav.users': 'Benutzer',
   'layout.mobileView': 'Mobile Ansicht',
 
@@ -183,6 +184,20 @@ export const de = {
   'stats.relativeStrengthHint':
     'Wilks und DOTS sind für den Wettkampf-Dreikampf-Total gedacht. Auf eine einzelne Übung angewandt sind sie eine Näherung zum Vergleich mit dir selbst über die Zeit, kein Ligawert. Berechnet aus deinem besten geschätzten 1RM und dem Körpergewichtseintrag, der diesem Datum am nächsten liegt.',
 
+  // Muscle recovery
+  'recovery.title': 'Erholung',
+  'recovery.front': 'Vorderseite',
+  'recovery.back': 'Rückseite',
+  'recovery.emptyTitle': 'Noch keine Daten',
+  'recovery.emptyHint':
+    'Die Übersicht braucht Übungen mit hinterlegten Muskelgruppen. Sobald du solche Übungen trainierst, färbt sich die Karte.',
+  'recovery.never': 'Noch nie trainiert',
+  'recovery.hoursAgo': 'vor {hours} h',
+  'recovery.load': 'Aktuelle Belastung: {percent} %',
+  'recovery.lastTrained': 'Zuletzt trainiert: {date} (vor {hours} h)',
+  'recovery.disclaimer':
+    'Das ist eine Volumenbuchhaltung, keine physiologische Messung: gezählt wird Wiederholungen × Gewicht deiner Arbeitssätze, primär voll und sekundär zur Hälfte, abklingend über ein festes Zeitfenster pro Muskelgruppe. Der Prozentwert vergleicht die Muskelgruppen untereinander, nicht mit einem Sollwert.',
+
   // Admin — exercises
   'admin.ex.title': 'Übungen verwalten',
   'admin.ex.subtitle': 'Erstelle und pflege Übungen mit Anleitung, Fotos und Videos.',
@@ -268,6 +283,11 @@ export const de = {
   'form.refNumberHint': 'Leer lassen für automatische Vergabe. Wird für die Zuordnung beim Medien-Bulk-Upload verwendet.',
   'form.category': 'Kategorie',
   'form.difficulty': 'Schwierigkeit',
+  'form.muscles': 'Muskelgruppen',
+  'form.musclesHint':
+    'Grundlage für die Erholungsübersicht. Primär zählt voll, sekundär zur Hälfte. Ein Muskel kann nur eines von beidem sein.',
+  'form.musclesPrimary': 'Primär',
+  'form.musclesSecondary': 'Sekundär',
   'form.instructionsPlaceholder': 'Schritt-für-Schritt Anleitung…',
   'form.saveChanges': 'Änderungen speichern',
   'form.create': 'Übung erstellen',
@@ -411,6 +431,24 @@ export const de = {
   'category.core': 'Rumpf',
   'category.cardio': 'Cardio',
   'category.other': 'Sonstige',
+
+  // Muscle group labels
+  'muscle.chest': 'Brust',
+  'muscle.lats': 'Latissimus',
+  'muscle.traps': 'Trapez',
+  'muscle.lower_back': 'Unterer Rücken',
+  'muscle.front_delts': 'Vordere Schulter',
+  'muscle.side_delts': 'Seitliche Schulter',
+  'muscle.rear_delts': 'Hintere Schulter',
+  'muscle.biceps': 'Bizeps',
+  'muscle.triceps': 'Trizeps',
+  'muscle.forearms': 'Unterarme',
+  'muscle.abs': 'Bauch',
+  'muscle.obliques': 'Seitliche Bauchmuskeln',
+  'muscle.glutes': 'Gesäß',
+  'muscle.quads': 'Quadrizeps',
+  'muscle.hamstrings': 'Beinbizeps',
+  'muscle.calves': 'Waden',
 } as const;
 
 export type TKey = keyof typeof de;

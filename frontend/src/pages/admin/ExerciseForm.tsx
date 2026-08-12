@@ -8,6 +8,7 @@ import {
   type ExerciseInput,
 } from '../../api/exercises';
 import { CATEGORIES, type Difficulty, type Exercise } from '../../lib/types';
+import { MUSCLE_GROUPS, type MuscleGroup } from '../../lib/muscles';
 import { ErrorBanner } from '../../components/ui';
 import { VideoIcon } from '../../components/icons';
 import { useT, type Lang, type TKey } from '../../i18n';
@@ -48,6 +49,10 @@ export function ExerciseForm({
   const [category, setCategory] = useState(initial?.category ?? 'other');
   const [difficulty, setDifficulty] = useState<Difficulty>(initial?.difficulty ?? 'beginner');
   const [ref, setRef] = useState(initial?.ref != null ? String(initial.ref) : '');
+  const [musclesPrimary, setMusclesPrimary] = useState<MuscleGroup[]>(initial?.musclesPrimary ?? []);
+  const [musclesSecondary, setMusclesSecondary] = useState<MuscleGroup[]>(
+    initial?.musclesSecondary ?? []
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -58,6 +63,26 @@ export function ExerciseForm({
   /** A tab is flagged when its name — the one required field per language — is empty. */
   function isTabIncomplete(lang: Lang) {
     return !name[lang].trim();
+  }
+
+  /**
+   * Toggle one muscle in the primary list, removing it from the secondary
+   * list if it was there. A muscle listed twice would be charged 1.0 *and*
+   * 0.5 of the exercise's volume by the recovery model — so the two lists
+   * are kept mutually exclusive here rather than left to catch later.
+   */
+  function togglePrimary(muscle: MuscleGroup) {
+    setMusclesPrimary((prev) =>
+      prev.includes(muscle) ? prev.filter((m) => m !== muscle) : [...prev, muscle]
+    );
+    setMusclesSecondary((prev) => prev.filter((m) => m !== muscle));
+  }
+
+  function toggleSecondary(muscle: MuscleGroup) {
+    setMusclesSecondary((prev) =>
+      prev.includes(muscle) ? prev.filter((m) => m !== muscle) : [...prev, muscle]
+    );
+    setMusclesPrimary((prev) => prev.filter((m) => m !== muscle));
   }
 
   async function onSubmit(e: FormEvent) {
@@ -81,6 +106,8 @@ export function ExerciseForm({
       category,
       difficulty,
       ref: ref.trim() ? Number(ref) : undefined,
+      musclesPrimary,
+      musclesSecondary,
     };
     try {
       const res = current
@@ -215,6 +242,25 @@ export function ExerciseForm({
           </div>
         </div>
 
+        <div className="space-y-3 rounded-xl border border-border p-3">
+          <div>
+            <h3 className="text-sm font-semibold text-fg">{t('form.muscles')}</h3>
+            <p className="mt-1 text-xs text-fg-subtle">{t('form.musclesHint')}</p>
+          </div>
+          <MusclePicker
+            legend={t('form.musclesPrimary')}
+            selected={musclesPrimary}
+            onToggle={togglePrimary}
+            t={t}
+          />
+          <MusclePicker
+            legend={t('form.musclesSecondary')}
+            selected={musclesSecondary}
+            onToggle={toggleSecondary}
+            t={t}
+          />
+        </div>
+
         <div className="rounded-xl border border-border">
           <div role="tablist" className="flex border-b border-border">
             {LANGS.map((l) => (
@@ -347,5 +393,46 @@ export function ExerciseForm({
         )}
       </div>
     </div>
+  );
+}
+
+/** One labelled row of muscle chips; selection is a plain toggle per chip. */
+function MusclePicker({
+  legend,
+  selected,
+  onToggle,
+  t,
+}: {
+  legend: string;
+  selected: MuscleGroup[];
+  onToggle: (muscle: MuscleGroup) => void;
+  t: (key: TKey) => string;
+}) {
+  return (
+    <fieldset>
+      <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+        {legend}
+      </legend>
+      <div className="flex flex-wrap gap-1.5">
+        {MUSCLE_GROUPS.map((m) => {
+          const active = selected.includes(m);
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onToggle(m)}
+              aria-pressed={active}
+              className={`min-h-8 rounded-lg border px-2.5 text-xs font-medium transition ${
+                active
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border text-fg-muted hover:bg-surface-2'
+              }`}
+            >
+              {t(`muscle.${m}` as TKey)}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }

@@ -133,3 +133,14 @@ export function HeartIcon({ filled = false, ...props }: SVGProps<SVGSVGElement> 
     </svg>
   );
 }
+
+/** Torso outline for the muscle-recovery view — the body map in miniature. */
+export function BodyIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="5" r="2.5" />
+      <path d="M12 9c2.5 0 4.4 1.1 5.2 3l.6 3.2M12 9c-2.5 0-4.4 1.1-5.2 3L6.2 15.2" />
+      <path d="M9.2 9.6 8.8 21M14.8 9.6l.4 11.4" />
+    </svg>
+  );
+}

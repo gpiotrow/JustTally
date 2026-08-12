@@ -12,6 +12,7 @@ import {
 import { parseExercisesCsv } from '../services/csvImport.js';
 import { exercisesToCsv } from '../services/csvExport.js';
 import { countExerciseUsage, countAggregateExerciseUsage } from '../services/exerciseUsage.js';
+import { isValidMuscleList, readMuscleList } from '../services/muscles.js';
 
 const router = Router();
 
@@ -76,6 +77,10 @@ function serializeExercise(exercise, media) {
     instructionsEs: exercise.instructions_es ?? '',
     category: exercise.category,
     difficulty: exercise.difficulty,
+    // Absent on rows written before the taxonomy existed; read as empty so an
+    // unmaintained catalog produces a blank heatmap rather than an error.
+    musclesPrimary: readMuscleList(exercise.muscles_primary),
+    musclesSecondary: readMuscleList(exercise.muscles_secondary),
     createdAt: exercise.created_at,
     updatedAt: exercise.updated_at,
     // Archived exercises stay readable so past workouts still resolve a name;
@@ -265,7 +270,7 @@ router.get('/', requireAuth, async (req, res) => {
  */
 router.get('/export.csv', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await db.query(
-    `SELECT ref, category, difficulty,
+    `SELECT ref, category, difficulty, muscles_primary, muscles_secondary,
             name_de, purpose_de, instructions_de,
             name_en, purpose_en, instructions_en,
             name_es, purpose_es, instructions_es
@@ -302,12 +307,20 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
     category,
     difficulty,
     ref,
+    musclesPrimary,
+    musclesSecondary,
   } = req.body || {};
   if (!resolve(nameDe, nameEn, nameEs)) {
     return res.status(400).json({ error: 'At least one of nameDe / nameEn / nameEs is required' });
   }
   if (difficulty && !VALID_DIFFICULTY.includes(difficulty)) {
     return res.status(400).json({ error: 'Invalid difficulty' });
+  }
+  if (musclesPrimary !== undefined && !isValidMuscleList(musclesPrimary)) {
+    return res.status(400).json({ error: 'Invalid musclesPrimary' });
+  }
+  if (musclesSecondary !== undefined && !isValidMuscleList(musclesSecondary)) {
+    return res.status(400).json({ error: 'Invalid musclesSecondary' });
   }
 
   const now = Date.now();
@@ -320,8 +333,10 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
          (id, ref, name, name_de, name_en, name_es, category, difficulty,
           instructions, instructions_de, instructions_en, instructions_es,
           purpose_de, purpose_en, purpose_es,
+          muscles_primary, muscles_secondary,
           created_by, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+               $16::jsonb, $17::jsonb, $18, $19, $20)
        RETURNING *`,
       [
         id,
@@ -339,6 +354,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         (purposeDe || '').trim(),
         (purposeEn || '').trim(),
         (purposeEs || '').trim(),
+        JSON.stringify(musclesPrimary ?? []),
+        JSON.stringify(musclesSecondary ?? []),
         req.user.sub,
         now,
         now,
@@ -503,8 +520,10 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
              (id, ref, name, name_de, name_en, name_es, category, difficulty,
               instructions, instructions_de, instructions_en, instructions_es,
               purpose_de, purpose_en, purpose_es,
+              muscles_primary, muscles_secondary,
               created_by, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+                   $16::jsonb, $17::jsonb, $18, $19, $20)`,
           [
             id,
             refNumber,
@@ -521,6 +540,8 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
             row.purposeDe,
             row.purposeEn,
             row.purposeEs,
+            JSON.stringify(row.musclesPrimary ?? []),
+            JSON.stringify(row.musclesSecondary ?? []),
             req.user.sub,
             now,
             now,
@@ -557,8 +578,13 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
              SET ref = $1, name = $2, name_de = $3, name_en = $4, name_es = $5, category = $6, difficulty = $7,
                  instructions = $8, instructions_de = $9, instructions_en = $10, instructions_es = $11,
                  purpose_de = $12, purpose_en = $13, purpose_es = $14,
-                 updated_at = $15, archived_at = NULL
-           WHERE id = $16`,
+                 -- NULL means the CSV had no such column: keep what is stored,
+                 -- so an old export can still be re-imported without erasing
+                 -- muscle data maintained since.
+                 muscles_primary   = COALESCE($15::jsonb, muscles_primary),
+                 muscles_secondary = COALESCE($16::jsonb, muscles_secondary),
+                 updated_at = $17, archived_at = NULL
+           WHERE id = $18`,
           [
             refNumber,
             name,
@@ -574,6 +600,8 @@ router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (
             row.purposeDe,
             row.purposeEn,
             row.purposeEs,
+            row.musclesPrimary === undefined ? null : JSON.stringify(row.musclesPrimary),
+            row.musclesSecondary === undefined ? null : JSON.stringify(row.musclesSecondary),
             now,
             existingId,
           ]
@@ -653,9 +681,17 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     category,
     difficulty,
     ref,
+    musclesPrimary,
+    musclesSecondary,
   } = req.body || {};
   if (difficulty && !VALID_DIFFICULTY.includes(difficulty)) {
     return res.status(400).json({ error: 'Invalid difficulty' });
+  }
+  if (musclesPrimary !== undefined && !isValidMuscleList(musclesPrimary)) {
+    return res.status(400).json({ error: 'Invalid musclesPrimary' });
+  }
+  if (musclesSecondary !== undefined && !isValidMuscleList(musclesSecondary)) {
+    return res.status(400).json({ error: 'Invalid musclesSecondary' });
   }
 
   const nextNameDe = (nameDe ?? existing.name_de ?? '').trim();
@@ -680,8 +716,9 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       `UPDATE exercises
          SET ref = $1, name = $2, name_de = $3, name_en = $4, name_es = $5, category = $6, difficulty = $7,
              instructions = $8, instructions_de = $9, instructions_en = $10, instructions_es = $11,
-             purpose_de = $12, purpose_en = $13, purpose_es = $14, updated_at = $15
-       WHERE id = $16
+             purpose_de = $12, purpose_en = $13, purpose_es = $14,
+             muscles_primary = $15::jsonb, muscles_secondary = $16::jsonb, updated_at = $17
+       WHERE id = $18
        RETURNING *`,
       [
         nextRef,
@@ -698,6 +735,8 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
         nextPurposeDe,
         nextPurposeEn,
         nextPurposeEs,
+        JSON.stringify(musclesPrimary ?? readMuscleList(existing.muscles_primary)),
+        JSON.stringify(musclesSecondary ?? readMuscleList(existing.muscles_secondary)),
         Date.now(),
         req.params.id,
       ]

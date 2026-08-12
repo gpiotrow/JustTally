@@ -6,6 +6,8 @@ export const CSV_EXPORT_COLUMNS = [
   'ref',
   'category',
   'difficulty',
+  'muscles_primary',
+  'muscles_secondary',
   'name_de',
   'purpose_de',
   'instructions_de',
@@ -20,6 +22,17 @@ export const CSV_EXPORT_COLUMNS = [
 /** Quote a field for `;`-delimited CSV, doubling any embedded quotes. */
 function csvField(value) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+/**
+ * A muscle list as one CSV cell: comma-separated inside the quoted field.
+ *
+ * Comma rather than the `;` used between columns, obviously — and the whole
+ * cell is quoted anyway, so the comma needs no escaping. Spreadsheets show
+ * and round-trip `chest,triceps` as plain text.
+ */
+export function musclesToCsvCell(value) {
+  return Array.isArray(value) ? value.join(',') : '';
 }
 
 /**
@@ -39,6 +52,8 @@ export function exercisesToCsv(rows) {
         r.ref,
         r.category,
         r.difficulty,
+        musclesToCsvCell(r.muscles_primary),
+        musclesToCsvCell(r.muscles_secondary),
         r.name_de,
         r.purpose_de,
         r.instructions_de,
