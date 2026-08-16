@@ -222,7 +222,7 @@ export const es: Record<TKey, string> = {
   'admin.ex.importing': 'Importando…',
   'admin.ex.bulkUpload': 'Carga masiva de medios',
   'admin.ex.bulkUploading': 'Subiendo…',
-  'admin.ex.bulkUploadHint': 'Los archivos cuyo nombre comienza con el número del ejercicio (p. ej. "42_frontal.jpg") se asignan automáticamente. Máximo 50 archivos por lote.',
+  'admin.ex.bulkUploadHint': 'Los archivos cuyo nombre comienza con el número del ejercicio (p. ej. "42_frontal.jpg") se asignan automáticamente. Cualquier cantidad de archivos: se suben por lotes automáticamente.',
   'admin.ex.bulkUploadError': 'Error en la carga masiva',
   'admin.ex.overwriteMedia': 'Sobrescribir medios existentes al subir',
   'admin.ex.mediaOverwritten': 'Se reemplazaron los medios existentes en {count} ejercicio(s).',

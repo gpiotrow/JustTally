@@ -224,7 +224,7 @@ export const de = {
   'admin.ex.importing': 'Importieren…',
   'admin.ex.bulkUpload': 'Medien-Bulk-Upload',
   'admin.ex.bulkUploading': 'Hochladen…',
-  'admin.ex.bulkUploadHint': 'Dateien, deren Name mit der Nummer der Übung beginnt (z.B. „42_front.jpg"), werden automatisch zugeordnet. Maximal 50 Dateien pro Durchgang.',
+  'admin.ex.bulkUploadHint': 'Dateien, deren Name mit der Nummer der Übung beginnt (z.B. „42_front.jpg"), werden automatisch zugeordnet. Beliebig viele Dateien — sie werden automatisch in Blöcken hochgeladen.',
   'admin.ex.bulkUploadError': 'Bulk-Upload fehlgeschlagen',
   'admin.ex.overwriteMedia': 'Vorhandene Medien beim Hochladen überschreiben',
   'admin.ex.mediaOverwritten': 'Vorhandene Medien wurden bei {count} Übung(en) ersetzt.',

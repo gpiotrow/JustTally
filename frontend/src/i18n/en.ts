@@ -222,7 +222,7 @@ export const en: Record<TKey, string> = {
   'admin.ex.importing': 'Importing…',
   'admin.ex.bulkUpload': 'Bulk media upload',
   'admin.ex.bulkUploading': 'Uploading…',
-  'admin.ex.bulkUploadHint': 'Files whose name starts with an exercise number (e.g. "42_front.jpg") are assigned automatically. Max 50 files per batch.',
+  'admin.ex.bulkUploadHint': 'Files whose name starts with an exercise number (e.g. "42_front.jpg") are assigned automatically. Any number of files — they are uploaded in batches automatically.',
   'admin.ex.bulkUploadError': 'Bulk upload failed',
   'admin.ex.overwriteMedia': 'Overwrite existing media on upload',
   'admin.ex.mediaOverwritten': 'Existing media was replaced for {count} exercise(s).',

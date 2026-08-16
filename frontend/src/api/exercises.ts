@@ -175,8 +175,25 @@ export function bulkDeleteExercises(ids: string[]) {
  * whose `ref` matches the file's leading digit run (e.g. "42_front.jpg" → ref 42).
  * Server-side cap on files per request; {@link bulkUploadMediaChunked} is the
  * caller most code should use instead of this directly.
+ *
+ * Mirrors `MAX_BULK_FILES` in `backend/src/routes/exercises.js` — the hard cap
+ * a single request may carry. Uploads must stay at or below it.
  */
 export const MAX_BULK_FILES = 50;
+
+/**
+ * How many files one chunked upload request carries. Deliberately well below
+ * {@link MAX_BULK_FILES} rather than equal to it, for two reasons:
+ *
+ *  - Progress: {@link bulkUploadMediaChunked} can only report after a whole
+ *    chunk returns, so a chunk size equal to the cap would leave a 50-file
+ *    selection sitting at 0 until it is completely done.
+ *  - Memory: the server buffers every file of a request in RAM before handling
+ *    it, on a 512 MB machine. Smaller requests keep that peak far lower.
+ *
+ * The extra round trips cost little — total bytes on the wire are unchanged.
+ */
+export const UPLOAD_CHUNK_SIZE = 10;
 
 export function bulkUploadMedia(files: File[], overwrite = false) {
   const fd = new FormData();
@@ -202,13 +219,13 @@ export async function bulkUploadMediaChunked(
   const merged: MediaBulkResult = { assigned: [], unmatched: [], clearedExerciseIds: [] };
   const clearedExerciseIds = new Set<string>();
 
-  for (let i = 0; i < files.length; i += MAX_BULK_FILES) {
-    const chunk = files.slice(i, i + MAX_BULK_FILES);
+  for (let i = 0; i < files.length; i += UPLOAD_CHUNK_SIZE) {
+    const chunk = files.slice(i, i + UPLOAD_CHUNK_SIZE);
     const result = await bulkUploadMedia(chunk, i === 0 && overwrite);
     merged.assigned.push(...result.assigned);
     merged.unmatched.push(...result.unmatched);
     result.clearedExerciseIds.forEach((id) => clearedExerciseIds.add(id));
-    onProgress?.(Math.min(i + MAX_BULK_FILES, files.length), files.length);
+    onProgress?.(Math.min(i + UPLOAD_CHUNK_SIZE, files.length), files.length);
   }
 
   merged.clearedExerciseIds = [...clearedExerciseIds];
