@@ -10,6 +10,16 @@ import db, { initSchema } from './database.js';
 async function seed() {
   await initSchema();
 
+  // The 'admin1234' fallback is a local-dev convenience only (see README quick
+  // start) — production must set its own, or the admin account it creates is
+  // guessable from this file. `fly.toml`'s release_command runs this on every
+  // deploy, so a forgotten secret would otherwise fail silently, not loudly.
+  if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) {
+    throw new Error(
+      'ADMIN_PASSWORD is not set. Refusing to seed a production admin with the default password.'
+    );
+  }
+
   const email = process.env.ADMIN_EMAIL || 'admin@justtally.local';
   const password = process.env.ADMIN_PASSWORD || 'admin1234';
   const name = process.env.ADMIN_NAME || 'Admin';
@@ -29,7 +39,9 @@ async function seed() {
      VALUES ($1, $2, $3, $4, 'admin', $5, $6)`,
     [adminId, name, email, hash, now, now]
   );
-  console.log(`Created admin: ${email} / ${password}`);
+  // Never log the password: this script runs as fly.toml's release_command on
+  // every deploy, and deploy logs are not a safe place for it to live.
+  console.log(`Created admin: ${email}`);
 
   const samples = [
     {

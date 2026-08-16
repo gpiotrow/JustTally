@@ -2,6 +2,7 @@ import 'express-async-errors';
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initSchema } from './db/database.js';
@@ -21,9 +22,56 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// The R2/CDN origin media is served from when MEDIA_DRIVER=r2, e.g.
+// https://media.justtally.org (see services/storage/r2Driver.js). Absent with
+// the local driver, in which case media stays same-origin under /uploads and
+// needs no extra CSP entry.
+const mediaOrigin = process.env.MEDIA_PUBLIC_BASE_URL || null;
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        // No 'unsafe-inline': index.html's only inline script (theme flash
+        // prevention) was moved to public/theme-init.js for exactly this.
+        scriptSrc: ["'self'"],
+        // React writes computed values via the style prop as inline style
+        // attributes (PlateCalculator, RestTimerBar, Recovery, Settings) —
+        // 'unsafe-inline' here is the documented tradeoff, not an oversight.
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:', 'blob:', ...(mediaOrigin ? [mediaOrigin] : [])],
+        mediaSrc: ["'self'", 'blob:', ...(mediaOrigin ? [mediaOrigin] : [])],
+        connectSrc: ["'self'", ...(mediaOrigin ? [mediaOrigin] : [])],
+        manifestSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    // Same-origin API + SPA: cross-origin embedding of our own resources by
+    // our own pages is not a threat model this app has, and COEP/CORP default
+    // to blocking cross-origin image/font loads that legitimately happen here
+    // (Google Fonts, the R2 media CDN).
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
+    // Matches the stricter CSP frame-ancestors 'none' above; DENY is the
+    // legacy header modern browsers ignore in favor of the CSP directive, but
+    // it's the one still honored by older ones.
+    frameguard: { action: 'deny' },
+  })
+);
+
+// `true` would reflect any Origin header, letting any website call the API
+// on a visitor's behalf as long as it has a token. Production doesn't need
+// cross-origin access at all — Express serves the built SPA itself, so API
+// and app share an origin — so an unset CLIENT_ORIGIN falls back to "none"
+// rather than "everyone". Only local dev (Vite on a different port) sets it.
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || true,
+    origin: process.env.CLIENT_ORIGIN || false,
   })
 );
 app.use(express.json({ limit: '2mb' }));
