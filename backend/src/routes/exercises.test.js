@@ -365,6 +365,47 @@ describe('equipment', () => {
   });
 });
 
+describe('category', () => {
+  /** Let a create succeed: no ref collision, insert echoes a row back. */
+  function mockCreateSucceeds() {
+    onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
+    onQuery(/INSERT INTO exercises/, (_sql, params) => ({
+      rows: [{ ...exercise, category: params[6] }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+  }
+
+  it('stores and echoes back a valid category', async () => {
+    mockCreateSucceeds();
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Bankdrücken', category: 'legs' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.exercise.category).toBe('legs');
+  });
+
+  it('defaults to "other" when omitted', async () => {
+    mockCreateSucceeds();
+    const res = await request(app).post('/api/exercises').send({ nameDe: 'Bankdrücken' });
+    expect(res.body.exercise.category).toBe('other');
+  });
+
+  it.each([
+    ['an unknown code', { category: 'shoulders_and_back' }],
+    ['an explicit empty string', { category: '' }],
+    ['a non-string value', { category: 42 }],
+  ])('rejects %s with 400 rather than storing it', async (_label, body) => {
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Bankdrücken', ...body });
+
+    expect(res.status).toBe(400);
+    const inserted = queryMock.mock.calls.some(([sql]) => /INSERT INTO exercises/.test(sql));
+    expect(inserted).toBe(false);
+  });
+});
+
 describe('goals', () => {
   /** Let a create succeed: no ref collision, insert echoes a row back. */
   function mockCreateSucceeds() {

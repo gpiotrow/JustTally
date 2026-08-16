@@ -3,6 +3,7 @@ import { CSV_EXPORT_COLUMNS } from './csvExport.js';
 import { MUSCLE_GROUPS, isMuscleGroup } from './muscles.js';
 import { EQUIPMENT_ITEMS, isEquipmentItem } from './equipment.js';
 import { GOAL_ITEMS, isGoalItem } from './goals.js';
+import { CATEGORIES, isValidCategory } from './categories.js';
 
 const VALID_DIFFICULTY = ['beginner', 'intermediate', 'advanced'];
 const MAX_ROWS = 1000;
@@ -171,6 +172,16 @@ export function parseExercisesCsv(buffer) {
     }
     if (!difficulty) difficulty = 'beginner';
 
+    let category = (rec.category || '').trim().toLowerCase();
+    if (category && !isValidCategory(category)) {
+      errors.push({
+        row: rowNumber,
+        message: `Invalid category "${category}" (allowed: ${CATEGORIES.join(', ')})`,
+      });
+      return;
+    }
+    if (!category) category = 'other';
+
     const refRaw = (rec.ref || '').trim();
     let ref = null;
     if (refRaw) {
@@ -214,7 +225,7 @@ export function parseExercisesCsv(buffer) {
       instructionsDe: (rec.instructions_de || '').trim(),
       instructionsEn: (rec.instructions_en || '').trim(),
       instructionsEs: (rec.instructions_es || '').trim(),
-      category: (rec.category || '').trim() || 'other',
+      category,
       difficulty,
       musclesPrimary: primary.list,
       musclesSecondary: secondary.list,

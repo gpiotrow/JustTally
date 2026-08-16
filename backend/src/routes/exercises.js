@@ -15,6 +15,7 @@ import { countExerciseUsage, countAggregateExerciseUsage } from '../services/exe
 import { isValidMuscleList, readMuscleList } from '../services/muscles.js';
 import { isValidEquipmentList, readEquipmentList } from '../services/equipment.js';
 import { isValidGoalList, readGoalList } from '../services/goals.js';
+import { isValidCategory } from '../services/categories.js';
 
 const router = Router();
 
@@ -321,6 +322,9 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   }
   if (difficulty && !VALID_DIFFICULTY.includes(difficulty)) {
     return res.status(400).json({ error: 'Invalid difficulty' });
+  }
+  if (category !== undefined && !isValidCategory(category)) {
+    return res.status(400).json({ error: 'Invalid category' });
   }
   if (musclesPrimary !== undefined && !isValidMuscleList(musclesPrimary)) {
     return res.status(400).json({ error: 'Invalid musclesPrimary' });
@@ -708,6 +712,9 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   } = req.body || {};
   if (difficulty && !VALID_DIFFICULTY.includes(difficulty)) {
     return res.status(400).json({ error: 'Invalid difficulty' });
+  }
+  if (category !== undefined && !isValidCategory(category)) {
+    return res.status(400).json({ error: 'Invalid category' });
   }
   if (musclesPrimary !== undefined && !isValidMuscleList(musclesPrimary)) {
     return res.status(400).json({ error: 'Invalid musclesPrimary' });
