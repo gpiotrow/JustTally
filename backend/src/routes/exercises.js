@@ -16,24 +16,42 @@ import { isValidMuscleList, readMuscleList } from '../services/muscles.js';
 import { isValidEquipmentList, readEquipmentList } from '../services/equipment.js';
 import { isValidGoalList, readGoalList } from '../services/goals.js';
 import { isValidCategory } from '../services/categories.js';
+import { uploadLimiter } from '../middleware/rateLimiters.js';
 
 const router = Router();
 
+// multer's memoryStorage buffers every file of a request into RAM *before*
+// the route handler runs — the fly machine this app runs on has 512 MB total.
+// multer has no native "total bytes per request" limit, so the effective
+// budget is fileSize × files: 20 MB is comfortably above a compressed photo
+// or a short exercise-demo clip, and MAX_BULK_FILES caps the file count at
+// exactly the size the client already sends per chunk (see
+// frontend/src/api/exercises.ts's UPLOAD_CHUNK_SIZE), so a well-behaved
+// upload was never affected by tightening the server's hard ceiling — worst
+// case per request is now 200 MB (10 × 20 MB) instead of the previous
+// theoretical 10 GB (50 × 200 MB).
+export const MAX_UPLOAD_FILE_SIZE = 20 * 1024 * 1024;
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB
+  limits: { fileSize: MAX_UPLOAD_FILE_SIZE },
 });
 
-// Bulk media upload additionally caps the number of files per request: multer
-// buffers every file into memory before the handler runs, so an uncapped count
-// alongside the 200 MB per-file limit could exhaust server memory in one request.
-const MAX_BULK_FILES = 50;
+const MAX_BULK_FILES = 10;
 const bulkUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 200 * 1024 * 1024, files: MAX_BULK_FILES },
+  limits: { fileSize: MAX_UPLOAD_FILE_SIZE, files: MAX_BULK_FILES },
 });
 
 const VALID_DIFFICULTY = ['beginner', 'intermediate', 'advanced'];
+
+// Images go through sharp, which only accepts bytes it can actually decode —
+// the format is content-validated for free. Video has no such check: it is
+// stored as-is, and the client-supplied mimetype is written straight through
+// as the object's Content-Type (mediaService.js's processVideo). Without an
+// allow-list here, an admin request could stamp arbitrary bytes with any
+// Content-Type string and have it served back that way from the CDN.
+const VALID_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 
 /** Preferred resolution across three languages: de -> en -> es. */
 function resolve(de, en, es) {
@@ -188,7 +206,7 @@ function toFriendlyRefError(err, refNumber) {
  */
 async function insertMediaForExercise(runner, exerciseId, file) {
   const isImage = file.mimetype.startsWith('image/');
-  const isVideo = file.mimetype.startsWith('video/');
+  const isVideo = VALID_VIDEO_TYPES.includes(file.mimetype);
   if (!isImage && !isVideo) {
     const err = new Error('Only image and video files are allowed');
     err.status = 400;
@@ -408,7 +426,13 @@ function resolveImportMode(body) {
  * so `mode=replace` — which can archive a large slice of the catalog in one
  * request — is previewed before it runs, not just reported after.
  */
-router.post('/import', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
+router.post(
+  '/import',
+  requireAuth,
+  requireAdmin,
+  uploadLimiter,
+  upload.single('file'),
+  async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const isCsv =
     req.file.mimetype === 'text/csv' ||
@@ -868,7 +892,13 @@ router.get('/:id/usage', requireAuth, requireAdmin, async (req, res) => {
 /**
  * POST /api/exercises/:id/media — upload an image or video (admin only).
  */
-router.post('/:id/media', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
+router.post(
+  '/:id/media',
+  requireAuth,
+  requireAdmin,
+  uploadLimiter,
+  upload.single('file'),
+  async (req, res) => {
   const { rows: exRows } = await db.query('SELECT * FROM exercises WHERE id = $1', [
     req.params.id,
   ]);
@@ -894,6 +924,7 @@ router.post(
   '/media/bulk',
   requireAuth,
   requireAdmin,
+  uploadLimiter,
   bulkUpload.array('files', MAX_BULK_FILES),
   async (req, res) => {
     const files = req.files || [];

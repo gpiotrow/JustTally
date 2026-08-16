@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import db from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
+import { syncLimiter } from '../middleware/rateLimiters.js';
 
 const router = Router();
 
@@ -31,7 +32,7 @@ function isValidEntry(b) {
  * one round trip. Same protocol as /api/routines/sync and /api/workouts/sync:
  * scoped to the authenticated user, last-write-wins by updatedAt/deletedAt.
  */
-router.post('/sync', requireAuth, async (req, res) => {
+router.post('/sync', requireAuth, syncLimiter, async (req, res) => {
   const { lastSyncedAt, upserts, deletes } = req.body || {};
   const since = Number(lastSyncedAt) || 0;
   const userId = req.user.sub;

@@ -30,5 +30,12 @@ COPY backend/ ./
 # app.js resolves the SPA at ../../frontend/dist — keep the layout intact.
 COPY --from=frontend /app/frontend/dist /app/frontend/dist
 
+# node:22-slim ships a pre-created, unprivileged `node` user (uid 1000) for
+# exactly this. Nothing under /app is written at runtime — media goes to R2
+# or to the /data volume mount, never to the image's own filesystem — so no
+# chown is needed here; npm's default file modes already leave node_modules
+# world-readable.
+USER node
+
 EXPOSE 4000
 CMD ["node", "src/app.js"]

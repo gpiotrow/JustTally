@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import 'express-async-errors';
 import express from 'express';
 import request from 'supertest';
+import { processImage, processVideo } from '../services/mediaService.js';
 
 /**
  * Queries are matched by shape rather than call order: the routes under test
@@ -45,6 +47,17 @@ const { default: exercisesRouter } = await import('./exercises.js');
 const app = express();
 app.use(express.json());
 app.use('/api/exercises', exercisesRouter);
+// Mirrors app.js's central error handler: routes that `throw` (as opposed to
+// `res.status().json()`) rely on this to turn `err.status` into a real HTTP
+// response instead of an unhandled rejection.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  const status = err.status || err.statusCode;
+  if (status && status >= 400 && status < 500) {
+    return res.status(status).json({ error: err.message });
+  }
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 const exercise = {
   id: 'ex-1',
@@ -469,5 +482,59 @@ describe('serialized exercise', () => {
 
     expect(res.body.exercise.archived).toBe(true);
     expect(res.body.exercise.archivedAt).toBe(1730000000000);
+  });
+});
+
+describe('POST /api/exercises/:id/media — content-type allow-list', () => {
+  beforeEach(() => {
+    vi.mocked(processImage).mockClear();
+    vi.mocked(processVideo).mockClear();
+  });
+
+  function mockUploadSucceeds() {
+    onQuery(/^SELECT \* FROM exercises WHERE id = \$1/, () => ({ rows: [exercise] }));
+    onQuery(/^SELECT MAX\(position\)/, () => ({ rows: [{ p: -1 }] }));
+    onQuery(/^INSERT INTO media/, () => ({ rows: [] }));
+    onQuery(/^UPDATE exercises SET updated_at/, () => ({ rows: [] }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+  }
+
+  it.each([
+    ['image/jpeg', processImage],
+    ['video/mp4', processVideo],
+    ['video/webm', processVideo],
+    ['video/quicktime', processVideo],
+  ])('accepts %s and routes it through the matching processor', async (mimetype, processor) => {
+    mockUploadSucceeds();
+    vi.mocked(processor).mockResolvedValueOnce({
+      mediaType: mimetype.startsWith('image/') ? 'image' : 'video',
+      storage: 'local',
+      objectKey: 'x',
+      thumbKey: null,
+      originalName: 'f',
+    });
+
+    const res = await request(app)
+      .post('/api/exercises/ex-1/media')
+      .attach('file', Buffer.from('bytes'), { filename: 'f', contentType: mimetype });
+
+    expect(res.status).toBe(201);
+    expect(processor).toHaveBeenCalled();
+  });
+
+  it.each([
+    ['video/x-msvideo', 'an unlisted video container (avi)'],
+    ['video/x-flv', 'an unlisted legacy video container (flv)'],
+    ['application/octet-stream', 'a generic binary mimetype'],
+  ])('rejects %s (%s) rather than storing it verbatim', async (mimetype) => {
+    mockUploadSucceeds();
+
+    const res = await request(app)
+      .post('/api/exercises/ex-1/media')
+      .attach('file', Buffer.from('bytes'), { filename: 'f', contentType: mimetype });
+
+    expect(res.status).toBe(400);
+    expect(processImage).not.toHaveBeenCalled();
+    expect(processVideo).not.toHaveBeenCalled();
   });
 });

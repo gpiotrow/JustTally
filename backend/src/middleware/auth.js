@@ -17,7 +17,7 @@ export function signToken(user) {
   return jwt.sign(
     { sub: user.id, tokenVersion: user.token_version ?? 0 },
     JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
+    { algorithm: 'HS256', expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
   );
 }
 
@@ -35,7 +35,11 @@ export async function requireAuth(req, res, next) {
 
   let payload;
   try {
-    payload = jwt.verify(token, JWT_SECRET);
+    // Only a symmetric secret is used here (no keypair), so the classic
+    // RS256-public-key-as-HMAC-secret confusion isn't reachable today — but
+    // pinning the algorithm defends a future switch to asymmetric keys from
+    // silently accepting whatever alg a token claims.
+    payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }

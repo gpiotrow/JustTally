@@ -9,8 +9,11 @@ import path from 'node:path';
  * than a vocabulary, so drift fails loudly and late: the client keeps sending
  * chunks the server rejects wholesale with "Too many files in one upload".
  *
- * The second assertion guards the relationship that actually broke once — the
- * client's chunk size must stay at or below the cap, or every upload 400s.
+ * The second assertion guards the relationship that actually broke once —
+ * strictly below the cap, not merely at or below it: a chunk size *equal* to
+ * the cap still round-trips fine, but a cap-sized selection then uploads as
+ * exactly one chunk, and onProgress only fires once, at the very end, making
+ * the progress counter look frozen for the whole upload.
  */
 const FRONTEND_API = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -42,8 +45,8 @@ describe('bulk upload limits stay in sync across the stack', () => {
     expect(readFrontendNumber(frontendSource, 'MAX_BULK_FILES')).toBe(backendMaxBulkFiles());
   });
 
-  it('frontend chunk size stays within the cap', () => {
-    expect(readFrontendNumber(frontendSource, 'UPLOAD_CHUNK_SIZE')).toBeLessThanOrEqual(
+  it('frontend chunk size stays strictly below the cap', () => {
+    expect(readFrontendNumber(frontendSource, 'UPLOAD_CHUNK_SIZE')).toBeLessThan(
       backendMaxBulkFiles()
     );
   });

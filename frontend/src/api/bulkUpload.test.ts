@@ -31,8 +31,9 @@ beforeEach(() => {
 
 describe('bulkUploadMediaChunked', () => {
   it('never sends a request larger than the server cap', () => {
-    // Guards the mirrored constant: the chunk size must stay uploadable.
-    expect(UPLOAD_CHUNK_SIZE).toBeLessThanOrEqual(MAX_BULK_FILES);
+    // Strictly below, not just at or below: equal to the cap silently breaks
+    // progress reporting for cap-sized selections (see the sibling test below).
+    expect(UPLOAD_CHUNK_SIZE).toBeLessThan(MAX_BULK_FILES);
   });
 
   it('splits a selection into chunks of UPLOAD_CHUNK_SIZE', async () => {

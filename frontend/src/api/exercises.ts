@@ -179,21 +179,22 @@ export function bulkDeleteExercises(ids: string[]) {
  * Mirrors `MAX_BULK_FILES` in `backend/src/routes/exercises.js` — the hard cap
  * a single request may carry. Uploads must stay at or below it.
  */
-export const MAX_BULK_FILES = 50;
+export const MAX_BULK_FILES = 10;
 
 /**
- * How many files one chunked upload request carries. Deliberately well below
+ * How many files one chunked upload request carries. Deliberately below
  * {@link MAX_BULK_FILES} rather than equal to it, for two reasons:
  *
  *  - Progress: {@link bulkUploadMediaChunked} can only report after a whole
- *    chunk returns, so a chunk size equal to the cap would leave a 50-file
- *    selection sitting at 0 until it is completely done.
+ *    chunk returns, so a chunk size equal to the cap would leave a
+ *    cap-sized selection sitting at 0 until it is completely done — this
+ *    broke once already when the two were briefly the same value.
  *  - Memory: the server buffers every file of a request in RAM before handling
  *    it, on a 512 MB machine. Smaller requests keep that peak far lower.
  *
  * The extra round trips cost little — total bytes on the wire are unchanged.
  */
-export const UPLOAD_CHUNK_SIZE = 10;
+export const UPLOAD_CHUNK_SIZE = 5;
 
 export function bulkUploadMedia(files: File[], overwrite = false) {
   const fd = new FormData();

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import { initSchema } from './db/database.js';
 import { UPLOADS_DIR } from './services/storage/index.js';
 import authRoutes from './routes/auth.js';
-import exerciseRoutes from './routes/exercises.js';
+import exerciseRoutes, { MAX_UPLOAD_FILE_SIZE } from './routes/exercises.js';
 import userRoutes from './routes/users.js';
 import workoutRoutes from './routes/workouts.js';
 import favoriteRoutes from './routes/favorites.js';
@@ -127,7 +127,9 @@ app.get('*', (req, res) => {
 app.use((err, req, res, next) => {
   console.error(err);
   if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: 'File too large (max 200 MB)' });
+    return res
+      .status(413)
+      .json({ error: `File too large (max ${MAX_UPLOAD_FILE_SIZE / (1024 * 1024)} MB)` });
   }
   if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') {
     return res.status(400).json({ error: 'Too many files in one upload' });
