@@ -1,6 +1,6 @@
 # Plan: Vom Übungskatalog zum Trainings-Tracker
 
-Stand: 2026-08-11 · Basis: § 7 Phase 4
+Stand: 2026-08-12 · Basis: § 7 Phase 4
 
 Deckt **Priorität 1 vollständig**, **Priorität 2 ohne Wearables und Health-Integration**
 sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenrechner** ab.
@@ -17,7 +17,7 @@ sowie aus Priorität 3 **Analytics, Muskel-Erholungs-Heatmap und Hantelscheibenr
 | § 9 Phase 6 — Export und Import | ✅ |
 | § 10 Phase 7 — Analytics | ✅ |
 | § 11 Phase 8 — Muskel-Erholungs-Heatmap | ✅ |
-| § 16 Übungsauswahl (Favoriten, Muskelgruppen, Suche) | ✅ (dieser Commit) |
+| § 16 Übungsauswahl (Favoriten, Muskelgruppen, Suche) | ✅ `365edb0` |
 
 ---
 
