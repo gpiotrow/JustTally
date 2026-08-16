@@ -256,6 +256,22 @@ export async function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_exercises_muscles_primary
       ON exercises USING GIN (muscles_primary jsonb_path_ops);
   `);
+
+  // Equipment required per exercise — a flat jsonb array of codes from the
+  // fixed equipment taxonomy, same shape as muscles_primary/secondary above.
+  // No GIN index: unlike muscles_primary there is no containment query on
+  // this column yet (no "which exercises use a barbell" feature exists).
+  await pool.query(`
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS equipment JSONB NOT NULL DEFAULT '[]';
+  `);
+
+  // Training-goal tags per exercise (strength, mobility, weight loss, ...) —
+  // same flat-jsonb-array shape as equipment above. Distinct from
+  // purpose_de/en/es, which stay free-text elaboration; this is the closed
+  // tag vocabulary. No GIN index, same reasoning as equipment.
+  await pool.query(`
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS goals JSONB NOT NULL DEFAULT '[]';
+  `);
 }
 
 /**

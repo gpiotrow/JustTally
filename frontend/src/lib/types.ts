@@ -1,5 +1,7 @@
 import type { Unit } from './units';
 import type { MuscleGroup } from './muscles';
+import type { EquipmentItem } from './equipment';
+import type { GoalItem } from './goals';
 
 export type Role = 'admin' | 'user';
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
@@ -62,6 +64,10 @@ export interface Exercise {
    */
   musclesPrimary: MuscleGroup[];
   musclesSecondary: MuscleGroup[];
+  /** Equipment codes required to perform this exercise. */
+  equipment: EquipmentItem[];
+  /** Training-goal tags (§ Teil 2). Distinct from the free-text purpose fields. */
+  goals: GoalItem[];
   createdAt: number;
   updatedAt: number;
   /** Archived exercises are hidden from the catalog but stay readable from history. */
@@ -215,6 +221,7 @@ export const CATEGORIES = [
   'chest',
   'back',
   'legs',
+  'calves',
   'shoulders',
   'arms',
   'core',

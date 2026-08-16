@@ -9,6 +9,8 @@ import {
 } from '../../api/exercises';
 import { CATEGORIES, type Difficulty, type Exercise } from '../../lib/types';
 import { MUSCLE_GROUPS, type MuscleGroup } from '../../lib/muscles';
+import { EQUIPMENT_ITEMS, type EquipmentItem } from '../../lib/equipment';
+import { GOAL_ITEMS, type GoalItem } from '../../lib/goals';
 import { ErrorBanner } from '../../components/ui';
 import { VideoIcon } from '../../components/icons';
 import { useT, type Lang, type TKey } from '../../i18n';
@@ -53,6 +55,8 @@ export function ExerciseForm({
   const [musclesSecondary, setMusclesSecondary] = useState<MuscleGroup[]>(
     initial?.musclesSecondary ?? []
   );
+  const [equipment, setEquipment] = useState<EquipmentItem[]>(initial?.equipment ?? []);
+  const [goals, setGoals] = useState<GoalItem[]>(initial?.goals ?? []);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -85,6 +89,14 @@ export function ExerciseForm({
     setMusclesPrimary((prev) => prev.filter((m) => m !== muscle));
   }
 
+  function toggleEquipment(item: EquipmentItem) {
+    setEquipment((prev) => (prev.includes(item) ? prev.filter((e) => e !== item) : [...prev, item]));
+  }
+
+  function toggleGoal(item: GoalItem) {
+    setGoals((prev) => (prev.includes(item) ? prev.filter((g) => g !== item) : [...prev, item]));
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -108,6 +120,8 @@ export function ExerciseForm({
       ref: ref.trim() ? Number(ref) : undefined,
       musclesPrimary,
       musclesSecondary,
+      equipment,
+      goals,
     };
     try {
       const res = current
@@ -259,6 +273,22 @@ export function ExerciseForm({
             onToggle={toggleSecondary}
             t={t}
           />
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-border p-3">
+          <div>
+            <h3 className="text-sm font-semibold text-fg">{t('form.equipment')}</h3>
+            <p className="mt-1 text-xs text-fg-subtle">{t('form.equipmentHint')}</p>
+          </div>
+          <EquipmentPicker selected={equipment} onToggle={toggleEquipment} t={t} />
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-border p-3">
+          <div>
+            <h3 className="text-sm font-semibold text-fg">{t('form.goals')}</h3>
+            <p className="mt-1 text-xs text-fg-subtle">{t('form.goalsHint')}</p>
+          </div>
+          <GoalPicker selected={goals} onToggle={toggleGoal} t={t} />
         </div>
 
         <div className="rounded-xl border border-border">
@@ -429,6 +459,78 @@ function MusclePicker({
               }`}
             >
               {t(`muscle.${m}` as TKey)}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+/** One row of equipment chips; selection is a plain toggle per chip. */
+function EquipmentPicker({
+  selected,
+  onToggle,
+  t,
+}: {
+  selected: EquipmentItem[];
+  onToggle: (item: EquipmentItem) => void;
+  t: (key: TKey) => string;
+}) {
+  return (
+    <fieldset>
+      <div className="flex flex-wrap gap-1.5">
+        {EQUIPMENT_ITEMS.map((item) => {
+          const active = selected.includes(item);
+          return (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onToggle(item)}
+              aria-pressed={active}
+              className={`min-h-8 rounded-lg border px-2.5 text-xs font-medium transition ${
+                active
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border text-fg-muted hover:bg-surface-2'
+              }`}
+            >
+              {t(`equipment.${item}` as TKey)}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+/** One row of training-goal chips; selection is a plain toggle per chip. */
+function GoalPicker({
+  selected,
+  onToggle,
+  t,
+}: {
+  selected: GoalItem[];
+  onToggle: (item: GoalItem) => void;
+  t: (key: TKey) => string;
+}) {
+  return (
+    <fieldset>
+      <div className="flex flex-wrap gap-1.5">
+        {GOAL_ITEMS.map((item) => {
+          const active = selected.includes(item);
+          return (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onToggle(item)}
+              aria-pressed={active}
+              className={`min-h-8 rounded-lg border px-2.5 text-xs font-medium transition ${
+                active
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border text-fg-muted hover:bg-surface-2'
+              }`}
+            >
+              {t(`goal.${item}` as TKey)}
             </button>
           );
         })}

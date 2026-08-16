@@ -4,7 +4,7 @@ import { useExercises } from '../../hooks/useExercises';
 import { useFavorites } from '../../hooks/useFavorites';
 import { getExercise } from '../../api/exercises';
 import { CategoryBadge, DifficultyBadge, Spinner, EmptyState, ErrorBanner } from '../../components/ui';
-import { useLanguage } from '../../i18n';
+import { useLanguage, type TKey } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { ImageLightbox } from '../../components/ImageLightbox';
@@ -75,6 +75,11 @@ export function ExerciseDetail() {
           <div className="mt-2 flex flex-wrap gap-1.5">
             <CategoryBadge category={exercise.category} />
             <DifficultyBadge difficulty={exercise.difficulty} />
+            {exercise.equipment.map((item) => (
+              <span key={item} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted">
+                {t(`equipment.${item}` as TKey)}
+              </span>
+            ))}
             {exercise.archived && (
               <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted">
                 {t('detail.archived')}
@@ -130,12 +135,21 @@ export function ExerciseDetail() {
         />
       ))}
 
-      {purpose && (
+      {(exercise.goals.length > 0 || purpose) && (
         <section className="card p-4">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-muted">
             {t('detail.purpose')}
           </h2>
-          <p className="whitespace-pre-wrap leading-relaxed text-fg">{purpose}</p>
+          {exercise.goals.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {exercise.goals.map((item) => (
+                <span key={item} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted">
+                  {t(`goal.${item}` as TKey)}
+                </span>
+              ))}
+            </div>
+          )}
+          {purpose && <p className="whitespace-pre-wrap leading-relaxed text-fg">{purpose}</p>}
         </section>
       )}
 

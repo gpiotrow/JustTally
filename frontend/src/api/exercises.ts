@@ -1,6 +1,8 @@
 import { api, getToken, ApiError } from './client';
 import type { Exercise, Difficulty } from '../lib/types';
 import type { MuscleGroup } from '../lib/muscles';
+import type { EquipmentItem } from '../lib/equipment';
+import type { GoalItem } from '../lib/goals';
 
 interface ExercisesResponse {
   exercises: Exercise[];
@@ -24,6 +26,10 @@ export interface ExerciseInput {
   /** Muscle-group codes (§ 2.4); omitted leaves whatever is stored unchanged. */
   musclesPrimary?: MuscleGroup[];
   musclesSecondary?: MuscleGroup[];
+  /** Equipment codes; omitted leaves whatever is stored unchanged. */
+  equipment?: EquipmentItem[];
+  /** Training-goal tags; omitted leaves whatever is stored unchanged. */
+  goals?: GoalItem[];
 }
 
 /**
@@ -71,6 +77,8 @@ const CSV_COLUMNS = [
   'name_es',
   'purpose_es',
   'instructions_es',
+  'equipment',
+  'goals',
 ];
 
 /** How many workouts (and distinct users) reference an exercise. */
@@ -264,6 +272,8 @@ export function csvTemplate(): string {
     'Press de hombros',
     'Fortalece los músculos del hombro.',
     'Empuja la barra por encima de la cabeza. Mantén los codos ligeramente delante de la barra.',
+    'barbell,bench',
+    'strength,muscle_gain',
   ];
   return `${CSV_COLUMNS.join(';')}\n${example.map((v) => `"${v}"`).join(';')}\n`;
 }

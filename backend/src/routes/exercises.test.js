@@ -313,6 +313,110 @@ describe('muscle groups', () => {
   });
 });
 
+describe('equipment', () => {
+  /** Let a create succeed: no ref collision, insert echoes a row back. */
+  function mockCreateSucceeds() {
+    onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
+    onQuery(/INSERT INTO exercises/, (_sql, params) => ({
+      rows: [{ ...exercise, equipment: JSON.parse(params[17]) }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+  }
+
+  it('stores and echoes back a valid equipment list', async () => {
+    mockCreateSucceeds();
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Bankdrücken', equipment: ['barbell', 'bench'] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.exercise.equipment).toEqual(['barbell', 'bench']);
+  });
+
+  it('defaults to an empty list when omitted', async () => {
+    mockCreateSucceeds();
+    const res = await request(app).post('/api/exercises').send({ nameDe: 'Bankdrücken' });
+    expect(res.body.exercise.equipment).toEqual([]);
+  });
+
+  it.each([
+    ['an unknown code', { equipment: ['treadmill'] }],
+    ['a non-array', { equipment: 'barbell' }],
+    ['a duplicate entry', { equipment: ['barbell', 'barbell'] }],
+    ['a non-string element', { equipment: [42] }],
+  ])('rejects %s with 400 rather than storing it', async (_label, body) => {
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Bankdrücken', ...body });
+
+    expect(res.status).toBe(400);
+    const inserted = queryMock.mock.calls.some(([sql]) => /INSERT INTO exercises/.test(sql));
+    expect(inserted).toBe(false);
+  });
+
+  it('reads a row written before the column existed as an empty list', async () => {
+    onQuery(/UPDATE exercises SET archived_at = NULL/, () => ({
+      rows: [{ ...exercise, equipment: null }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+
+    const res = await request(app).post('/api/exercises/ex-1/unarchive');
+    expect(res.body.exercise.equipment).toEqual([]);
+  });
+});
+
+describe('goals', () => {
+  /** Let a create succeed: no ref collision, insert echoes a row back. */
+  function mockCreateSucceeds() {
+    onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
+    onQuery(/INSERT INTO exercises/, (_sql, params) => ({
+      rows: [{ ...exercise, goals: JSON.parse(params[18]) }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+  }
+
+  it('stores and echoes back a valid goals list', async () => {
+    mockCreateSucceeds();
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Bankdrücken', goals: ['strength', 'muscle_gain'] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.exercise.goals).toEqual(['strength', 'muscle_gain']);
+  });
+
+  it('defaults to an empty list when omitted', async () => {
+    mockCreateSucceeds();
+    const res = await request(app).post('/api/exercises').send({ nameDe: 'Bankdrücken' });
+    expect(res.body.exercise.goals).toEqual([]);
+  });
+
+  it.each([
+    ['an unknown code', { goals: ['endurance'] }],
+    ['a non-array', { goals: 'strength' }],
+    ['a duplicate entry', { goals: ['strength', 'strength'] }],
+    ['a non-string element', { goals: [42] }],
+  ])('rejects %s with 400 rather than storing it', async (_label, body) => {
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Bankdrücken', ...body });
+
+    expect(res.status).toBe(400);
+    const inserted = queryMock.mock.calls.some(([sql]) => /INSERT INTO exercises/.test(sql));
+    expect(inserted).toBe(false);
+  });
+
+  it('reads a row written before the column existed as an empty list', async () => {
+    onQuery(/UPDATE exercises SET archived_at = NULL/, () => ({
+      rows: [{ ...exercise, goals: null }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+
+    const res = await request(app).post('/api/exercises/ex-1/unarchive');
+    expect(res.body.exercise.goals).toEqual([]);
+  });
+});
+
 describe('serialized exercise', () => {
   it('exposes archived state so clients can mark it in history', async () => {
     onQuery(/UPDATE exercises SET archived_at = NULL/, () => ({

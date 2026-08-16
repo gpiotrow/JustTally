@@ -306,6 +306,10 @@ export const de = {
     'Grundlage für die Erholungsübersicht. Primär zählt voll, sekundär zur Hälfte. Ein Muskel kann nur eines von beidem sein.',
   'form.musclesPrimary': 'Primär',
   'form.musclesSecondary': 'Sekundär',
+  'form.equipment': 'Ausrüstung',
+  'form.equipmentHint': 'Was für diese Übung gebraucht wird.',
+  'form.goals': 'Trainingsziele',
+  'form.goalsHint': 'Wofür diese Übung geeignet ist.',
   'form.instructionsPlaceholder': 'Schritt-für-Schritt Anleitung…',
   'form.saveChanges': 'Änderungen speichern',
   'form.create': 'Übung erstellen',
@@ -444,6 +448,7 @@ export const de = {
   'category.chest': 'Brust',
   'category.back': 'Rücken',
   'category.legs': 'Beine',
+  'category.calves': 'Waden',
   'category.shoulders': 'Schultern',
   'category.arms': 'Arme',
   'category.core': 'Rumpf',
@@ -467,6 +472,31 @@ export const de = {
   'muscle.quads': 'Quadrizeps',
   'muscle.hamstrings': 'Beinbizeps',
   'muscle.calves': 'Waden',
+
+  // Equipment labels
+  'equipment.barbell': 'Langhantel',
+  'equipment.dumbbell': 'Kurzhantel',
+  'equipment.kettlebell': 'Kugelhantel',
+  'equipment.ez_bar': 'SZ-Stange',
+  'equipment.bench': 'Bank',
+  'equipment.incline_bench': 'Schrägbank',
+  'equipment.cable_machine': 'Kabelzug',
+  'equipment.machine': 'Maschine',
+  'equipment.smith_machine': 'Multipresse',
+  'equipment.pull_up_bar': 'Klimmzugstange',
+  'equipment.resistance_band': 'Widerstandsband',
+  'equipment.mat': 'Matte',
+  'equipment.swiss_ball': 'Gymnastikball',
+  'equipment.bodyweight': 'Körpergewicht (keine Ausrüstung)',
+
+  // Goal labels
+  'goal.weight_loss': 'Abnehmen',
+  'goal.mobility': 'Beweglichkeit',
+  'goal.posture': 'Haltung',
+  'goal.coordination': 'Koordination',
+  'goal.strength': 'Kraftsteigerung',
+  'goal.muscle_gain': 'Muskelaufbau',
+  'goal.rehab_prevention': 'Rehabilitation/Prävention',
 } as const;
 
 export type TKey = keyof typeof de;
