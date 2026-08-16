@@ -19,9 +19,6 @@ export const es: Record<TKey, string> = {
   'theme.toLight': 'Activar modo claro',
   'theme.toDark': 'Activar modo oscuro',
   'lang.switch': 'Cambiar idioma',
-  'lang.de': 'Alemán',
-  'lang.en': 'Inglés',
-  'lang.es': 'Español',
 
   // Mobile navigation
   'nav.exercises': 'Ejercicios',
@@ -57,7 +54,6 @@ export const es: Record<TKey, string> = {
   'exercises.all': 'Todos',
   'exercises.emptyTitle': 'No se encontraron ejercicios',
   'exercises.emptyHint': 'Ajusta la búsqueda o el filtro.',
-  'exercises.loadError': 'Error al cargar',
 
   // Favorites
   'favorites.filter': 'Favoritos',
@@ -66,7 +62,6 @@ export const es: Record<TKey, string> = {
   'favorites.emptyTitle': 'Aún no hay favoritos',
   'favorites.emptyHint': 'Toca el corazón de un ejercicio para reunirlo aquí.',
   'favorites.offlineHint': 'Sin conexión — los favoritos no se pueden cambiar ahora.',
-  'favorites.error': 'No se pudo guardar el favorito',
 
   // Exercise detail
   'detail.notFound': 'Ejercicio no encontrado',
@@ -110,7 +105,6 @@ export const es: Record<TKey, string> = {
   'picker.primary': 'Trabaja principalmente',
   'picker.secondary': 'También trabaja',
   'picker.add': 'Añadir {count}',
-  'picker.chooseMuscle': 'Elegir grupo muscular',
   'picker.allMuscles': 'Todos los grupos musculares',
   'picker.muscleEmpty': 'Aún no hay ningún ejercicio para este grupo muscular.',
   'picker.noResults': 'Ningún ejercicio encontrado',
@@ -219,7 +213,6 @@ export const es: Record<TKey, string> = {
   'admin.ex.subtitle': 'Crea y mantén ejercicios con instrucciones, fotos y videos.',
   'admin.ex.new': '+ Nuevo ejercicio',
   'admin.ex.import': 'Importar CSV',
-  'admin.ex.importing': 'Importando…',
   'admin.ex.bulkUpload': 'Carga masiva de medios',
   'admin.ex.bulkUploading': 'Subiendo…',
   'admin.ex.bulkUploadHint': 'Los archivos cuyo nombre comienza con el número del ejercicio (p. ej. "42_frontal.jpg") se asignan automáticamente. Cualquier cantidad de archivos: se suben por lotes automáticamente.',

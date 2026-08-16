@@ -20,9 +20,6 @@ export const de = {
   'theme.toLight': 'Hellen Modus aktivieren',
   'theme.toDark': 'Dunklen Modus aktivieren',
   'lang.switch': 'Sprache wechseln',
-  'lang.de': 'Deutsch',
-  'lang.en': 'Englisch',
-  'lang.es': 'Spanisch',
 
   // Mobile navigation
   'nav.exercises': 'Übungen',
@@ -58,7 +55,6 @@ export const de = {
   'exercises.all': 'Alle',
   'exercises.emptyTitle': 'Keine Übungen gefunden',
   'exercises.emptyHint': 'Passe Suche oder Filter an.',
-  'exercises.loadError': 'Laden fehlgeschlagen',
 
   // Favorites
   'favorites.filter': 'Favoriten',
@@ -67,7 +63,6 @@ export const de = {
   'favorites.emptyTitle': 'Noch keine Favoriten',
   'favorites.emptyHint': 'Tippe das Herz bei einer Übung, um sie hier zu sammeln.',
   'favorites.offlineHint': 'Offline — Favoriten lassen sich gerade nicht ändern.',
-  'favorites.error': 'Favorit konnte nicht gespeichert werden',
 
   // Exercise detail
   'detail.notFound': 'Übung nicht gefunden',
@@ -112,7 +107,6 @@ export const de = {
   'picker.primary': 'Trainiert primär',
   'picker.secondary': 'Trainiert mit',
   'picker.add': '{count} hinzufügen',
-  'picker.chooseMuscle': 'Muskelgruppe wählen',
   'picker.allMuscles': 'Alle Muskelgruppen',
   'picker.muscleEmpty': 'Für diese Muskelgruppe ist noch keine Übung hinterlegt.',
   'picker.noResults': 'Keine Übung gefunden',
@@ -221,7 +215,6 @@ export const de = {
   'admin.ex.subtitle': 'Erstelle und pflege Übungen mit Anleitung, Fotos und Videos.',
   'admin.ex.new': '+ Neue Übung',
   'admin.ex.import': 'CSV importieren',
-  'admin.ex.importing': 'Importieren…',
   'admin.ex.bulkUpload': 'Medien-Bulk-Upload',
   'admin.ex.bulkUploading': 'Hochladen…',
   'admin.ex.bulkUploadHint': 'Dateien, deren Name mit der Nummer der Übung beginnt (z.B. „42_front.jpg"), werden automatisch zugeordnet. Beliebig viele Dateien — sie werden automatisch in Blöcken hochgeladen.',
