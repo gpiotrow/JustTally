@@ -27,7 +27,7 @@ const upload = multer({
 // Bulk media upload additionally caps the number of files per request: multer
 // buffers every file into memory before the handler runs, so an uncapped count
 // alongside the 200 MB per-file limit could exhaust server memory in one request.
-const MAX_BULK_FILES = 20;
+const MAX_BULK_FILES = 50;
 const bulkUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 200 * 1024 * 1024, files: MAX_BULK_FILES },

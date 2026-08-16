@@ -176,7 +176,7 @@ export function bulkDeleteExercises(ids: string[]) {
  * Server-side cap on files per request; {@link bulkUploadMediaChunked} is the
  * caller most code should use instead of this directly.
  */
-export const MAX_BULK_FILES = 20;
+export const MAX_BULK_FILES = 50;
 
 export function bulkUploadMedia(files: File[], overwrite = false) {
   const fd = new FormData();
