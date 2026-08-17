@@ -228,6 +228,12 @@ export function ExercisePicker({
           ))}
         </div>
       )}
+      {/* Feedback while scanning three filter rows, not just after. */}
+      {tab === 'all' && !searching && (
+        <p className="px-1 text-xs text-fg-subtle">
+          {t('exercises.resultCount', { count: groups[0]?.items.length ?? 0 })}
+        </p>
+      )}
     </div>
   );
 
@@ -314,8 +320,9 @@ function TabButton({
 }
 
 /**
- * The category filter. `.chip` is a label, not a touch target (`py-0.5`), so
- * this is a real button at 44 px rather than the chip class reused.
+ * The category/difficulty/equipment filter chips. `.chip` is a label, not a
+ * touch target (`py-0.5`), so this uses `.chip-btn` — the real-44px, focus-ring
+ * variant shared with `ExerciseList`'s identical filter row.
  */
 function CategoryChip({
   active,
@@ -331,9 +338,7 @@ function CategoryChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-xs font-medium capitalize transition ${
-        active ? 'bg-fg text-bg' : 'bg-surface-2 text-fg-muted hover:text-fg'
-      }`}
+      className={`chip-btn ${active ? 'bg-fg text-bg' : 'bg-surface-2 text-fg-muted hover:text-fg'}`}
     >
       {label}
     </button>
@@ -451,7 +456,6 @@ function GroupBlock({
                   title={!canToggleFavorite ? t('favorites.offlineHint') : undefined}
                   label={favorite ? t('favorites.remove') : t('favorites.add')}
                   onClick={() => onToggleFavorite(exercise.id)}
-                  className="min-h-11 min-w-11"
                 />
               </div>
             </li>

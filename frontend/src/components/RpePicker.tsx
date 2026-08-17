@@ -27,7 +27,7 @@ export function RpePicker({ value, onChange, setNumber }: RpePickerProps) {
           type="button"
           onClick={() => onChange(value === rpe ? undefined : rpe)}
           aria-pressed={value === rpe}
-          className={`min-h-11 min-w-11 rounded-md border px-1.5 text-xs font-semibold transition ${
+          className={`focus-ring min-h-11 min-w-11 rounded-md border px-1.5 text-xs font-semibold transition ${
             value === rpe
               ? 'border-accent bg-accent text-white'
               : 'border-border bg-surface-2 text-fg-subtle hover:border-accent hover:text-accent'

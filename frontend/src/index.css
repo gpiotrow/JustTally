@@ -111,4 +111,19 @@ body {
   .chip {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
+  /* Same focus treatment as `.btn`, for the bespoke tappable controls that
+     can't use `.btn` itself (chip-shaped filters, compact set-logging
+     controls) — one ring style across the app instead of the browser default
+     on some buttons and a branded ring on others. */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent
+      focus-visible:ring-offset-2 focus-visible:ring-offset-bg;
+  }
+  /* A `.chip` is a label (py-0.5, ~24px tall) — too short to tap reliably.
+     Filter rows need the pill look but a real 44px target, so they get this
+     instead of `.chip` directly. */
+  .chip-btn {
+    @apply focus-ring inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs
+      font-medium capitalize transition;
+  }
 }

@@ -56,6 +56,7 @@ export const en: Record<TKey, string> = {
   'exercises.allDifficulties': 'All levels',
   'exercises.allEquipment': 'All equipment',
   'exercises.emptyTitle': 'No exercises found',
+  'exercises.resultCount': '{count} exercise(s)',
   'exercises.emptyHint': 'Adjust your search or filter.',
 
   // Favorites
@@ -104,6 +105,7 @@ export const en: Record<TKey, string> = {
   'workout.notesPlaceholder': 'Your own notes…',
   'workout.draftRestored': 'Resumed an unsaved workout from this device.',
   'workout.discardDraft': 'Discard',
+  'workout.draftDiscarded': 'Discarded the recovered workout',
 
   // Exercise picker
   'picker.forYou': 'For you',

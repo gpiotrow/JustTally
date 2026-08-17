@@ -24,7 +24,7 @@ export function SetTypeToggle({ value, onChange, setNumber }: SetTypeToggleProps
       type="button"
       onClick={() => onChange(next)}
       aria-label={t('set.typeToggle', { n: setNumber, type: t(`set.type.${value}` as TKey) })}
-      className={`flex h-14 w-11 shrink-0 items-center justify-center rounded-xl border text-base font-bold transition ${
+      className={`focus-ring flex h-14 w-11 shrink-0 items-center justify-center rounded-xl border text-base font-bold transition ${
         value === 'warmup'
           ? 'border-border bg-surface-2 text-fg-subtle'
           : value === 'drop'

@@ -57,6 +57,7 @@ export const de = {
   'exercises.allDifficulties': 'Alle Stufen',
   'exercises.allEquipment': 'Alle Geräte',
   'exercises.emptyTitle': 'Keine Übungen gefunden',
+  'exercises.resultCount': '{count} Übung(en)',
   'exercises.emptyHint': 'Passe Suche oder Filter an.',
 
   // Favorites
@@ -106,6 +107,7 @@ export const de = {
   'workout.notesPlaceholder': 'Eigene Notizen…',
   'workout.draftRestored': 'Ein nicht gespeichertes Training von diesem Gerät wurde wiederhergestellt.',
   'workout.discardDraft': 'Verwerfen',
+  'workout.draftDiscarded': 'Wiederhergestelltes Training verworfen',
 
   // Übungsauswahl
   'picker.forYou': 'Für dich',

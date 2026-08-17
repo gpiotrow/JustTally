@@ -105,11 +105,17 @@ export function ExerciseDetail() {
               onClick={() => setLightboxIndex(i)}
               className="flex-shrink-0 snap-center"
             >
+              {/* Fixed box rather than `w-auto`: the browser knows the size
+                  before the image loads, so the scroller doesn't jump as
+                  each photo comes in — `object-cover` fills it regardless of
+                  the source photo's own aspect ratio. */}
               <img
                 src={m.url}
                 alt={m.originalName ?? name}
                 loading="lazy"
-                className="h-56 w-auto cursor-zoom-in rounded-2xl object-cover"
+                width={160}
+                height={224}
+                className="h-56 w-40 cursor-zoom-in rounded-2xl object-cover"
               />
             </button>
           ))}

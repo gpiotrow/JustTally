@@ -1,7 +1,10 @@
-import type { ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import type { Difficulty } from '../lib/types';
 import { useT, type TKey } from '../i18n';
 import { CATEGORIES } from '../lib/types';
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function Spinner({ label }: { label?: string }) {
   return (
@@ -23,7 +26,7 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
 
 export function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+    <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
       {message}
     </div>
   );
@@ -54,6 +57,21 @@ export function CategoryBadge({ category }: { category: string }) {
 }
 
 /**
+ * "N changes waiting to sync" — shown wherever that anxiety can come up
+ * (History's sync row, the Workout screen itself). One component instead of
+ * the same amber pairing copy-pasted at each call site.
+ */
+export function PendingSyncChip({ count }: { count: number }) {
+  const t = useT();
+  if (count <= 0) return null;
+  return (
+    <span className="chip bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+      {t('history.pending', { count })}
+    </span>
+  );
+}
+
+/**
  * Bottom sheet on a phone, centred dialog from `sm` up.
  *
  * The panel is a flex column so that only the body scrolls: a search field that
@@ -78,17 +96,61 @@ export function Modal({
   footer?: ReactNode;
 }) {
   const t = useT();
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Focus lands in the dialog on open and returns to whatever opened it on
+  // close — a screen reader user is otherwise left wherever they tapped,
+  // with no indication a dialog is even up.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    return () => opener?.focus?.();
+  }, []);
+
+  // Escape closes, and Tab is trapped inside the panel — without this a
+  // keyboard user can tab straight through into the page behind the overlay.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !panelRef.current) return;
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="card flex max-h-[90vh] w-full max-w-lg flex-col rounded-b-none rounded-t-2xl p-5 sm:rounded-2xl"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="card flex max-h-[90vh] w-full max-w-lg flex-col rounded-b-none rounded-t-2xl p-5 outline-none sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex shrink-0 items-center justify-between">
-          <h2 className="text-lg font-bold text-fg">{title}</h2>
+          <h2 id={titleId} className="text-lg font-bold text-fg">
+            {title}
+          </h2>
           <button onClick={onClose} className="btn-ghost px-2.5 py-1.5" aria-label={t('common.close')}>
             ✕
           </button>

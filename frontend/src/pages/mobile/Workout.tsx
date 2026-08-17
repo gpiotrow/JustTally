@@ -4,7 +4,7 @@ import { useExercises } from '../../hooks/useExercises';
 import { useWorkouts } from '../../hooks/useWorkouts';
 import { useAuth } from '../../hooks/useAuth';
 import { useRestTimer } from '../../hooks/useRestTimer';
-import { Modal, Spinner, EmptyState, ErrorBanner } from '../../components/ui';
+import { Modal, Spinner, EmptyState, ErrorBanner, PendingSyncChip } from '../../components/ui';
 import { ExercisePicker } from '../../components/ExercisePicker';
 import { PlateCalculator } from '../../components/PlateCalculator';
 import { NumberField } from '../../components/NumberField';
@@ -311,10 +311,13 @@ function WorkoutEditor({
   /** Entry index whose alternatives list is open (tap on the exercise name). */
   const [alternativesFor, setAlternativesFor] = useState<number | null>(null);
   /**
-   * One toast, two reasons: swapping an exercise and removing one both need a
-   * way back. A swap only needs to restore that one entry's identity; a
-   * removal needs the whole entries array back exactly as it was — group
-   * membership included — so it carries a full snapshot instead.
+   * One toast, three reasons: swapping an exercise, removing one, and
+   * discarding a recovered draft all need a way back. A swap only needs to
+   * restore that one entry's identity; a removal needs the whole entries
+   * array back exactly as it was — group membership included; a discarded
+   * draft needs the whole form snapshot, since it wipes everything at once —
+   * the one action in this recovery feature that could otherwise erase real
+   * data from a real crash with no way back.
    */
   const [undo, setUndo] = useState<
     | {
@@ -324,6 +327,7 @@ function WorkoutEditor({
         showHint: boolean;
       }
     | { kind: 'remove'; entries: DraftEntry[]; selectedForGroup: Set<number>; exerciseName: string }
+    | { kind: 'discardDraft'; snapshot: ReturnType<typeof initialFormState> }
     | null
   >(null);
   const [plateEntry, setPlateEntry] = useState<number | null>(null);
@@ -409,8 +413,15 @@ function WorkoutEditor({
     return () => window.clearTimeout(id);
   }, [userId, sessionKey, draftChecked, entries, title, startedAt, duration, notes]);
 
-  /** Discard a restored draft and go back to the plain, unedited session — the escape hatch for "no, I didn't want that back." */
+  /**
+   * Discard a restored draft and go back to the plain, unedited session — the
+   * escape hatch for "no, I didn't want that back." Gets the same undo toast
+   * as swap/remove: this is real recovered data from a real crash, and a
+   * reflexive tap here should not be the one unrecoverable action in the
+   * whole recovery feature.
+   */
   function discardDraft() {
+    const snapshot = { entries, title, startedAt, duration, notes };
     if (userId) void clearWorkoutDraft(userId, sessionKey);
     const fresh = initialFormState(initial, instantiation, unit);
     setEntries(fresh.entries);
@@ -420,6 +431,22 @@ function WorkoutEditor({
     setNotes(fresh.notes);
     setDraftRestored(false);
     setLastDraftSavedAt(null);
+    setUndo({ kind: 'discardDraft', snapshot });
+  }
+
+  function undoDiscardDraft() {
+    if (!undo || undo.kind !== 'discardDraft') return;
+    const { snapshot } = undo;
+    setEntries(snapshot.entries);
+    setTitle(snapshot.title);
+    setStartedAt(snapshot.startedAt);
+    setDuration(snapshot.duration);
+    setNotes(snapshot.notes);
+    setDraftRestored(true);
+    if (userId) {
+      void saveWorkoutDraft(userId, sessionKey, snapshot).then(() => setLastDraftSavedAt(Date.now()));
+    }
+    setUndo(null);
   }
 
   /** Drag origin for the swap-to-alternative swipe; a ref because it never needs to trigger a render. */
@@ -711,8 +738,11 @@ function WorkoutEditor({
     try {
       if (initial) await updateSession(session);
       else await addSession(session);
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : t('workout.saveError'));
+    } catch {
+      // The raw error (IndexedDB quota, private-browsing restrictions, ...)
+      // is never gym-floor language, so the message shown is always the
+      // translated fallback rather than whatever the browser threw.
+      setSaveError(t('workout.saveError'));
       setSaving(false);
       return;
     }
@@ -913,11 +943,7 @@ function WorkoutEditor({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           {/* The anxiety this answers is "did my last tap actually stick?" —
               answered right here, not three screens away in History. */}
-          {pendingCount > 0 && (
-            <span className="chip bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-              {t('history.pending', { count: pendingCount })}
-            </span>
-          )}
+          <PendingSyncChip count={pendingCount} />
           {lastDraftSavedAt !== null && (
             <span className="text-fg-subtle">
               {t('workout.savedLocally', { time: timeFmt.format(lastDraftSavedAt) })}
@@ -1022,14 +1048,16 @@ function WorkoutEditor({
               return (
                 <div key={ei} className="card p-4">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedForGroup.has(ei)}
-                        onChange={() => toggleSelectedForGroup(ei)}
-                        aria-label={t('workout.selectForGroup', { name: entry.exerciseName })}
-                        className="h-5 w-5 shrink-0 accent-accent"
-                      />
+                    <div className="flex min-w-0 items-center gap-0.5">
+                      <label className="flex min-h-11 min-w-11 shrink-0 items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedForGroup.has(ei)}
+                          onChange={() => toggleSelectedForGroup(ei)}
+                          aria-label={t('workout.selectForGroup', { name: entry.exerciseName })}
+                          className="focus-ring h-5 w-5 accent-accent"
+                        />
+                      </label>
                       {renderExerciseName(ei, entry)}
                     </div>
                     {renderEntryActions(ei)}
@@ -1154,21 +1182,29 @@ function WorkoutEditor({
       {undo && (
         <div
           role="status"
-          className="fixed bottom-16 left-1/2 z-30 w-full max-w-md -translate-x-1/2 px-3 pb-2"
+          // The rest timer bar lives at this same bottom-16 strip and can be
+          // showing at the same time — finishing a set starts it, and a swap
+          // or removal right after is an ordinary sequence — so this toast
+          // steps up above it instead of stacking directly on top.
+          className={`fixed left-1/2 z-30 w-full max-w-md -translate-x-1/2 px-3 pb-2 ${
+            rest.rest ? 'bottom-36' : 'bottom-16'
+          }`}
         >
           <div className="card flex items-center justify-between gap-3 p-3 shadow-lg">
             <div className="min-w-0">
               <p className="truncate text-sm text-fg">
-                {undo.kind === 'swap'
-                  ? t('routines.swapped', { name: entries[undo.ei]?.exerciseName ?? '' })
-                  : t('workout.removedEntry', { name: undo.exerciseName })}
+                {undo.kind === 'swap' && t('routines.swapped', { name: entries[undo.ei]?.exerciseName ?? '' })}
+                {undo.kind === 'remove' && t('workout.removedEntry', { name: undo.exerciseName })}
+                {undo.kind === 'discardDraft' && t('workout.draftDiscarded')}
               </p>
               {undo.kind === 'swap' && undo.showHint && (
                 <p className="mt-0.5 text-xs text-fg-subtle">{t('routines.swapHint')}</p>
               )}
             </div>
             <button
-              onClick={undo.kind === 'swap' ? undoSwap : undoRemove}
+              onClick={
+                undo.kind === 'swap' ? undoSwap : undo.kind === 'remove' ? undoRemove : undoDiscardDraft
+              }
               className="btn-ghost shrink-0 px-3 py-1.5 text-sm"
             >
               {t('routines.undoSwap')}

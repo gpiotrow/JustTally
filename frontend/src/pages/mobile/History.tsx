@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { formatWeightWithUnit } from '../../lib/units';
 import { setType } from '../../lib/types';
 import type { NewPR } from '../../lib/analytics/records';
-import { EmptyState, ErrorBanner, Spinner } from '../../components/ui';
+import { EmptyState, ErrorBanner, PendingSyncChip, Spinner } from '../../components/ui';
 import { useLanguage } from '../../i18n';
 
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
@@ -88,11 +88,7 @@ export function History() {
           {/* What is actually at stake, rather than only how long ago the last
               round succeeded: a timestamp reads the same whether nothing has
               changed since or a whole workout is sitting on this device. */}
-          {pendingCount > 0 && (
-            <span className="chip bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-              {t('history.pending', { count: pendingCount })}
-            </span>
-          )}
+          <PendingSyncChip count={pendingCount} />
           {lastSyncedAt ? (
             <span className="text-fg-subtle">
               {t('history.lastSynced')} {dateFmt.format(lastSyncedAt)}

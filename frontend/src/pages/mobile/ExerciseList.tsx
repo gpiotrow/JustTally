@@ -9,7 +9,7 @@ import { DumbbellIcon, HeartIcon } from '../../components/icons';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { useLanguage, type TKey } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
-import { matchesQuery } from '../../lib/exerciseSearch';
+import { buildPickerGroups } from '../../lib/exercisePicker';
 
 export function ExerciseList() {
   const { exercises, loading, error, fromCache } = useExercises();
@@ -21,27 +21,31 @@ export function ExerciseList() {
   const [equipment, setEquipment] = useState<string>('all');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
-  const localized = useMemo(
-    () => exercises.map((ex) => ({ ex, name: localizedExercise(ex, lang).name })),
+  const candidates = useMemo(
+    () => exercises.map((ex) => ({ exercise: ex, name: localizedExercise(ex, lang).name })),
     [exercises, lang]
   );
 
+  // Category/difficulty/equipment/search share the exact matching rules the
+  // exercise picker uses — `buildPickerGroups` in 'all' mode is that shared
+  // rule set, so this list can't quietly drift from what the picker shows.
+  // Favorites-only is applied after: it's a toggle over the result, not one
+  // more filter axis the picker's grouping logic needs to know about.
   const filtered = useMemo(() => {
-    return localized.filter(({ ex, name }) => {
-      const matchesCat = category === 'all' || ex.category === category;
-      const matchesDifficulty = difficulty === 'all' || ex.difficulty === difficulty;
-      const matchesEquipment =
-        equipment === 'all' || (ex.equipment as readonly string[]).includes(equipment);
-      const matchesFavorite = !favoritesOnly || isFavorite(ex.id);
-      return (
-        matchesQuery(name, query) &&
-        matchesCat &&
-        matchesDifficulty &&
-        matchesEquipment &&
-        matchesFavorite
-      );
+    const groups = buildPickerGroups({
+      candidates,
+      query,
+      mode: 'all',
+      muscle: null,
+      category,
+      difficulty,
+      equipment,
+      favoriteIds: new Set<string>(),
+      recency: new Map(),
     });
-  }, [localized, query, category, difficulty, equipment, favoritesOnly, isFavorite]);
+    const items = groups[0]?.items ?? [];
+    return favoritesOnly ? items.filter(({ exercise }) => isFavorite(exercise.id)) : items;
+  }, [candidates, query, category, difficulty, equipment, favoritesOnly, isFavorite]);
 
   if (loading) return <Spinner label={t('exercises.loading')} />;
   if (error) return <ErrorBanner message={error} />;
@@ -71,9 +75,7 @@ export function ExerciseList() {
         <button
           onClick={() => setFavoritesOnly((v) => !v)}
           aria-pressed={favoritesOnly}
-          className={`chip flex shrink-0 items-center gap-1.5 ${
-            favoritesOnly ? 'bg-fg text-bg' : 'bg-surface-2 text-fg-muted'
-          }`}
+          className={`chip-btn ${favoritesOnly ? 'bg-fg text-bg' : 'bg-surface-2 text-fg-muted'}`}
         >
           <HeartIcon width={14} height={14} filled={favoritesOnly} />
           {t('favorites.filter')}
@@ -126,6 +128,10 @@ export function ExerciseList() {
         ))}
       </div>
 
+      {/* Feedback while scanning three filter rows, not just after: how many
+          exercises are left to look through before scrolling to find out. */}
+      <p className="text-xs text-fg-subtle">{t('exercises.resultCount', { count: filtered.length })}</p>
+
       {filtered.length === 0 ? (
         <EmptyState
           title={favoritesOnly ? t('favorites.emptyTitle') : t('exercises.emptyTitle')}
@@ -133,9 +139,9 @@ export function ExerciseList() {
         />
       ) : (
         <ul className="space-y-3">
-          {filtered.map(({ ex, name }) => {
-            const cover = ex.media.find((m) => m.mediaType === 'image');
-            const favorite = isFavorite(ex.id);
+          {filtered.map(({ exercise, name }) => {
+            const cover = exercise.media.find((m) => m.mediaType === 'image');
+            const favorite = isFavorite(exercise.id);
             return (
               /*
                * The heart sits beside the Link, not inside it. A <button> nested
@@ -145,11 +151,11 @@ export function ExerciseList() {
                * to undo with preventDefault.
                */
               <li
-                key={ex.id}
+                key={exercise.id}
                 className="card flex items-center gap-1 overflow-hidden pr-2 transition hover:border-fg-subtle/40"
               >
                 <Link
-                  to={`/exercise/${ex.id}`}
+                  to={`/exercise/${exercise.id}`}
                   className="flex min-w-0 flex-1 items-center gap-3 p-3 transition active:scale-[0.99]"
                 >
                   <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-surface-2">
@@ -169,17 +175,17 @@ export function ExerciseList() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-fg">{name}</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
-                      <CategoryBadge category={ex.category} />
-                      <DifficultyBadge difficulty={ex.difficulty} />
+                      <CategoryBadge category={exercise.category} />
+                      <DifficultyBadge difficulty={exercise.difficulty} />
                     </div>
                   </div>
                 </Link>
                 <FavoriteButton
                   favorite={favorite}
-                  disabled={!canToggle || isPending(ex.id)}
+                  disabled={!canToggle || isPending(exercise.id)}
                   title={!canToggle ? t('favorites.offlineHint') : undefined}
                   label={favorite ? t('favorites.remove') : t('favorites.add')}
-                  onClick={() => toggle(ex.id)}
+                  onClick={() => toggle(exercise.id)}
                 />
                 <span className="text-fg-subtle" aria-hidden>
                   ›
@@ -203,12 +209,7 @@ function FilterChip({
   label: string;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={`chip shrink-0 capitalize ${
-        active ? 'bg-fg text-bg' : 'bg-surface-2 text-fg-muted'
-      }`}
-    >
+    <button onClick={onClick} className={`chip-btn ${active ? 'bg-fg text-bg' : 'bg-surface-2 text-fg-muted'}`}>
       {label}
     </button>
   );
