@@ -47,6 +47,12 @@ export function ExerciseList() {
     return favoritesOnly ? items.filter(({ exercise }) => isFavorite(exercise.id)) : items;
   }, [candidates, query, category, difficulty, equipment, favoritesOnly, isFavorite]);
 
+  // A non-blank query searches the whole catalog and beats category/
+  // difficulty/equipment entirely (the same rule `buildPickerGroups` applies
+  // for the picker's own search) — so those chips are hidden while searching
+  // instead of staying lit for filters that have silently stopped applying.
+  const searching = query.trim() !== '';
+
   if (loading) return <Spinner label={t('exercises.loading')} />;
   if (error) return <ErrorBanner message={error} />;
 
@@ -80,53 +86,61 @@ export function ExerciseList() {
           <HeartIcon width={14} height={14} filled={favoritesOnly} />
           {t('favorites.filter')}
         </button>
-        <span className="my-1 w-px shrink-0 bg-border" aria-hidden />
-        <FilterChip
-          active={category === 'all'}
-          onClick={() => setCategory('all')}
-          label={t('exercises.all')}
-        />
-        {CATEGORIES.map((c) => (
-          <FilterChip
-            key={c}
-            active={category === c}
-            onClick={() => setCategory(c)}
-            label={t(`category.${c}` as TKey)}
-          />
-        ))}
+        {!searching && (
+          <>
+            <span className="my-1 w-px shrink-0 bg-border" aria-hidden />
+            <FilterChip
+              active={category === 'all'}
+              onClick={() => setCategory('all')}
+              label={t('exercises.all')}
+            />
+            {CATEGORIES.map((c) => (
+              <FilterChip
+                key={c}
+                active={category === c}
+                onClick={() => setCategory(c)}
+                label={t(`category.${c}` as TKey)}
+              />
+            ))}
+          </>
+        )}
       </div>
 
-      <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-        <FilterChip
-          active={difficulty === 'all'}
-          onClick={() => setDifficulty('all')}
-          label={t('exercises.allDifficulties')}
-        />
-        {DIFFICULTIES.map((d) => (
+      {!searching && (
+        <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
           <FilterChip
-            key={d}
-            active={difficulty === d}
-            onClick={() => setDifficulty(d)}
-            label={t(`difficulty.${d}` as TKey)}
+            active={difficulty === 'all'}
+            onClick={() => setDifficulty('all')}
+            label={t('exercises.allDifficulties')}
           />
-        ))}
-      </div>
+          {DIFFICULTIES.map((d) => (
+            <FilterChip
+              key={d}
+              active={difficulty === d}
+              onClick={() => setDifficulty(d)}
+              label={t(`difficulty.${d}` as TKey)}
+            />
+          ))}
+        </div>
+      )}
 
-      <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
-        <FilterChip
-          active={equipment === 'all'}
-          onClick={() => setEquipment('all')}
-          label={t('exercises.allEquipment')}
-        />
-        {EQUIPMENT_ITEMS.map((eq) => (
+      {!searching && (
+        <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
           <FilterChip
-            key={eq}
-            active={equipment === eq}
-            onClick={() => setEquipment(eq)}
-            label={t(`equipment.${eq}` as TKey)}
+            active={equipment === 'all'}
+            onClick={() => setEquipment('all')}
+            label={t('exercises.allEquipment')}
           />
-        ))}
-      </div>
+          {EQUIPMENT_ITEMS.map((eq) => (
+            <FilterChip
+              key={eq}
+              active={equipment === eq}
+              onClick={() => setEquipment(eq)}
+              label={t(`equipment.${eq}` as TKey)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Feedback while scanning three filter rows, not just after: how many
           exercises are left to look through before scrolling to find out. */}

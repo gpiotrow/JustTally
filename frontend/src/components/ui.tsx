@@ -98,14 +98,26 @@ export function Modal({
   const t = useT();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Captured during render, before any child mounts — an input inside the
+  // panel with its own `autoFocus` claims focus during commit, which happens
+  // before this component's effects run, so reading `activeElement` in an
+  // effect would already see that child instead of whatever really opened
+  // the dialog.
+  const openerRef = useRef<HTMLElement | null>(
+    typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null
+  );
 
   // Focus lands in the dialog on open and returns to whatever opened it on
   // close — a screen reader user is otherwise left wherever they tapped,
-  // with no indication a dialog is even up.
+  // with no indication a dialog is even up. But a child that already claimed
+  // focus via its own `autoFocus` (the plate calculator's weight field, for
+  // one) keeps it — the dialog frame is only the fallback when nothing
+  // inside asked for focus itself.
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
-    panelRef.current?.focus();
-    return () => opener?.focus?.();
+    if (!panelRef.current?.contains(document.activeElement)) {
+      panelRef.current?.focus();
+    }
+    return () => openerRef.current?.focus?.();
   }, []);
 
   // Escape closes, and Tab is trapped inside the panel — without this a
