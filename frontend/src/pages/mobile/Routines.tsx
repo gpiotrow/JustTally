@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useRoutines } from '../../hooks/useRoutines';
@@ -24,6 +24,9 @@ function blankDay(): RoutineDay {
  * building that machinery here for a phone screen would be building it twice.
  * `weeks[0]` is where every routine created on mobile lives.
  */
+/** How long the undo toast after removing a day/exercise/alternative stays up. */
+const UNDO_TOAST_MS = 6000;
+
 function blankRoutine(): Routine {
   return {
     id: crypto.randomUUID(),
@@ -172,6 +175,20 @@ function RoutineEditor({
   const [picking, setPicking] = useState<{ dayIndex: number; exerciseIndex?: number } | null>(
     null
   );
+  /**
+   * One snapshot covers removing a day, an exercise, or an alternative —
+   * all three just restore `days` wholesale, the same way `Workout.tsx`'s
+   * entry-removal undo does. Nothing here is persisted until "Save", so
+   * (unlike a routine's own delete, which queues a sync tombstone and needs
+   * a confirm instead) undo is the safe, low-friction fix.
+   */
+  const [undo, setUndo] = useState<{ days: RoutineDay[]; label: string } | null>(null);
+
+  useEffect(() => {
+    if (!undo) return;
+    const id = window.setTimeout(() => setUndo(null), UNDO_TOAST_MS);
+    return () => window.clearTimeout(id);
+  }, [undo]);
 
   const canSave = name.trim() !== '' && days.some((d) => d.exercises.length > 0);
 
@@ -184,6 +201,11 @@ function RoutineEditor({
   }
 
   function removeDay(dayIndex: number) {
+    const day = days[dayIndex];
+    setUndo({
+      days,
+      label: t('routines.removedDay', { name: day.name || t('routines.untitledDay') }),
+    });
     setDays((prev) => prev.filter((_, i) => i !== dayIndex));
   }
 
@@ -226,6 +248,8 @@ function RoutineEditor({
   }
 
   function removeAlternative(dayIndex: number, exerciseIndex: number, altIndex: number) {
+    const alt = days[dayIndex].exercises[exerciseIndex].alternatives[altIndex];
+    setUndo({ days, label: t('routines.removedAlternative', { name: alt.exerciseName }) });
     setDays((prev) =>
       prev.map((d, di) =>
         di !== dayIndex
@@ -256,7 +280,15 @@ function RoutineEditor({
   }
 
   function removeExercise(dayIndex: number, exerciseIndex: number) {
+    const exercise = days[dayIndex].exercises[exerciseIndex];
+    setUndo({ days, label: t('routines.removedExercise', { name: exercise.exerciseName }) });
     updateDay(dayIndex, { exercises: days[dayIndex].exercises.filter((_, i) => i !== exerciseIndex) });
+  }
+
+  function undoRemoval() {
+    if (!undo) return;
+    setDays(undo.days);
+    setUndo(null);
   }
 
   async function save() {
@@ -419,6 +451,18 @@ function RoutineEditor({
             </div>
           ))}
         </div>
+
+        {undo && (
+          <div
+            role="status"
+            className="card flex items-center justify-between gap-3 border-accent/40 bg-accent/5 p-3"
+          >
+            <p className="truncate text-sm text-fg">{undo.label}</p>
+            <button onClick={undoRemoval} className="btn-ghost shrink-0 px-3 py-1.5 text-sm">
+              {t('routines.undoSwap')}
+            </button>
+          </div>
+        )}
 
         <button onClick={addDay} className="btn-ghost w-full text-sm">
           {t('routines.addDay')}
