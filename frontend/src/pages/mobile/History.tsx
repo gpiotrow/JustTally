@@ -45,6 +45,19 @@ export function History() {
     }
   }
 
+  /**
+   * Deleting a logged workout is the one destructive action here with no
+   * undo — `deleteSession` queues a sync tombstone alongside the local
+   * removal, so silently reviving it client-side risks a confusing
+   * resurrect-then-vanish once that tombstone reaches the server. A confirm
+   * step (the same pattern `Routines.tsx` already uses for deleting a
+   * routine) is the safe fix, not a toast this action can't safely offer.
+   */
+  function handleDelete(id: string) {
+    if (!window.confirm(t('history.deleteConfirm'))) return;
+    void deleteSession(id);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -124,7 +137,7 @@ export function History() {
                       {t('common.edit')}
                     </Link>
                     <button
-                      onClick={() => deleteSession(s.id)}
+                      onClick={() => handleDelete(s.id)}
                       className="text-xs text-fg-subtle hover:text-danger"
                     >
                       {t('common.delete')}

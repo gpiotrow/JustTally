@@ -90,6 +90,7 @@ export const de = {
   'workout.removedEntry': '{name} entfernt',
   'workout.saveError': 'Training konnte nicht gespeichert werden. Speicher prüfen und erneut versuchen.',
   'workout.savedLocally': 'Auf diesem Gerät gespeichert · {time}',
+  'workout.draftSaveError': 'Lokale Sicherung fehlgeschlagen — Tab geöffnet lassen, bis du auf Speichern tippst.',
   'workout.set': 'Satz',
   'workout.reps': 'Wdh.',
   // Ohne Einheit im Text: die hängt an der Nutzereinstellung und wird angehängt.
@@ -179,6 +180,7 @@ export const de = {
   'history.sync': 'Sync',
   'history.syncing': 'Synchronisiere…',
   'history.syncError': 'Synchronisierung fehlgeschlagen',
+  'history.deleteConfirm': 'Dieses Training löschen? Das kann nicht rückgängig gemacht werden.',
   'history.pending': '{count} Änderung(en) warten',
   'history.lastSynced': 'Zuletzt synchronisiert:',
   'history.newRecordsTitle': 'Neue Rekorde!',

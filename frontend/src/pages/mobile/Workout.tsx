@@ -346,6 +346,8 @@ function WorkoutEditor({
   const [saving, setSaving] = useState(false);
   /** When the local draft last wrote successfully — the "is this actually saved?" answer, shown right where the anxiety is. */
   const [lastDraftSavedAt, setLastDraftSavedAt] = useState<number | null>(null);
+  /** Set when a background draft write throws — the local safety net silently failing is exactly the thing draft persistence exists to prevent, so it can't fail silently too. */
+  const [draftSaveError, setDraftSaveError] = useState(false);
   /** Gates the autosave effect until the one-time draft check has resolved, so it never overwrites a not-yet-loaded draft with the plain initial state. */
   const [draftChecked, setDraftChecked] = useState(false);
   const routineId = initial?.routineId ?? instantiation?.routineId;
@@ -402,13 +404,24 @@ function WorkoutEditor({
       entries.length > 0 || title.trim() !== '' || notes.trim() !== '' || duration.trim() !== '';
     if (!hasContent) return;
     const id = window.setTimeout(() => {
-      void saveWorkoutDraft(userId, sessionKey, {
+      saveWorkoutDraft(userId, sessionKey, {
         entries: entries.map(toDraftSnapshot),
         title,
         startedAt,
         duration,
         notes,
-      }).then(() => setLastDraftSavedAt(Date.now()));
+      })
+        .then(() => {
+          setDraftSaveError(false);
+          setLastDraftSavedAt(Date.now());
+        })
+        .catch((err: unknown) => {
+          // The local safety net just failed quietly (IndexedDB quota,
+          // private-browsing restrictions) — surfaced so the user knows not
+          // to trust it, rather than assuming their taps are being caught.
+          console.error('Failed to save workout draft', err);
+          setDraftSaveError(true);
+        });
     }, DRAFT_SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(id);
   }, [userId, sessionKey, draftChecked, entries, title, startedAt, duration, notes]);
@@ -738,10 +751,12 @@ function WorkoutEditor({
     try {
       if (initial) await updateSession(session);
       else await addSession(session);
-    } catch {
+    } catch (err) {
       // The raw error (IndexedDB quota, private-browsing restrictions, ...)
       // is never gym-floor language, so the message shown is always the
-      // translated fallback rather than whatever the browser threw.
+      // translated fallback rather than whatever the browser threw — but it's
+      // still logged, so a recurring failure leaves a trace to debug from.
+      console.error('Failed to save workout', err);
       setSaveError(t('workout.saveError'));
       setSaving(false);
       return;
@@ -939,7 +954,11 @@ function WorkoutEditor({
 
       {saveError && <ErrorBanner message={saveError} />}
 
-      {!saveError && (lastDraftSavedAt !== null || pendingCount > 0) && (
+      {!saveError && draftSaveError && (
+        <p className="text-xs text-amber-700 dark:text-amber-300">{t('workout.draftSaveError')}</p>
+      )}
+
+      {!saveError && !draftSaveError && (lastDraftSavedAt !== null || pendingCount > 0) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           {/* The anxiety this answers is "did my last tap actually stick?" —
               answered right here, not three screens away in History. */}
