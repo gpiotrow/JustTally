@@ -32,7 +32,7 @@ export function FavoriteButton({
       aria-pressed={favorite}
       aria-label={label}
       title={title ?? label}
-      className={`inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40 ${
+      className={`focus-ring inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full transition disabled:opacity-40 ${
         favorite ? 'text-rose-500 hover:text-rose-600' : 'text-fg-subtle hover:text-fg-muted'
       } ${className}`}
     >

@@ -22,7 +22,7 @@ export function RestTimerBar() {
       aria-live="polite"
     >
       <div
-        className={`card flex items-center gap-2 overflow-hidden p-2 shadow-lg transition-colors ${
+        className={`card relative flex items-center gap-2 overflow-hidden p-2 shadow-lg transition-colors ${
           finished ? 'border-accent bg-accent/10' : ''
         }`}
       >
@@ -38,7 +38,7 @@ export function RestTimerBar() {
         <button
           type="button"
           onClick={() => adjust(-REST_ADJUST_STEP)}
-          className="min-h-11 min-w-11 shrink-0 rounded-xl text-sm font-semibold text-fg-muted transition hover:bg-surface-2 hover:text-fg"
+          className="focus-ring min-h-11 min-w-11 shrink-0 rounded-xl text-sm font-semibold text-fg-muted transition hover:bg-surface-2 hover:text-fg"
           aria-label={t('rest.minus', { seconds: REST_ADJUST_STEP })}
         >
           −{REST_ADJUST_STEP}
@@ -60,7 +60,7 @@ export function RestTimerBar() {
         <button
           type="button"
           onClick={() => adjust(REST_ADJUST_STEP)}
-          className="min-h-11 min-w-11 shrink-0 rounded-xl text-sm font-semibold text-fg-muted transition hover:bg-surface-2 hover:text-fg"
+          className="focus-ring min-h-11 min-w-11 shrink-0 rounded-xl text-sm font-semibold text-fg-muted transition hover:bg-surface-2 hover:text-fg"
           aria-label={t('rest.plus', { seconds: REST_ADJUST_STEP })}
         >
           +{REST_ADJUST_STEP}
@@ -69,7 +69,7 @@ export function RestTimerBar() {
         <button
           type="button"
           onClick={stop}
-          className="min-h-11 shrink-0 rounded-xl px-3 text-xs font-semibold text-fg-muted transition hover:bg-surface-2 hover:text-fg"
+          className="focus-ring min-h-11 shrink-0 rounded-xl px-3 text-xs font-semibold text-fg-muted transition hover:bg-surface-2 hover:text-fg"
         >
           {t('rest.skip')}
         </button>
