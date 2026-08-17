@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useFavorites } from '../../hooks/useFavorites';
-import { CATEGORIES } from '../../lib/types';
+import { CATEGORIES, DIFFICULTIES } from '../../lib/types';
+import { EQUIPMENT_ITEMS } from '../../lib/equipment';
 import { CategoryBadge, DifficultyBadge, EmptyState, ErrorBanner, Spinner } from '../../components/ui';
 import { DumbbellIcon, HeartIcon } from '../../components/icons';
 import { FavoriteButton } from '../../components/FavoriteButton';
@@ -16,6 +17,8 @@ export function ExerciseList() {
   const { lang, t } = useLanguage();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string>('all');
+  const [difficulty, setDifficulty] = useState<string>('all');
+  const [equipment, setEquipment] = useState<string>('all');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const localized = useMemo(
@@ -26,10 +29,19 @@ export function ExerciseList() {
   const filtered = useMemo(() => {
     return localized.filter(({ ex, name }) => {
       const matchesCat = category === 'all' || ex.category === category;
+      const matchesDifficulty = difficulty === 'all' || ex.difficulty === difficulty;
+      const matchesEquipment =
+        equipment === 'all' || (ex.equipment as readonly string[]).includes(equipment);
       const matchesFavorite = !favoritesOnly || isFavorite(ex.id);
-      return matchesQuery(name, query) && matchesCat && matchesFavorite;
+      return (
+        matchesQuery(name, query) &&
+        matchesCat &&
+        matchesDifficulty &&
+        matchesEquipment &&
+        matchesFavorite
+      );
     });
-  }, [localized, query, category, favoritesOnly, isFavorite]);
+  }, [localized, query, category, difficulty, equipment, favoritesOnly, isFavorite]);
 
   if (loading) return <Spinner label={t('exercises.loading')} />;
   if (error) return <ErrorBanner message={error} />;
@@ -78,6 +90,38 @@ export function ExerciseList() {
             active={category === c}
             onClick={() => setCategory(c)}
             label={t(`category.${c}` as TKey)}
+          />
+        ))}
+      </div>
+
+      <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
+        <FilterChip
+          active={difficulty === 'all'}
+          onClick={() => setDifficulty('all')}
+          label={t('exercises.allDifficulties')}
+        />
+        {DIFFICULTIES.map((d) => (
+          <FilterChip
+            key={d}
+            active={difficulty === d}
+            onClick={() => setDifficulty(d)}
+            label={t(`difficulty.${d}` as TKey)}
+          />
+        ))}
+      </div>
+
+      <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
+        <FilterChip
+          active={equipment === 'all'}
+          onClick={() => setEquipment('all')}
+          label={t('exercises.allEquipment')}
+        />
+        {EQUIPMENT_ITEMS.map((eq) => (
+          <FilterChip
+            key={eq}
+            active={equipment === eq}
+            onClick={() => setEquipment(eq)}
+            label={t(`equipment.${eq}` as TKey)}
           />
         ))}
       </div>

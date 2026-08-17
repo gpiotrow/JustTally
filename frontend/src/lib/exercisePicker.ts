@@ -24,6 +24,8 @@ export type PickerGroupKind = 'favorites' | 'recent' | 'primary' | 'secondary' |
 export interface PickableExercise {
   id: string;
   category: string;
+  difficulty: string;
+  equipment: readonly string[];
   musclesPrimary: readonly string[];
   musclesSecondary: readonly string[];
 }
@@ -53,6 +55,10 @@ export interface PickerInput<T extends PickableExercise> {
   muscle: MuscleGroup | null;
   /** Category filter in `'all'` mode: a category code, or `'all'`. */
   category: string;
+  /** Difficulty filter in `'all'` mode: a `Difficulty`, or `'all'`. */
+  difficulty: string;
+  /** Equipment filter in `'all'` mode: an equipment code, or `'all'`. */
+  equipment: string;
   favoriteIds: ReadonlySet<string>;
   recency: ReadonlyMap<string, ExerciseRecency>;
   recentLimit?: number;
@@ -105,12 +111,14 @@ function nonEmpty<T extends PickableExercise>(groups: PickerGroup<T>[]): PickerG
  * - **By muscle** lists the primary movers, then the secondaries below them.
  *   Exercises with no muscles recorded do not appear at all — an unmaintained
  *   row is honestly absent rather than quietly guessed at.
- * - **Everything** is the plain catalog, narrowed by the category chips.
+ * - **Everything** is the plain catalog, narrowed by the category, difficulty,
+ *   and equipment chips — independent filters, all three applied together.
  */
 export function buildPickerGroups<T extends PickableExercise>(
   input: PickerInput<T>
 ): PickerGroup<T>[] {
-  const { candidates, mode, muscle, category, favoriteIds, recency } = input;
+  const { candidates, mode, muscle, category, difficulty, equipment, favoriteIds, recency } =
+    input;
   const query = input.query.trim();
 
   if (query !== '') {
@@ -151,9 +159,11 @@ export function buildPickerGroups<T extends PickableExercise>(
     ]);
   }
 
-  const items =
-    category === 'all'
-      ? [...candidates]
-      : candidates.filter((item) => item.exercise.category === category);
+  const items = candidates.filter(
+    (item) =>
+      (category === 'all' || item.exercise.category === category) &&
+      (difficulty === 'all' || item.exercise.difficulty === difficulty) &&
+      (equipment === 'all' || item.exercise.equipment.includes(equipment))
+  );
   return nonEmpty([{ kind: 'all', items }]);
 }

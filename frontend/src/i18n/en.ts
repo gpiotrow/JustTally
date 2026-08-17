@@ -7,6 +7,7 @@ export const en: Record<TKey, string> = {
   'common.password': 'Password',
   'common.name': 'Name',
   'common.save': 'Save',
+  'common.saving': 'Saving…',
   'common.delete': 'Delete',
   'common.edit': 'Edit',
   'common.close': 'Close',
@@ -52,6 +53,8 @@ export const en: Record<TKey, string> = {
   'exercises.offlineCache': 'Offline — cached data',
   'exercises.searchPlaceholder': 'Search exercise…',
   'exercises.all': 'All',
+  'exercises.allDifficulties': 'All levels',
+  'exercises.allEquipment': 'All equipment',
   'exercises.emptyTitle': 'No exercises found',
   'exercises.emptyHint': 'Adjust your search or filter.',
 
@@ -82,6 +85,9 @@ export const en: Record<TKey, string> = {
   'workout.emptyTitle': 'No exercises yet',
   'workout.emptyHint': 'Add exercises to log your workout.',
   'workout.remove': 'Remove',
+  'workout.removedEntry': 'Removed {name}',
+  'workout.saveError': "Couldn't save this workout. Check your storage and try again.",
+  'workout.savedLocally': 'Saved on this device · {time}',
   'workout.set': 'Set',
   'workout.reps': 'Reps',
   'workout.weight': 'Weight',
@@ -96,6 +102,8 @@ export const en: Record<TKey, string> = {
   'workout.duration': 'Duration (min)',
   'workout.notes': 'Notes',
   'workout.notesPlaceholder': 'Your own notes…',
+  'workout.draftRestored': 'Resumed an unsaved workout from this device.',
+  'workout.discardDraft': 'Discard',
 
   // Exercise picker
   'picker.forYou': 'For you',

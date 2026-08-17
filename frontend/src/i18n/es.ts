@@ -7,6 +7,7 @@ export const es: Record<TKey, string> = {
   'common.password': 'Contraseña',
   'common.name': 'Nombre',
   'common.save': 'Guardar',
+  'common.saving': 'Guardando…',
   'common.delete': 'Eliminar',
   'common.edit': 'Editar',
   'common.close': 'Cerrar',
@@ -52,6 +53,8 @@ export const es: Record<TKey, string> = {
   'exercises.offlineCache': 'Sin conexión — datos en caché',
   'exercises.searchPlaceholder': 'Buscar ejercicio…',
   'exercises.all': 'Todos',
+  'exercises.allDifficulties': 'Todos los niveles',
+  'exercises.allEquipment': 'Todo el equipo',
   'exercises.emptyTitle': 'No se encontraron ejercicios',
   'exercises.emptyHint': 'Ajusta la búsqueda o el filtro.',
 
@@ -82,6 +85,9 @@ export const es: Record<TKey, string> = {
   'workout.emptyTitle': 'Aún no hay ejercicios',
   'workout.emptyHint': 'Añade ejercicios para registrar tu entrenamiento.',
   'workout.remove': 'Quitar',
+  'workout.removedEntry': 'Se quitó {name}',
+  'workout.saveError': 'No se pudo guardar el entrenamiento. Revisa el almacenamiento e inténtalo de nuevo.',
+  'workout.savedLocally': 'Guardado en este dispositivo · {time}',
   'workout.set': 'Serie',
   'workout.reps': 'Reps.',
   'workout.weight': 'Peso',
@@ -96,6 +102,8 @@ export const es: Record<TKey, string> = {
   'workout.duration': 'Duración (min.)',
   'workout.notes': 'Notas',
   'workout.notesPlaceholder': 'Tus propias notas…',
+  'workout.draftRestored': 'Se recuperó un entrenamiento sin guardar de este dispositivo.',
+  'workout.discardDraft': 'Descartar',
 
   // Selector de ejercicios
   'picker.forYou': 'Para ti',

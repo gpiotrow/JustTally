@@ -5,6 +5,7 @@ import type { GoalItem } from './goals';
 
 export type Role = 'admin' | 'user';
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
+export const DIFFICULTIES: readonly Difficulty[] = ['beginner', 'intermediate', 'advanced'];
 export type MediaType = 'image' | 'video';
 
 export type Sex = 'male' | 'female';

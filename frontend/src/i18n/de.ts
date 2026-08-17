@@ -8,6 +8,7 @@ export const de = {
   'common.password': 'Passwort',
   'common.name': 'Name',
   'common.save': 'Speichern',
+  'common.saving': 'Speichert…',
   'common.delete': 'Löschen',
   'common.edit': 'Bearbeiten',
   'common.close': 'Schließen',
@@ -53,6 +54,8 @@ export const de = {
   'exercises.offlineCache': 'Offline — zwischengespeicherte Daten',
   'exercises.searchPlaceholder': 'Übung suchen…',
   'exercises.all': 'Alle',
+  'exercises.allDifficulties': 'Alle Stufen',
+  'exercises.allEquipment': 'Alle Geräte',
   'exercises.emptyTitle': 'Keine Übungen gefunden',
   'exercises.emptyHint': 'Passe Suche oder Filter an.',
 
@@ -83,6 +86,9 @@ export const de = {
   'workout.emptyTitle': 'Noch keine Übungen',
   'workout.emptyHint': 'Füge Übungen hinzu, um dein Training zu protokollieren.',
   'workout.remove': 'Entfernen',
+  'workout.removedEntry': '{name} entfernt',
+  'workout.saveError': 'Training konnte nicht gespeichert werden. Speicher prüfen und erneut versuchen.',
+  'workout.savedLocally': 'Auf diesem Gerät gespeichert · {time}',
   'workout.set': 'Satz',
   'workout.reps': 'Wdh.',
   // Ohne Einheit im Text: die hängt an der Nutzereinstellung und wird angehängt.
@@ -98,6 +104,8 @@ export const de = {
   'workout.duration': 'Dauer (Min.)',
   'workout.notes': 'Notizen',
   'workout.notesPlaceholder': 'Eigene Notizen…',
+  'workout.draftRestored': 'Ein nicht gespeichertes Training von diesem Gerät wurde wiederhergestellt.',
+  'workout.discardDraft': 'Verwerfen',
 
   // Übungsauswahl
   'picker.forYou': 'Für dich',

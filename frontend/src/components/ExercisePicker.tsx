@@ -5,7 +5,8 @@ import { CheckIcon, ChevronLeftIcon } from './icons';
 import { useFavorites } from '../hooks/useFavorites';
 import { useWorkouts } from '../hooks/useWorkouts';
 import { useAuth } from '../hooks/useAuth';
-import { CATEGORIES, type Exercise } from '../lib/types';
+import { CATEGORIES, DIFFICULTIES, type Exercise } from '../lib/types';
+import { EQUIPMENT_ITEMS } from '../lib/equipment';
 import { MUSCLE_GROUPS, type MuscleGroup } from '../lib/muscles';
 import { localizedExercise } from '../lib/exerciseText';
 import { exerciseRecency, type ExerciseRecency } from '../lib/exerciseRecency';
@@ -88,6 +89,8 @@ export function ExercisePicker({
   const [tab, setTab] = useState<PickerMode>('forYou');
   const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
   const [category, setCategory] = useState('all');
+  const [difficulty, setDifficulty] = useState('all');
+  const [equipment, setEquipment] = useState('all');
   /** Tap order is commit order, so this is a list rather than a set. */
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -98,8 +101,18 @@ export function ExercisePicker({
 
   const groups = useMemo(
     () =>
-      buildPickerGroups({ candidates, query, mode: tab, muscle, category, favoriteIds, recency }),
-    [candidates, query, tab, muscle, category, favoriteIds, recency]
+      buildPickerGroups({
+        candidates,
+        query,
+        mode: tab,
+        muscle,
+        category,
+        difficulty,
+        equipment,
+        favoriteIds,
+        recency,
+      }),
+    [candidates, query, tab, muscle, category, difficulty, equipment, favoriteIds, recency]
   );
 
   const searching = query.trim() !== '';
@@ -177,6 +190,40 @@ export function ExercisePicker({
               active={category === c}
               onClick={() => setCategory(c)}
               label={t(`category.${c}` as TKey)}
+            />
+          ))}
+        </div>
+      )}
+      {tab === 'all' && !searching && (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          <CategoryChip
+            active={difficulty === 'all'}
+            onClick={() => setDifficulty('all')}
+            label={t('exercises.allDifficulties')}
+          />
+          {DIFFICULTIES.map((d) => (
+            <CategoryChip
+              key={d}
+              active={difficulty === d}
+              onClick={() => setDifficulty(d)}
+              label={t(`difficulty.${d}` as TKey)}
+            />
+          ))}
+        </div>
+      )}
+      {tab === 'all' && !searching && (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          <CategoryChip
+            active={equipment === 'all'}
+            onClick={() => setEquipment('all')}
+            label={t('exercises.allEquipment')}
+          />
+          {EQUIPMENT_ITEMS.map((eq) => (
+            <CategoryChip
+              key={eq}
+              active={equipment === eq}
+              onClick={() => setEquipment(eq)}
+              label={t(`equipment.${eq}` as TKey)}
             />
           ))}
         </div>

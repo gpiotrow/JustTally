@@ -21,6 +21,8 @@ function candidate(
     exercise: {
       id,
       category: extras.category ?? 'other',
+      difficulty: extras.difficulty ?? 'beginner',
+      equipment: extras.equipment ?? [],
       musclesPrimary: extras.musclesPrimary ?? [],
       musclesSecondary: extras.musclesSecondary ?? [],
     },
@@ -29,16 +31,30 @@ function candidate(
 
 const bench = candidate('bench', 'Bankdrücken', {
   category: 'chest',
+  difficulty: 'intermediate',
+  equipment: ['barbell', 'bench'],
   musclesPrimary: ['chest'],
   musclesSecondary: ['triceps'],
 });
-const flies = candidate('flies', 'Fliegende', { category: 'chest', musclesPrimary: ['chest'] });
+const flies = candidate('flies', 'Fliegende', {
+  category: 'chest',
+  difficulty: 'beginner',
+  equipment: ['dumbbell'],
+  musclesPrimary: ['chest'],
+});
 const dips = candidate('dips', 'Dips', {
   category: 'chest',
+  difficulty: 'advanced',
+  equipment: ['bodyweight'],
   musclesPrimary: ['triceps'],
   musclesSecondary: ['chest'],
 });
-const squat = candidate('squat', 'Kniebeuge', { category: 'legs', musclesPrimary: ['quads'] });
+const squat = candidate('squat', 'Kniebeuge', {
+  category: 'legs',
+  difficulty: 'intermediate',
+  equipment: ['barbell'],
+  musclesPrimary: ['quads'],
+});
 const unclassified = candidate('curl', 'Bíceps Curl', { category: 'arms' });
 
 const ALL = [bench, flies, dips, squat, unclassified];
@@ -56,6 +72,8 @@ function input(overrides: Partial<PickerInput<PickableExercise>> = {}): PickerIn
     mode: 'all',
     muscle: null,
     category: 'all',
+    difficulty: 'all',
+    equipment: 'all',
     favoriteIds: new Set(),
     recency: new Map(),
     ...overrides,
@@ -235,6 +253,29 @@ describe('buildPickerGroups — all', () => {
 
   it('returns no group for a category with nothing in it', () => {
     expect(buildPickerGroups(input({ mode: 'all', category: 'cardio' }))).toEqual([]);
+  });
+
+  it('narrows to one difficulty', () => {
+    const groups = buildPickerGroups(input({ mode: 'all', difficulty: 'advanced' }));
+    expect(ids(groups[0].items)).toEqual(['dips']);
+  });
+
+  it('narrows to one equipment item', () => {
+    const groups = buildPickerGroups(input({ mode: 'all', equipment: 'barbell' }));
+    expect(ids(groups[0].items)).toEqual(['bench', 'squat']);
+  });
+
+  it('combines category, difficulty, and equipment as independent filters', () => {
+    const groups = buildPickerGroups(
+      input({ mode: 'all', category: 'chest', difficulty: 'beginner', equipment: 'dumbbell' })
+    );
+    expect(ids(groups[0].items)).toEqual(['flies']);
+  });
+
+  it('returns no group when the difficulty/equipment combination matches nothing', () => {
+    expect(
+      buildPickerGroups(input({ mode: 'all', difficulty: 'beginner', equipment: 'barbell' }))
+    ).toEqual([]);
   });
 
   it('does not mutate the candidates it was given', () => {

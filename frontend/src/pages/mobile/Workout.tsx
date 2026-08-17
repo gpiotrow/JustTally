@@ -4,7 +4,7 @@ import { useExercises } from '../../hooks/useExercises';
 import { useWorkouts } from '../../hooks/useWorkouts';
 import { useAuth } from '../../hooks/useAuth';
 import { useRestTimer } from '../../hooks/useRestTimer';
-import { Modal, Spinner, EmptyState } from '../../components/ui';
+import { Modal, Spinner, EmptyState, ErrorBanner } from '../../components/ui';
 import { ExercisePicker } from '../../components/ExercisePicker';
 import { PlateCalculator } from '../../components/PlateCalculator';
 import { NumberField } from '../../components/NumberField';
@@ -43,11 +43,19 @@ import type { RoutineInstantiation } from '../../lib/routineInstantiate';
 import { useLanguage } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
 import { useRpeVisibility } from '../../hooks/useRpeVisibility';
+import {
+  clearWorkoutDraft,
+  loadWorkoutDraft,
+  saveWorkoutDraft,
+  type WorkoutDraftEntry,
+} from '../../lib/workoutDraft';
 
 /** Shown once, the first time any exercise is ever swapped on this device. */
 const SWAP_HINT_SEEN_KEY = 'jt_swap_hint_seen';
 /** How long the undo toast after a swap stays up before it stops being an option. */
 const UNDO_TOAST_MS = 6000;
+/** Debounce for the local draft snapshot — frequent enough that a kill mid-set loses at most a keystroke, rare enough not to hammer IndexedDB on every character. */
+const DRAFT_SAVE_DEBOUNCE_MS = 800;
 
 /**
  * Sets under edit hold the raw text of each field rather than a number.
@@ -160,6 +168,34 @@ function toSavedEntries(entries: DraftEntry[], unit: Unit): WorkoutEntry[] {
     .filter((entry) => entry.sets.length > 0);
 }
 
+/**
+ * The draft only needs to survive the logged numbers and which exercises are
+ * on the sheet — routine-only extras (`alternatives`, `plannedExercise`,
+ * `target`) are never saved onto the real session either, and are cheap to
+ * live without across a crash-and-restore.
+ */
+function toDraftSnapshot(entry: DraftEntry): WorkoutDraftEntry {
+  return {
+    exerciseId: entry.exerciseId,
+    exerciseRef: entry.exerciseRef,
+    exerciseName: entry.exerciseName,
+    groupId: entry.groupId,
+    plannedExerciseId: entry.plannedExerciseId,
+    sets: entry.sets.map((s) => ({ ...s })),
+  };
+}
+
+function fromDraftSnapshot(entry: WorkoutDraftEntry): DraftEntry {
+  return {
+    exerciseId: entry.exerciseId,
+    exerciseRef: entry.exerciseRef,
+    exerciseName: entry.exerciseName,
+    groupId: entry.groupId,
+    plannedExerciseId: entry.plannedExerciseId,
+    sets: entry.sets.map((s) => ({ ...s })),
+  };
+}
+
 /** Seed a fresh workout's entries from "Training starten" — blank sets, targets carried as a hint. */
 function instantiationToDraftEntries(instantiation: RoutineInstantiation): DraftEntry[] {
   return instantiation.entries.map((ex) => ({
@@ -207,8 +243,33 @@ export function Workout() {
   const key = id ?? (instantiation ? `routine-${location.key}` : 'new');
 
   return (
-    <WorkoutEditor key={key} initial={initial} sessions={sessions} instantiation={instantiation} />
+    <WorkoutEditor
+      key={key}
+      sessionKey={key}
+      initial={initial}
+      sessions={sessions}
+      instantiation={instantiation}
+    />
   );
+}
+
+/** The form's starting point before any draft is considered — what a plain (re)load of this session looks like. */
+function initialFormState(
+  initial: WorkoutSession | null,
+  instantiation: RoutineInstantiation | null,
+  unit: Unit
+) {
+  return {
+    entries: initial
+      ? toDraftEntries(initial.entries, unit)
+      : instantiation
+        ? instantiationToDraftEntries(instantiation)
+        : [],
+    title: initial?.title ?? instantiation?.title ?? '',
+    startedAt: toLocalInputValue(initial?.startedAt ?? initial?.date ?? Date.now()),
+    duration: initial?.durationMin != null ? String(initial.durationMin) : '',
+    notes: initial?.notes ?? '',
+  };
 }
 
 /**
@@ -216,47 +277,73 @@ export function Workout() {
  * sets, check them off as they are done.
  */
 function WorkoutEditor({
+  sessionKey,
   initial,
   sessions,
   instantiation,
 }: {
+  /** Stable identity for this editing session (same value used as the React `key`), so the local draft is scoped to the right workout. */
+  sessionKey: string;
   initial: WorkoutSession | null;
   sessions: WorkoutSession[];
   instantiation: RoutineInstantiation | null;
 }) {
   const { exercises, loading } = useExercises();
-  const { addSession, updateSession } = useWorkouts();
-  const { unit } = useAuth();
+  const { addSession, updateSession, pendingCount } = useWorkouts();
+  const { user, unit } = useAuth();
+  const userId = user?.id;
   const rest = useRestTimer();
   const navigate = useNavigate();
   const { lang, t } = useLanguage();
   const [rpeVisible] = useRpeVisibility();
-
-  const [entries, setEntries] = useState<DraftEntry[]>(() => {
-    if (initial) return toDraftEntries(initial.entries, unit);
-    if (instantiation) return instantiationToDraftEntries(instantiation);
-    return [];
+  const timeFmt = new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
   });
+
+  const [entries, setEntries] = useState<DraftEntry[]>(
+    () => initialFormState(initial, instantiation, unit).entries
+  );
   /** Entries checked for the next "group as superset" action. */
   const [selectedForGroup, setSelectedForGroup] = useState<Set<number>>(new Set());
   /** `'add'` appends a new entry; an index replaces that entry's exercise instead. */
   const [picking, setPicking] = useState<'add' | number | false>(false);
   /** Entry index whose alternatives list is open (tap on the exercise name). */
   const [alternativesFor, setAlternativesFor] = useState<number | null>(null);
-  const [undo, setUndo] = useState<{
-    ei: number;
-    previous: { exerciseId: string; exerciseRef?: number; exerciseName: string };
-    showHint: boolean;
-  } | null>(null);
+  /**
+   * One toast, two reasons: swapping an exercise and removing one both need a
+   * way back. A swap only needs to restore that one entry's identity; a
+   * removal needs the whole entries array back exactly as it was — group
+   * membership included — so it carries a full snapshot instead.
+   */
+  const [undo, setUndo] = useState<
+    | {
+        kind: 'swap';
+        ei: number;
+        previous: { exerciseId: string; exerciseRef?: number; exerciseName: string };
+        showHint: boolean;
+      }
+    | { kind: 'remove'; entries: DraftEntry[]; selectedForGroup: Set<number>; exerciseName: string }
+    | null
+  >(null);
   const [plateEntry, setPlateEntry] = useState<number | null>(null);
-  const [title, setTitle] = useState(initial?.title ?? instantiation?.title ?? '');
-  const [startedAt, setStartedAt] = useState(() =>
-    toLocalInputValue(initial?.startedAt ?? initial?.date ?? Date.now())
+  const [title, setTitle] = useState(() => initialFormState(initial, instantiation, unit).title);
+  const [startedAt, setStartedAt] = useState(
+    () => initialFormState(initial, instantiation, unit).startedAt
   );
   const [duration, setDuration] = useState(
-    initial?.durationMin != null ? String(initial.durationMin) : ''
+    () => initialFormState(initial, instantiation, unit).duration
   );
-  const [notes, setNotes] = useState(initial?.notes ?? '');
+  const [notes, setNotes] = useState(() => initialFormState(initial, instantiation, unit).notes);
+  /** Whether the recovered-draft banner should show; cleared on save or explicit discard. */
+  const [draftRestored, setDraftRestored] = useState(false);
+  /** Set when `save()` throws, so a failed write is never mistaken for a successful one. */
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  /** When the local draft last wrote successfully — the "is this actually saved?" answer, shown right where the anxiety is. */
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<number | null>(null);
+  /** Gates the autosave effect until the one-time draft check has resolved, so it never overwrites a not-yet-loaded draft with the plain initial state. */
+  const [draftChecked, setDraftChecked] = useState(false);
   const routineId = initial?.routineId ?? instantiation?.routineId;
   const weekIndex = initial?.weekIndex ?? instantiation?.weekIndex;
   const dayId = initial?.dayId ?? instantiation?.dayId;
@@ -267,6 +354,73 @@ function WorkoutEditor({
     const id = window.setTimeout(() => setUndo(null), UNDO_TOAST_MS);
     return () => window.clearTimeout(id);
   }, [undo]);
+
+  /**
+   * One-time recovery check: a draft newer than what this session last saved
+   * means the previous edit never made it past the local snapshot — most
+   * likely a killed tab or dead battery mid-workout. Older or absent drafts
+   * are left alone; the plain initial state already covers those.
+   */
+  useEffect(() => {
+    if (!userId) {
+      setDraftChecked(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const draft = await loadWorkoutDraft(userId, sessionKey);
+      if (cancelled) return;
+      if (draft && draft.savedAt > (initial?.updatedAt ?? 0)) {
+        setEntries(draft.entries.map(fromDraftSnapshot));
+        setTitle(draft.title);
+        setStartedAt(draft.startedAt);
+        setDuration(draft.duration);
+        setNotes(draft.notes);
+        setDraftRestored(true);
+      }
+      setDraftChecked(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, sessionKey, initial?.updatedAt]);
+
+  /**
+   * Snapshots the in-progress workout to IndexedDB on every change, so the
+   * one-time recovery check above always has something current to find.
+   * Debounced rather than per-keystroke, and gated on `draftChecked` so this
+   * never fires before the restore effect has had a chance to load an
+   * existing draft first.
+   */
+  useEffect(() => {
+    if (!userId || !draftChecked) return;
+    const hasContent =
+      entries.length > 0 || title.trim() !== '' || notes.trim() !== '' || duration.trim() !== '';
+    if (!hasContent) return;
+    const id = window.setTimeout(() => {
+      void saveWorkoutDraft(userId, sessionKey, {
+        entries: entries.map(toDraftSnapshot),
+        title,
+        startedAt,
+        duration,
+        notes,
+      }).then(() => setLastDraftSavedAt(Date.now()));
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [userId, sessionKey, draftChecked, entries, title, startedAt, duration, notes]);
+
+  /** Discard a restored draft and go back to the plain, unedited session — the escape hatch for "no, I didn't want that back." */
+  function discardDraft() {
+    if (userId) void clearWorkoutDraft(userId, sessionKey);
+    const fresh = initialFormState(initial, instantiation, unit);
+    setEntries(fresh.entries);
+    setTitle(fresh.title);
+    setStartedAt(fresh.startedAt);
+    setDuration(fresh.duration);
+    setNotes(fresh.notes);
+    setDraftRestored(false);
+    setLastDraftSavedAt(null);
+  }
 
   /** Drag origin for the swap-to-alternative swipe; a ref because it never needs to trigger a render. */
   const swipeOrigin = useRef<{ ei: number; x: number; width: number } | null>(null);
@@ -379,11 +533,11 @@ function WorkoutEditor({
     );
     const seenHint = localStorage.getItem(SWAP_HINT_SEEN_KEY) === 'true';
     if (!seenHint) localStorage.setItem(SWAP_HINT_SEEN_KEY, 'true');
-    setUndo({ ei, previous, showHint: !seenHint });
+    setUndo({ kind: 'swap', ei, previous, showHint: !seenHint });
   }
 
   function undoSwap() {
-    if (!undo) return;
+    if (!undo || undo.kind !== 'swap') return;
     setEntries((prev) => prev.map((e, i) => (i !== undo.ei ? e : { ...e, ...undo.previous })));
     setUndo(null);
   }
@@ -432,7 +586,16 @@ function WorkoutEditor({
     );
   }
 
+  /**
+   * A single tap deletes an exercise and every set logged against it — the
+   * most destructive action in this editor, so it gets the same undo toast a
+   * swap does rather than a confirm dialog: recoverable beats an extra tap
+   * between "logging fast" and "removing one thing."
+   */
   function removeEntry(ei: number) {
+    const removed = entries[ei];
+    if (!removed) return;
+    setUndo({ kind: 'remove', entries, selectedForGroup, exerciseName: removed.exerciseName });
     setEntries((prev) => {
       const groupId = prev[ei].groupId;
       const next = prev.filter((_, i) => i !== ei);
@@ -449,6 +612,13 @@ function WorkoutEditor({
       });
       return next;
     });
+  }
+
+  function undoRemove() {
+    if (!undo || undo.kind !== 'remove') return;
+    setEntries(undo.entries);
+    setSelectedForGroup(undo.selectedForGroup);
+    setUndo(null);
   }
 
   function toggleSelectedForGroup(ei: number) {
@@ -506,7 +676,8 @@ function WorkoutEditor({
   }
 
   async function save() {
-    if (savedEntries.length === 0) return;
+    if (savedEntries.length === 0 || saving) return;
+    setSaveError(null);
     const trimmedTitle = title.trim();
     const trimmedNotes = notes.trim();
     const durationMin = duration.trim() === '' ? undefined : Number(duration);
@@ -536,8 +707,24 @@ function WorkoutEditor({
       })
       .filter((pr): pr is NewPR => pr !== null);
 
-    if (initial) await updateSession(session);
-    else await addSession(session);
+    setSaving(true);
+    try {
+      if (initial) await updateSession(session);
+      else await addSession(session);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : t('workout.saveError'));
+      setSaving(false);
+      return;
+    }
+    if (userId) {
+      try {
+        await clearWorkoutDraft(userId, sessionKey);
+      } catch {
+        // Best-effort: the session itself is already saved; a leftover local
+        // draft is harmless and gets overwritten the next time this session
+        // is edited.
+      }
+    }
     navigate('/history', newPRs.length > 0 ? { state: { newPRs } } : undefined);
   }
 
@@ -710,11 +897,46 @@ function WorkoutEditor({
           {initial ? t('workout.editTitle') : t('workout.title')}
         </h1>
         {savedEntries.length > 0 && (
-          <button onClick={save} className="btn-primary px-5 text-sm">
-            {t('common.save')}
+          <button
+            onClick={save}
+            disabled={saving}
+            className="btn-primary px-5 text-sm disabled:opacity-50"
+          >
+            {saving ? t('common.saving') : t('common.save')}
           </button>
         )}
       </div>
+
+      {saveError && <ErrorBanner message={saveError} />}
+
+      {!saveError && (lastDraftSavedAt !== null || pendingCount > 0) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          {/* The anxiety this answers is "did my last tap actually stick?" —
+              answered right here, not three screens away in History. */}
+          {pendingCount > 0 && (
+            <span className="chip bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+              {t('history.pending', { count: pendingCount })}
+            </span>
+          )}
+          {lastDraftSavedAt !== null && (
+            <span className="text-fg-subtle">
+              {t('workout.savedLocally', { time: timeFmt.format(lastDraftSavedAt) })}
+            </span>
+          )}
+        </div>
+      )}
+
+      {draftRestored && (
+        <div
+          role="status"
+          className="flex items-center justify-between gap-3 rounded-xl border border-accent/40 bg-accent/5 px-4 py-3"
+        >
+          <span className="text-sm text-fg">{t('workout.draftRestored')}</span>
+          <button onClick={discardDraft} className="btn-ghost shrink-0 px-3 py-1.5 text-sm">
+            {t('workout.discardDraft')}
+          </button>
+        </div>
+      )}
 
       <div className="card space-y-4 p-4">
         <div>
@@ -819,7 +1041,7 @@ function WorkoutEditor({
 
             // groupId is set here: a multi-member block always shares one.
             return (
-              <div key={groupId} className="card space-y-4 border-l-4 border-l-accent p-4">
+              <div key={groupId} className="card space-y-4 border-accent/30 bg-accent/[0.03] p-4">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold uppercase text-fg-subtle">
                     {t('workout.supersetLabel')}
@@ -937,13 +1159,18 @@ function WorkoutEditor({
           <div className="card flex items-center justify-between gap-3 p-3 shadow-lg">
             <div className="min-w-0">
               <p className="truncate text-sm text-fg">
-                {t('routines.swapped', { name: entries[undo.ei]?.exerciseName ?? '' })}
+                {undo.kind === 'swap'
+                  ? t('routines.swapped', { name: entries[undo.ei]?.exerciseName ?? '' })
+                  : t('workout.removedEntry', { name: undo.exerciseName })}
               </p>
-              {undo.showHint && (
+              {undo.kind === 'swap' && undo.showHint && (
                 <p className="mt-0.5 text-xs text-fg-subtle">{t('routines.swapHint')}</p>
               )}
             </div>
-            <button onClick={undoSwap} className="btn-ghost shrink-0 px-3 py-1.5 text-sm">
+            <button
+              onClick={undo.kind === 'swap' ? undoSwap : undoRemove}
+              className="btn-ghost shrink-0 px-3 py-1.5 text-sm"
+            >
               {t('routines.undoSwap')}
             </button>
           </div>
