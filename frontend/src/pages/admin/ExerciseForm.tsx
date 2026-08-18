@@ -40,11 +40,6 @@ export function ExerciseForm({
     en: initial?.nameEn ?? '',
     es: initial?.nameEs ?? '',
   });
-  const [purpose, setPurpose] = useState<Record<Lang, string>>({
-    de: initial?.purposeDe ?? '',
-    en: initial?.purposeEn ?? '',
-    es: initial?.purposeEs ?? '',
-  });
   const [instructions, setInstructions] = useState<Record<Lang, string>>({
     de: initial?.instructionsDe ?? '',
     en: initial?.instructionsEn ?? '',
@@ -117,9 +112,6 @@ export function ExerciseForm({
       nameDe: name.de.trim(),
       nameEn: name.en.trim(),
       nameEs: name.es.trim(),
-      purposeDe: purpose.de,
-      purposeEn: purpose.en,
-      purposeEs: purpose.es,
       instructionsDe: instructions.de,
       instructionsEn: instructions.en,
       instructionsEs: instructions.es,
@@ -358,16 +350,6 @@ export function ExerciseForm({
                 className="input"
                 value={name[activeLang]}
                 onChange={(e) => setName({ ...name, [activeLang]: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label" htmlFor="ex-purpose">{t('form.purpose')}</label>
-              <textarea
-                id="ex-purpose"
-                className="input min-h-20 resize-y"
-                value={purpose[activeLang]}
-                onChange={(e) => setPurpose({ ...purpose, [activeLang]: e.target.value })}
-                placeholder={t('form.purposePlaceholder')}
               />
             </div>
             <div>

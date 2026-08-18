@@ -9,16 +9,13 @@ export const CSV_EXPORT_COLUMNS = [
   'muscles_primary',
   'muscles_secondary',
   'name_de',
-  'purpose_de',
-  'instructions_de',
   'name_en',
-  'purpose_en',
-  'instructions_en',
   'name_es',
-  'purpose_es',
+  'goals',
+  'instructions_de',
+  'instructions_en',
   'instructions_es',
   'equipment',
-  'goals',
   'tracking',
   'settings',
 ];
@@ -44,8 +41,8 @@ export function musclesToCsvCell(value) {
  * `ref` filled in — the difference that makes a re-import match every row by
  * number instead of guessing from names.
  *
- * @param {Array<{ref, category, difficulty, name_de, purpose_de, instructions_de,
- *   name_en, purpose_en, instructions_en, name_es, purpose_es, instructions_es}>} rows
+ * @param {Array<{ref, category, difficulty, name_de, instructions_de,
+ *   name_en, instructions_en, name_es, instructions_es}>} rows
  *   Raw exercise rows (snake_case, straight from the database).
  */
 export function exercisesToCsv(rows) {
@@ -59,16 +56,13 @@ export function exercisesToCsv(rows) {
         musclesToCsvCell(r.muscles_primary),
         musclesToCsvCell(r.muscles_secondary),
         r.name_de,
-        r.purpose_de,
-        r.instructions_de,
         r.name_en,
-        r.purpose_en,
-        r.instructions_en,
         r.name_es,
-        r.purpose_es,
+        musclesToCsvCell(r.goals),
+        r.instructions_de,
+        r.instructions_en,
         r.instructions_es,
         musclesToCsvCell(r.equipment),
-        musclesToCsvCell(r.goals),
         r.tracking || 'reps_weight',
         musclesToCsvCell(r.settings),
       ]

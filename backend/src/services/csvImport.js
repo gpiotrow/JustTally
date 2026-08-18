@@ -155,9 +155,9 @@ function resolve(de, en, es) {
  *
  * Uses `;` as the column delimiter (Excel default in German locales).
  * Expected header columns (see {@link CSV_EXPORT_COLUMNS}):
- *   ref, category, difficulty, name_de, purpose_de, instructions_de,
- *   name_en, purpose_en, instructions_en, name_es, purpose_es, instructions_es,
- *   muscles_primary, muscles_secondary, equipment, goals, tracking, settings
+ *   ref, category, difficulty, muscles_primary, muscles_secondary,
+ *   name_de, name_en, name_es, goals,
+ *   instructions_de, instructions_en, instructions_es, equipment, tracking, settings
  * `ref` is optional; when omitted the exercise gets the next auto number.
  *
  * @param {Buffer} buffer Raw uploaded CSV file content.
@@ -269,9 +269,6 @@ export function parseExercisesCsv(buffer) {
       nameDe,
       nameEn,
       nameEs,
-      purposeDe: (rec.purpose_de || '').trim(),
-      purposeEn: (rec.purpose_en || '').trim(),
-      purposeEs: (rec.purpose_es || '').trim(),
       instructionsDe: (rec.instructions_de || '').trim(),
       instructionsEn: (rec.instructions_en || '').trim(),
       instructionsEs: (rec.instructions_es || '').trim(),

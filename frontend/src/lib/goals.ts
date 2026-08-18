@@ -5,9 +5,6 @@
  * These codes are stored in `exercises.goals` and are validated against this
  * list on the server. Adding one means adding a label in all three languages
  * (`goal.<code>` in `i18n/{de,en,es}.ts`).
- *
- * Distinct from `purposeDe/En/Es` on `Exercise`, which remain free-text
- * elaboration — this is the closed tag vocabulary a goal is picked from.
  */
 export const GOAL_ITEMS = [
   'weight_loss',

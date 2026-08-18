@@ -59,7 +59,7 @@ export function ExerciseDetail() {
     );
   }
 
-  const { name, instructions, purpose } = localizedExercise(exercise, lang);
+  const { name, instructions } = localizedExercise(exercise, lang);
   const images = exercise.media.filter((m) => m.mediaType === 'image');
   const videos = exercise.media.filter((m) => m.mediaType === 'video');
 
@@ -142,21 +142,18 @@ export function ExerciseDetail() {
         />
       ))}
 
-      {(exercise.goals.length > 0 || purpose) && (
+      {exercise.goals.length > 0 && (
         <section className="card p-4">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-muted">
-            {t('detail.purpose')}
+            {t('detail.goals')}
           </h2>
-          {exercise.goals.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-1.5">
-              {exercise.goals.map((item) => (
-                <span key={item} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted">
-                  {t(`goal.${item}` as TKey)}
-                </span>
-              ))}
-            </div>
-          )}
-          {purpose && <p className="whitespace-pre-wrap leading-relaxed text-fg">{purpose}</p>}
+          <div className="flex flex-wrap gap-1.5">
+            {exercise.goals.map((item) => (
+              <span key={item} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted">
+                {t(`goal.${item}` as TKey)}
+              </span>
+            ))}
+          </div>
         </section>
       )}
 

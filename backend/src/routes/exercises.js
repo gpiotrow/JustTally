@@ -92,9 +92,6 @@ function serializeExercise(exercise, media) {
     nameDe: exercise.name_de ?? '',
     nameEn: exercise.name_en ?? '',
     nameEs: exercise.name_es ?? '',
-    purposeDe: exercise.purpose_de ?? '',
-    purposeEn: exercise.purpose_en ?? '',
-    purposeEs: exercise.purpose_es ?? '',
     instructionsDe: exercise.instructions_de ?? '',
     instructionsEn: exercise.instructions_en ?? '',
     instructionsEs: exercise.instructions_es ?? '',
@@ -299,11 +296,10 @@ router.get('/', requireAuth, async (req, res) => {
  */
 router.get('/export.csv', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await db.query(
-    `SELECT ref, category, difficulty, muscles_primary, muscles_secondary, equipment, goals,
-            tracking, settings,
-            name_de, purpose_de, instructions_de,
-            name_en, purpose_en, instructions_en,
-            name_es, purpose_es, instructions_es
+    `SELECT ref, category, difficulty, muscles_primary, muscles_secondary,
+            name_de, name_en, name_es, goals,
+            instructions_de, instructions_en, instructions_es,
+            equipment, tracking, settings
        FROM exercises ORDER BY ref`
   );
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -328,9 +324,6 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
     nameDe,
     nameEn,
     nameEs,
-    purposeDe,
-    purposeEn,
-    purposeEs,
     instructionsDe,
     instructionsEn,
     instructionsEs,
@@ -381,11 +374,10 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
       `INSERT INTO exercises
          (id, ref, name, name_de, name_en, name_es, category, difficulty,
           instructions, instructions_de, instructions_en, instructions_es,
-          purpose_de, purpose_en, purpose_es,
           muscles_primary, muscles_secondary, equipment, goals, tracking, settings,
           created_by, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-               $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20, $21::jsonb, $22, $23, $24)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+               $13::jsonb, $14::jsonb, $15::jsonb, $16::jsonb, $17, $18::jsonb, $19, $20, $21)
        RETURNING *`,
       [
         id,
@@ -400,9 +392,6 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         (instructionsDe || '').trim(),
         (instructionsEn || '').trim(),
         (instructionsEs || '').trim(),
-        (purposeDe || '').trim(),
-        (purposeEn || '').trim(),
-        (purposeEs || '').trim(),
         JSON.stringify(musclesPrimary ?? []),
         JSON.stringify(musclesSecondary ?? []),
         JSON.stringify(equipment ?? []),
@@ -578,11 +567,10 @@ router.post(
           `INSERT INTO exercises
              (id, ref, name, name_de, name_en, name_es, category, difficulty,
               instructions, instructions_de, instructions_en, instructions_es,
-              purpose_de, purpose_en, purpose_es,
               muscles_primary, muscles_secondary, equipment, goals, tracking, settings,
               created_by, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-                   $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20, $21::jsonb, $22, $23, $24)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+                   $13::jsonb, $14::jsonb, $15::jsonb, $16::jsonb, $17, $18::jsonb, $19, $20, $21)`,
           [
             id,
             refNumber,
@@ -596,9 +584,6 @@ router.post(
             row.instructionsDe,
             row.instructionsEn,
             row.instructionsEs,
-            row.purposeDe,
-            row.purposeEn,
-            row.purposeEs,
             JSON.stringify(row.musclesPrimary ?? []),
             JSON.stringify(row.musclesSecondary ?? []),
             JSON.stringify(row.equipment ?? []),
@@ -640,17 +625,17 @@ router.post(
           `UPDATE exercises
              SET ref = $1, name = $2, name_de = $3, name_en = $4, name_es = $5, category = $6, difficulty = $7,
                  instructions = $8, instructions_de = $9, instructions_en = $10, instructions_es = $11,
-                 purpose_de = $12, purpose_en = $13, purpose_es = $14, tracking = $21,
+                 tracking = $18,
                  -- NULL means the CSV had no such column: keep what is stored,
                  -- so an old export can still be re-imported without erasing
                  -- muscle/equipment/goal/settings data maintained since.
-                 muscles_primary   = COALESCE($15::jsonb, muscles_primary),
-                 muscles_secondary = COALESCE($16::jsonb, muscles_secondary),
-                 equipment         = COALESCE($17::jsonb, equipment),
-                 goals             = COALESCE($18::jsonb, goals),
-                 settings          = COALESCE($22::jsonb, settings),
-                 updated_at = $19, archived_at = NULL
-           WHERE id = $20`,
+                 muscles_primary   = COALESCE($12::jsonb, muscles_primary),
+                 muscles_secondary = COALESCE($13::jsonb, muscles_secondary),
+                 equipment         = COALESCE($14::jsonb, equipment),
+                 goals             = COALESCE($15::jsonb, goals),
+                 settings          = COALESCE($19::jsonb, settings),
+                 updated_at = $16, archived_at = NULL
+           WHERE id = $17`,
           [
             refNumber,
             name,
@@ -663,9 +648,6 @@ router.post(
             row.instructionsDe,
             row.instructionsEn,
             row.instructionsEs,
-            row.purposeDe,
-            row.purposeEn,
-            row.purposeEs,
             row.musclesPrimary === undefined ? null : JSON.stringify(row.musclesPrimary),
             row.musclesSecondary === undefined ? null : JSON.stringify(row.musclesSecondary),
             row.equipment === undefined ? null : JSON.stringify(row.equipment),
@@ -742,9 +724,6 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     nameDe,
     nameEn,
     nameEs,
-    purposeDe,
-    purposeEn,
-    purposeEs,
     instructionsDe,
     instructionsEn,
     instructionsEs,
@@ -789,9 +768,6 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   const nextInstrDe = (instructionsDe ?? existing.instructions_de ?? '').trim();
   const nextInstrEn = (instructionsEn ?? existing.instructions_en ?? '').trim();
   const nextInstrEs = (instructionsEs ?? existing.instructions_es ?? '').trim();
-  const nextPurposeDe = (purposeDe ?? existing.purpose_de ?? '').trim();
-  const nextPurposeEn = (purposeEn ?? existing.purpose_en ?? '').trim();
-  const nextPurposeEs = (purposeEs ?? existing.purpose_es ?? '').trim();
   if (!resolve(nextNameDe, nextNameEn, nextNameEs)) {
     return res.status(400).json({ error: 'At least one of nameDe / nameEn / nameEs is required' });
   }
@@ -805,11 +781,10 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
       `UPDATE exercises
          SET ref = $1, name = $2, name_de = $3, name_en = $4, name_es = $5, category = $6, difficulty = $7,
              instructions = $8, instructions_de = $9, instructions_en = $10, instructions_es = $11,
-             purpose_de = $12, purpose_en = $13, purpose_es = $14,
-             muscles_primary = $15::jsonb, muscles_secondary = $16::jsonb, equipment = $17::jsonb,
-             goals = $18::jsonb, tracking = $21, settings = $22::jsonb,
-             updated_at = $19
-       WHERE id = $20
+             muscles_primary = $12::jsonb, muscles_secondary = $13::jsonb, equipment = $14::jsonb,
+             goals = $15::jsonb, tracking = $18, settings = $19::jsonb,
+             updated_at = $16
+       WHERE id = $17
        RETURNING *`,
       [
         nextRef,
@@ -823,9 +798,6 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
         nextInstrDe,
         nextInstrEn,
         nextInstrEs,
-        nextPurposeDe,
-        nextPurposeEn,
-        nextPurposeEs,
         JSON.stringify(musclesPrimary ?? readMuscleList(existing.muscles_primary)),
         JSON.stringify(musclesSecondary ?? readMuscleList(existing.muscles_secondary)),
         JSON.stringify(equipment ?? readEquipmentList(existing.equipment)),

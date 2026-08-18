@@ -15,9 +15,6 @@ export interface ExerciseInput {
   nameDe: string;
   nameEn: string;
   nameEs: string;
-  purposeDe: string;
-  purposeEn: string;
-  purposeEs: string;
   instructionsDe: string;
   instructionsEn: string;
   instructionsEs: string;
@@ -75,16 +72,13 @@ const CSV_COLUMNS = [
   'muscles_primary',
   'muscles_secondary',
   'name_de',
-  'purpose_de',
-  'instructions_de',
   'name_en',
-  'purpose_en',
-  'instructions_en',
   'name_es',
-  'purpose_es',
+  'goals',
+  'instructions_de',
+  'instructions_en',
   'instructions_es',
   'equipment',
-  'goals',
   'tracking',
   'settings',
 ];
@@ -290,16 +284,13 @@ export function csvTemplate(): string {
     'front_delts,side_delts',
     'triceps,traps',
     'Schulterdrücken',
-    'Kräftigt die Schultermuskulatur.',
-    'Stange über Kopf drücken. Ellbogen leicht vor der Stange halten.',
     'Overhead Press',
-    'Builds the shoulder muscles.',
-    'Press the bar overhead. Keep elbows slightly in front of the bar.',
     'Press de hombros',
-    'Fortalece los músculos del hombro.',
+    'strength,muscle_gain',
+    'Stange über Kopf drücken. Ellbogen leicht vor der Stange halten.',
+    'Press the bar overhead. Keep elbows slightly in front of the bar.',
     'Empuja la barra por encima de la cabeza. Mantén los codos ligeramente delante de la barra.',
     'barbell,bench',
-    'strength,muscle_gain',
     'reps_weight',
     '',
   ];

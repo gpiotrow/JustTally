@@ -275,7 +275,7 @@ describe('muscle groups', () => {
   function mockCreateSucceeds() {
     onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
     onQuery(/INSERT INTO exercises/, (_sql, params) => ({
-      rows: [{ ...exercise, muscles_primary: JSON.parse(params[15]), muscles_secondary: JSON.parse(params[16]) }],
+      rows: [{ ...exercise, muscles_primary: JSON.parse(params[12]), muscles_secondary: JSON.parse(params[13]) }],
     }));
     onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
   }
@@ -331,7 +331,7 @@ describe('equipment', () => {
   function mockCreateSucceeds() {
     onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
     onQuery(/INSERT INTO exercises/, (_sql, params) => ({
-      rows: [{ ...exercise, equipment: JSON.parse(params[17]) }],
+      rows: [{ ...exercise, equipment: JSON.parse(params[14]) }],
     }));
     onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
   }
@@ -424,7 +424,7 @@ describe('goals', () => {
   function mockCreateSucceeds() {
     onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
     onQuery(/INSERT INTO exercises/, (_sql, params) => ({
-      rows: [{ ...exercise, goals: JSON.parse(params[18]) }],
+      rows: [{ ...exercise, goals: JSON.parse(params[15]) }],
     }));
     onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
   }
@@ -476,7 +476,7 @@ describe('tracking', () => {
   function mockCreateSucceeds() {
     onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
     onQuery(/INSERT INTO exercises/, (_sql, params) => ({
-      rows: [{ ...exercise, tracking: params[19] }],
+      rows: [{ ...exercise, tracking: params[16] }],
     }));
     onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
   }
@@ -526,7 +526,7 @@ describe('machine settings', () => {
   function mockCreateSucceeds() {
     onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
     onQuery(/INSERT INTO exercises/, (_sql, params) => ({
-      rows: [{ ...exercise, settings: JSON.parse(params[20]) }],
+      rows: [{ ...exercise, settings: JSON.parse(params[17]) }],
     }));
     onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
   }

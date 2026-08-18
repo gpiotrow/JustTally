@@ -3,9 +3,6 @@
  * same shape as `equipment.js`/`muscles.js` (allow-list + validators shared
  * across route validation and CSV import so a code accepted in one path
  * can't be rejected in another).
- *
- * Distinct from `purpose_de/en/es`, which remain free-text elaboration —
- * this is the closed tag vocabulary a training goal is picked from.
  */
 export const GOAL_ITEMS = [
   'weight_loss',

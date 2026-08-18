@@ -22,16 +22,15 @@ function pick(de: string, en: string, es: string, lang: Lang): string {
 }
 
 /**
- * Resolve an exercise's name, purpose and instructions for the active UI
- * language, falling back to whichever language is actually filled in.
+ * Resolve an exercise's name and instructions for the active UI language,
+ * falling back to whichever language is actually filled in.
  */
 export function localizedExercise(
   exercise: Exercise,
   lang: Lang
-): { name: string; purpose: string; instructions: string } {
+): { name: string; instructions: string } {
   return {
     name: pick(exercise.nameDe, exercise.nameEn, exercise.nameEs, lang),
-    purpose: pick(exercise.purposeDe, exercise.purposeEn, exercise.purposeEs, lang),
     instructions: pick(exercise.instructionsDe, exercise.instructionsEn, exercise.instructionsEs, lang),
   };
 }

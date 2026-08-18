@@ -50,9 +50,6 @@ async function seed() {
       nameEs: 'Press de banca con barra',
       category: 'chest',
       difficulty: 'intermediate',
-      purposeDe: 'Kräftigt die Brustmuskulatur, vordere Schulter und Trizeps.',
-      purposeEn: 'Builds the chest muscles, front shoulders, and triceps.',
-      purposeEs: 'Fortalece el pecho, los hombros anteriores y el tríceps.',
       instructionsDe:
         'Flach auf die Bank legen. Die Stange etwas weiter als schulterbreit greifen. Die Stange zur Brustmitte absenken, dann nach oben drücken, bis die Arme gestreckt sind. Schulterblätter zusammenziehen und die Füße fest auf dem Boden halten.',
       instructionsEn:
@@ -66,9 +63,6 @@ async function seed() {
       nameEs: 'Sentadilla con peso corporal',
       category: 'legs',
       difficulty: 'beginner',
-      purposeDe: 'Trainiert Oberschenkel, Gesäß und Rumpfstabilität.',
-      purposeEn: 'Trains the thighs, glutes, and core stability.',
-      purposeEs: 'Entrena los muslos, los glúteos y la estabilidad del core.',
       instructionsDe:
         'Schulterbreit hinstellen. Die Hüfte nach hinten und unten absenken, bis die Oberschenkel parallel zum Boden sind. Über die Fersen wieder hochdrücken. Die Knie in Richtung der Zehen drücken und den Rücken gerade halten.',
       instructionsEn:
@@ -82,9 +76,6 @@ async function seed() {
       nameEs: 'Dominada',
       category: 'back',
       difficulty: 'advanced',
-      purposeDe: 'Baut den Latissimus, den oberen Rücken und die Griffkraft auf.',
-      purposeEn: 'Builds the lats, upper back, and grip strength.',
-      purposeEs: 'Desarrolla el dorsal ancho, la espalda alta y la fuerza de agarre.',
       instructionsDe:
         'Im Obergriff an der Stange hängen. Die Brust zur Stange ziehen, indem die Ellenbogen nach unten gedrückt werden. Kontrolliert ablassen. Ohne Schwung arbeiten und die Schultern vom Ohr wegziehen.',
       instructionsEn:
@@ -102,9 +93,8 @@ async function seed() {
       `INSERT INTO exercises
          (id, ref, name, name_de, name_en, name_es, category, difficulty,
           instructions, instructions_de, instructions_en, instructions_es,
-          purpose_de, purpose_en, purpose_es,
           created_by, created_at, updated_at)
-       VALUES ($1, nextval('exercise_ref_seq'), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+       VALUES ($1, nextval('exercise_ref_seq'), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         nanoid(),
         name,
@@ -117,9 +107,6 @@ async function seed() {
         ex.instructionsDe,
         ex.instructionsEn,
         ex.instructionsEs,
-        ex.purposeDe,
-        ex.purposeEn,
-        ex.purposeEs,
         adminId,
         now,
         now,

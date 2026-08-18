@@ -35,7 +35,7 @@ app.use('/api/exercises', exercisesRouter);
 
 function csv(
   rows,
-  header = 'ref;category;difficulty;name_de;purpose_de;instructions_de;name_en;purpose_en;instructions_en;name_es;purpose_es;instructions_es'
+  header = 'ref;category;difficulty;name_de;instructions_de;name_en;instructions_en;name_es;instructions_es'
 ) {
   return [header, ...rows].join('\n');
 }
@@ -73,7 +73,7 @@ describe('mode resolution', () => {
       return { rows: [] };
     });
 
-    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;;;;']) });
+    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;']) });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ mode: 'merge', imported: 0, updated: 0, skipped: 1 });
@@ -90,7 +90,7 @@ describe('mode resolution', () => {
       return { rows: [] };
     });
 
-    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;;;;']), overwrite: true });
+    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;']), overwrite: true });
 
     expect(res.body).toMatchObject({ mode: 'upsert', updated: 1, skipped: 0 });
     expect(updated).toBe(true);
@@ -114,7 +114,7 @@ describe('dryRun — writes nothing', () => {
     }));
 
     const res = await importRequest({
-      csvBody: csv([';;;Bankdrücken;;;;;;;;', ';;;Klimmzug;;;;;;;;']),
+      csvBody: csv([';;;Bankdrücken;;;;;', ';;;Klimmzug;;;;;']),
       mode: 'upsert',
       dryRun: true,
     });
@@ -145,7 +145,7 @@ describe('dryRun — writes nothing', () => {
     }));
     onQuery(/COUNT\(DISTINCT w\.id\)::int/, () => ({ rows: [{ workouts: 2, users: 1 }] }));
 
-    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;;;;']), mode: 'replace', dryRun: true });
+    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;']), mode: 'replace', dryRun: true });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
@@ -177,7 +177,7 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
     });
     onQuery(/FROM unnest\(\$1::text\[\]\) AS eid/, () => ({ rows: [{ workouts: 0, users: 0 }] }));
 
-    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;;;;']), mode: 'replace' });
+    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;']), mode: 'replace' });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ mode: 'replace', updated: 1, archived: 1 });
@@ -197,7 +197,7 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
       return { rowCount: 1 };
     });
 
-    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;;;;']), mode: 'replace' });
+    const res = await importRequest({ csvBody: csv([';;;Bankdrücken;;;;;']), mode: 'replace' });
 
     expect(res.status).toBe(201);
     expect(res.body.errors.length).toBeGreaterThan(0);
@@ -214,7 +214,7 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
       return { rowCount: 1 };
     });
 
-    const res = await importRequest({ csvBody: csv([';;;Neu;;;;;;;;']), mode: 'replace' });
+    const res = await importRequest({ csvBody: csv([';;;Neu;;;;;']), mode: 'replace' });
 
     expect(res.body.archived).toBe(0);
     expect(archiveCalled).toBe(false);
@@ -230,7 +230,7 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
       return { rowCount: 1 };
     });
 
-    await importRequest({ csvBody: csv([';;;Neu;;;;;;;;']), mode: 'upsert' });
+    await importRequest({ csvBody: csv([';;;Neu;;;;;']), mode: 'upsert' });
 
     expect(archiveCalled).toBe(false);
   });
@@ -245,7 +245,7 @@ describe('mode=replace — archives what the CSV no longer mentions', () => {
       return { rows: [] };
     });
 
-    await importRequest({ csvBody: csv([';;;Rückkehrer;;;;;;;;']), mode: 'replace' });
+    await importRequest({ csvBody: csv([';;;Rückkehrer;;;;;']), mode: 'replace' });
 
     expect(sql).toMatch(/archived_at = NULL/);
   });
@@ -260,13 +260,10 @@ describe('GET /api/exercises/export.csv', () => {
           category: 'chest',
           difficulty: 'intermediate',
           name_de: 'Bankdrücken',
-          purpose_de: '',
           instructions_de: '',
           name_en: 'Bench Press',
-          purpose_en: '',
           instructions_en: '',
           name_es: '',
-          purpose_es: '',
           instructions_es: '',
         },
       ],

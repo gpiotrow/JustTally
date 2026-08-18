@@ -266,9 +266,8 @@ export async function initSchema() {
   `);
 
   // Training-goal tags per exercise (strength, mobility, weight loss, ...) —
-  // same flat-jsonb-array shape as equipment above. Distinct from
-  // purpose_de/en/es, which stay free-text elaboration; this is the closed
-  // tag vocabulary. No GIN index, same reasoning as equipment.
+  // same flat-jsonb-array shape as equipment above, a closed tag vocabulary.
+  // No GIN index, same reasoning as equipment.
   await pool.query(`
     ALTER TABLE exercises ADD COLUMN IF NOT EXISTS goals JSONB NOT NULL DEFAULT '[]';
   `);
@@ -281,6 +280,16 @@ export async function initSchema() {
   await pool.query(`
     ALTER TABLE exercises ADD COLUMN IF NOT EXISTS tracking TEXT NOT NULL DEFAULT 'reps_weight';
     ALTER TABLE exercises ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '[]';
+  `);
+
+  // purpose_de/en/es (freier "Wozu"-Text) entfällt ersatzlos — die geschlossene
+  // goals-Taxonomie deckt das bereits ab, beides parallel zu pflegen war
+  // redundant. Anders als beim tips_de/en-Drop oben gibt es keine Zielspalte,
+  // die den Inhalt übernimmt: vorhandener purpose-Text geht verloren.
+  await pool.query(`
+    ALTER TABLE exercises DROP COLUMN IF EXISTS purpose_de;
+    ALTER TABLE exercises DROP COLUMN IF EXISTS purpose_en;
+    ALTER TABLE exercises DROP COLUMN IF EXISTS purpose_es;
   `);
 }
 

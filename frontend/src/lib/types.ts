@@ -52,9 +52,6 @@ export interface Exercise {
   nameDe: string;
   nameEn: string;
   nameEs: string;
-  purposeDe: string;
-  purposeEn: string;
-  purposeEs: string;
   instructionsDe: string;
   instructionsEn: string;
   instructionsEs: string;
@@ -69,7 +66,7 @@ export interface Exercise {
   musclesSecondary: MuscleGroup[];
   /** Equipment codes required to perform this exercise. */
   equipment: EquipmentItem[];
-  /** Training-goal tags (§ Teil 2). Distinct from the free-text purpose fields. */
+  /** Training-goal tags (§ Teil 2). */
   goals: GoalItem[];
   /**
    * Which fields a set of this exercise records. Absent on exercises created
