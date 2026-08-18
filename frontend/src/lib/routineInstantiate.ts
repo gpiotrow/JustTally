@@ -20,6 +20,8 @@ export interface RoutineInstantiationEntry {
   setCount: number;
   targetReps?: string;
   targetWeight?: number;
+  targetDurationSec?: number;
+  targetDistanceM?: number;
   targetRpe?: number;
   restSeconds?: number;
 }
@@ -65,6 +67,8 @@ export function instantiateRoutineDay(
       setCount: Math.max(ex.targetSets, 1),
       targetReps: ex.targetReps,
       targetWeight: ex.targetWeight,
+      targetDurationSec: ex.targetDurationSec,
+      targetDistanceM: ex.targetDistanceM,
       targetRpe: ex.targetRpe,
       restSeconds: ex.restSeconds,
     })),

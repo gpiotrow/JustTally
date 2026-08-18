@@ -4,6 +4,8 @@ import { MUSCLE_GROUPS, isMuscleGroup } from './muscles.js';
 import { EQUIPMENT_ITEMS, isEquipmentItem } from './equipment.js';
 import { GOAL_ITEMS, isGoalItem } from './goals.js';
 import { CATEGORIES, isValidCategory } from './categories.js';
+import { TRACKING_MODES, isTrackingMode } from './tracking.js';
+import { MACHINE_SETTINGS, isMachineSetting } from './machineSettings.js';
 
 const VALID_DIFFICULTY = ['beginner', 'intermediate', 'advanced'];
 const MAX_ROWS = 1000;
@@ -110,6 +112,39 @@ function parseGoalCell(raw) {
   return { list: codes };
 }
 
+/**
+ * Parse the `settings` cell (`seat_height,back_pad`) into codes. Same shape
+ * as `parseEquipmentCell` — its own function for the same reason: the
+ * well-tested equipment-parsing path stays untouched.
+ *
+ * Returns `{ list }` or `{ error }` — an unknown code is refused rather than
+ * dropped. A **missing column** yields `{ list: undefined }` ("leave whatever
+ * is stored alone"); an empty cell in a file that *does* carry the column is
+ * a real instruction to clear it.
+ */
+function parseSettingsCell(raw) {
+  if (raw === undefined) return { list: undefined };
+
+  const text = (raw || '').trim();
+  if (!text) return { list: [] };
+
+  const codes = text
+    .split(',')
+    .map((c) => c.trim().toLowerCase())
+    .filter((c) => c !== '');
+
+  const unknown = codes.filter((c) => !isMachineSetting(c));
+  if (unknown.length > 0) {
+    return {
+      error: `Invalid settings "${unknown.join(', ')}" (allowed: ${MACHINE_SETTINGS.join(', ')})`,
+    };
+  }
+  if (new Set(codes).size !== codes.length) {
+    return { error: 'Duplicate entries in settings' };
+  }
+  return { list: codes };
+}
+
 /** Preferred resolution across three languages: de -> en -> es. */
 function resolve(de, en, es) {
   return (de || '').trim() || (en || '').trim() || (es || '').trim();
@@ -122,7 +157,7 @@ function resolve(de, en, es) {
  * Expected header columns (see {@link CSV_EXPORT_COLUMNS}):
  *   ref, category, difficulty, name_de, purpose_de, instructions_de,
  *   name_en, purpose_en, instructions_en, name_es, purpose_es, instructions_es,
- *   muscles_primary, muscles_secondary, equipment, goals
+ *   muscles_primary, muscles_secondary, equipment, goals, tracking, settings
  * `ref` is optional; when omitted the exercise gets the next auto number.
  *
  * @param {Buffer} buffer Raw uploaded CSV file content.
@@ -182,6 +217,16 @@ export function parseExercisesCsv(buffer) {
     }
     if (!category) category = 'other';
 
+    let tracking = (rec.tracking || '').trim().toLowerCase();
+    if (tracking && !isTrackingMode(tracking)) {
+      errors.push({
+        row: rowNumber,
+        message: `Invalid tracking "${tracking}" (allowed: ${TRACKING_MODES.join(', ')})`,
+      });
+      return;
+    }
+    if (!tracking) tracking = 'reps_weight';
+
     const refRaw = (rec.ref || '').trim();
     let ref = null;
     if (refRaw) {
@@ -213,6 +258,11 @@ export function parseExercisesCsv(buffer) {
       errors.push({ row: rowNumber, message: goals.error });
       return;
     }
+    const settings = parseSettingsCell(rec.settings);
+    if (settings.error) {
+      errors.push({ row: rowNumber, message: settings.error });
+      return;
+    }
 
     rows.push({
       rowNumber,
@@ -227,10 +277,12 @@ export function parseExercisesCsv(buffer) {
       instructionsEs: (rec.instructions_es || '').trim(),
       category,
       difficulty,
+      tracking,
       musclesPrimary: primary.list,
       musclesSecondary: secondary.list,
       equipment: equipment.list,
       goals: goals.list,
+      settings: settings.list,
       ref,
     });
   });

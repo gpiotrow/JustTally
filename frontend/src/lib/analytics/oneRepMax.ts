@@ -18,14 +18,17 @@ export function isE1rmReliable(reps: number): boolean {
 
 /**
  * Sets that count toward any estimate or record: actually performed, not a
- * warm-up (§ 2.1 — warm-ups must stay out of 1RM estimates), and carrying a
- * logged weight. A bodyweight-only set (no weight typed) has nothing for the
- * formula to work with.
+ * warm-up (§ 2.1 — warm-ups must stay out of 1RM estimates), carrying a
+ * logged weight, and carrying real reps. A bodyweight-only set (no weight
+ * typed) has nothing for the formula to work with — and neither does a
+ * `time_weight` set, which always logs `reps: 0` (§ tracking modes): the
+ * Epley formula is meaningless at zero reps, so without this a held weight
+ * would silently estimate an e1RM equal to just the weight itself.
  */
 export function countableSets(sets: WorkoutSet[]): (WorkoutSet & { weight: number })[] {
   return sets.filter(
     (s): s is WorkoutSet & { weight: number } =>
-      isSetDone(s) && setType(s) !== 'warmup' && s.weight !== undefined && s.weight > 0
+      isSetDone(s) && setType(s) !== 'warmup' && s.weight !== undefined && s.weight > 0 && s.reps > 0
   );
 }
 

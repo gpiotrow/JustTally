@@ -79,4 +79,71 @@ describe('exerciseHistory', () => {
     ];
     expect(exerciseHistory(sessions, 'ex-1')[0].e1rmReliable).toBe(false);
   });
+
+  it('sums total reps for the session, excluding warm-ups', () => {
+    const sessions: WorkoutSession[] = [
+      session('s1', 1000, [
+        {
+          exerciseId: 'ex-1',
+          exerciseName: 'Pull-up',
+          tracking: 'reps',
+          sets: [
+            { reps: 20, type: 'warmup', done: true },
+            { reps: 8, type: 'working', done: true },
+            { reps: 6, type: 'working', done: true },
+          ],
+        },
+      ]),
+    ];
+    expect(exerciseHistory(sessions, 'ex-1')[0].totalReps).toBe(14);
+  });
+
+  it('sums total duration and finds the best weight for a time_weight session', () => {
+    const sessions: WorkoutSession[] = [
+      session('s1', 1000, [
+        {
+          exerciseId: 'ex-1',
+          exerciseName: 'Weighted Plank',
+          tracking: 'time_weight',
+          sets: [
+            { reps: 0, weight: 10, durationSec: 30, type: 'working', done: true },
+            { reps: 0, weight: 15, durationSec: 45, type: 'working', done: true },
+          ],
+        },
+      ]),
+    ];
+    const [point] = exerciseHistory(sessions, 'ex-1');
+    expect(point.totalDuration).toBe(75);
+    expect(point.bestWeight).toBe(15);
+  });
+
+  it('sums total distance and finds the best pace for a distance_time session', () => {
+    const sessions: WorkoutSession[] = [
+      session('s1', 1000, [
+        {
+          exerciseId: 'ex-1',
+          exerciseName: '5k Run',
+          tracking: 'distance_time',
+          sets: [{ reps: 0, distanceM: 5000, durationSec: 1200, type: 'working', done: true }],
+        },
+      ]),
+    ];
+    const [point] = exerciseHistory(sessions, 'ex-1');
+    expect(point.totalDistance).toBe(5000);
+    expect(point.bestPace).toBe(240); // 1200s / 5km = 240 sec/km
+  });
+
+  it('reports null bestWeight and bestPace, and zero totals, for a session with nothing to report', () => {
+    const sessions: WorkoutSession[] = [
+      session('s1', 1000, [
+        { exerciseId: 'ex-1', exerciseName: 'Bench', sets: [{ reps: 5, weight: 80, type: 'working', done: true }] },
+      ]),
+    ];
+    const [point] = exerciseHistory(sessions, 'ex-1');
+    expect(point.totalReps).toBe(5); // computed unconditionally — reps_weight sets have real reps too
+    expect(point.totalDuration).toBe(0);
+    expect(point.totalDistance).toBe(0);
+    expect(point.bestWeight).toBe(80); // also computed unconditionally
+    expect(point.bestPace).toBeNull();
+  });
 });

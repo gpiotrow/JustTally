@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 import type { Difficulty } from '../lib/types';
 import { useT, type TKey } from '../i18n';
 import { CATEGORIES } from '../lib/types';
+import type { TrackingMode } from '../lib/tracking';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -54,6 +55,17 @@ export function CategoryBadge({ category }: { category: string }) {
   // Known categories get a localized label; unknown ones fall back to the raw value.
   const label = CATEGORY_SET.has(category) ? t(`category.${category}` as TKey) : category;
   return <span className="chip bg-surface-2 text-fg-muted capitalize">{label}</span>;
+}
+
+/**
+ * Only rendered for a non-default mode — 'reps_weight' is what the vast
+ * majority of exercises use, and a badge on every single one would be noise
+ * rather than information.
+ */
+export function TrackingBadge({ tracking }: { tracking: TrackingMode }) {
+  const t = useT();
+  if (tracking === 'reps_weight') return null;
+  return <span className="chip bg-surface-2 text-fg-muted">{t(`tracking.${tracking}` as TKey)}</span>;
 }
 
 /**

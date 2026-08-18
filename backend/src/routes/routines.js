@@ -40,6 +40,10 @@ function isValidRoutineExercise(e) {
     e.targetSets > 0 &&
     (e.targetReps === undefined || typeof e.targetReps === 'string') &&
     (e.targetWeight === undefined || typeof e.targetWeight === 'number') &&
+    (e.targetDurationSec === undefined ||
+      (Number.isFinite(e.targetDurationSec) && e.targetDurationSec >= 0)) &&
+    (e.targetDistanceM === undefined ||
+      (Number.isFinite(e.targetDistanceM) && e.targetDistanceM >= 0)) &&
     (e.targetRpe === undefined ||
       (typeof e.targetRpe === 'number' && e.targetRpe >= 5 && e.targetRpe <= 10)) &&
     (e.restSeconds === undefined || (Number.isFinite(e.restSeconds) && e.restSeconds >= 0)) &&

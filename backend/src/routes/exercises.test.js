@@ -471,6 +471,108 @@ describe('goals', () => {
   });
 });
 
+describe('tracking', () => {
+  /** Let a create succeed: no ref collision, insert echoes a row back. */
+  function mockCreateSucceeds() {
+    onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
+    onQuery(/INSERT INTO exercises/, (_sql, params) => ({
+      rows: [{ ...exercise, tracking: params[19] }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+  }
+
+  it('stores and echoes back a valid tracking mode', async () => {
+    mockCreateSucceeds();
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Unterarmstütz', tracking: 'time' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.exercise.tracking).toBe('time');
+  });
+
+  it('defaults to "reps_weight" when omitted', async () => {
+    mockCreateSucceeds();
+    const res = await request(app).post('/api/exercises').send({ nameDe: 'Bankdrücken' });
+    expect(res.body.exercise.tracking).toBe('reps_weight');
+  });
+
+  it.each([
+    ['an unknown code', { tracking: 'laps' }],
+    ['a non-string value', { tracking: 42 }],
+  ])('rejects %s with 400 rather than storing it', async (_label, body) => {
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Bankdrücken', ...body });
+
+    expect(res.status).toBe(400);
+    const inserted = queryMock.mock.calls.some(([sql]) => /INSERT INTO exercises/.test(sql));
+    expect(inserted).toBe(false);
+  });
+
+  it('reads a row written before the column existed as "reps_weight"', async () => {
+    onQuery(/UPDATE exercises SET archived_at = NULL/, () => ({
+      rows: [{ ...exercise, tracking: null }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+
+    const res = await request(app).post('/api/exercises/ex-1/unarchive');
+    expect(res.body.exercise.tracking).toBe('reps_weight');
+  });
+});
+
+describe('machine settings', () => {
+  /** Let a create succeed: no ref collision, insert echoes a row back. */
+  function mockCreateSucceeds() {
+    onQuery(/nextval\('exercise_ref_seq'\)/, () => ({ rows: [{ ref: 99 }] }));
+    onQuery(/INSERT INTO exercises/, (_sql, params) => ({
+      rows: [{ ...exercise, settings: JSON.parse(params[20]) }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+  }
+
+  it('stores and echoes back a valid settings list', async () => {
+    mockCreateSucceeds();
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Beinpresse', settings: ['seat_height', 'lever_arm'] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.exercise.settings).toEqual(['seat_height', 'lever_arm']);
+  });
+
+  it('defaults to an empty list when omitted', async () => {
+    mockCreateSucceeds();
+    const res = await request(app).post('/api/exercises').send({ nameDe: 'Bankdrücken' });
+    expect(res.body.exercise.settings).toEqual([]);
+  });
+
+  it.each([
+    ['an unknown code', { settings: ['warp_speed'] }],
+    ['a non-array', { settings: 'seat_height' }],
+    ['a duplicate entry', { settings: ['seat_height', 'seat_height'] }],
+    ['a non-string element', { settings: [42] }],
+  ])('rejects %s with 400 rather than storing it', async (_label, body) => {
+    const res = await request(app)
+      .post('/api/exercises')
+      .send({ nameDe: 'Bankdrücken', ...body });
+
+    expect(res.status).toBe(400);
+    const inserted = queryMock.mock.calls.some(([sql]) => /INSERT INTO exercises/.test(sql));
+    expect(inserted).toBe(false);
+  });
+
+  it('reads a row written before the column existed as an empty list', async () => {
+    onQuery(/UPDATE exercises SET archived_at = NULL/, () => ({
+      rows: [{ ...exercise, settings: null }],
+    }));
+    onQuery(/SELECT \* FROM media WHERE exercise_id = \$1/, () => ({ rows: [] }));
+
+    const res = await request(app).post('/api/exercises/ex-1/unarchive');
+    expect(res.body.exercise.settings).toEqual([]);
+  });
+});
+
 describe('serialized exercise', () => {
   it('exposes archived state so clients can mark it in history', async () => {
     onQuery(/UPDATE exercises SET archived_at = NULL/, () => ({

@@ -11,6 +11,8 @@ import { CATEGORIES, type Difficulty, type Exercise } from '../../lib/types';
 import { MUSCLE_GROUPS, type MuscleGroup } from '../../lib/muscles';
 import { EQUIPMENT_ITEMS, type EquipmentItem } from '../../lib/equipment';
 import { GOAL_ITEMS, type GoalItem } from '../../lib/goals';
+import { TRACKING_MODES, type TrackingMode } from '../../lib/tracking';
+import { MACHINE_SETTINGS, type MachineSetting } from '../../lib/machineSettings';
 import { ErrorBanner } from '../../components/ui';
 import { VideoIcon } from '../../components/icons';
 import { useT, type Lang, type TKey } from '../../i18n';
@@ -57,6 +59,8 @@ export function ExerciseForm({
   );
   const [equipment, setEquipment] = useState<EquipmentItem[]>(initial?.equipment ?? []);
   const [goals, setGoals] = useState<GoalItem[]>(initial?.goals ?? []);
+  const [tracking, setTracking] = useState<TrackingMode>(initial?.tracking ?? 'reps_weight');
+  const [settings, setSettings] = useState<MachineSetting[]>(initial?.settings ?? []);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -97,6 +101,10 @@ export function ExerciseForm({
     setGoals((prev) => (prev.includes(item) ? prev.filter((g) => g !== item) : [...prev, item]));
   }
 
+  function toggleSetting(item: MachineSetting) {
+    setSettings((prev) => (prev.includes(item) ? prev.filter((s) => s !== item) : [...prev, item]));
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -122,6 +130,8 @@ export function ExerciseForm({
       musclesSecondary,
       equipment,
       goals,
+      tracking,
+      settings,
     };
     try {
       const res = current
@@ -256,6 +266,21 @@ export function ExerciseForm({
           </div>
         </div>
 
+        <div>
+          <label className="label" htmlFor="ex-tracking">{t('form.tracking')}</label>
+          <select
+            id="ex-tracking"
+            className="input"
+            value={tracking}
+            onChange={(e) => setTracking(e.target.value as TrackingMode)}
+          >
+            {TRACKING_MODES.map((mode) => (
+              <option key={mode} value={mode}>{t(`tracking.${mode}` as TKey)}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-fg-subtle">{t('form.trackingHint')}</p>
+        </div>
+
         <div className="space-y-3 rounded-xl border border-border p-3">
           <div>
             <h3 className="text-sm font-semibold text-fg">{t('form.muscles')}</h3>
@@ -289,6 +314,14 @@ export function ExerciseForm({
             <p className="mt-1 text-xs text-fg-subtle">{t('form.goalsHint')}</p>
           </div>
           <GoalPicker selected={goals} onToggle={toggleGoal} t={t} />
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-border p-3">
+          <div>
+            <h3 className="text-sm font-semibold text-fg">{t('form.settings')}</h3>
+            <p className="mt-1 text-xs text-fg-subtle">{t('form.settingsHint')}</p>
+          </div>
+          <SettingsPicker selected={settings} onToggle={toggleSetting} t={t} />
         </div>
 
         <div className="rounded-xl border border-border">
@@ -495,6 +528,42 @@ function EquipmentPicker({
               }`}
             >
               {t(`equipment.${item}` as TKey)}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+/** One row of machine-setting chips; selection is a plain toggle per chip. */
+function SettingsPicker({
+  selected,
+  onToggle,
+  t,
+}: {
+  selected: MachineSetting[];
+  onToggle: (item: MachineSetting) => void;
+  t: (key: TKey) => string;
+}) {
+  return (
+    <fieldset>
+      <div className="flex flex-wrap gap-1.5">
+        {MACHINE_SETTINGS.map((item) => {
+          const active = selected.includes(item);
+          return (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onToggle(item)}
+              aria-pressed={active}
+              className={`min-h-8 rounded-lg border px-2.5 text-xs font-medium transition ${
+                active
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border text-fg-muted hover:bg-surface-2'
+              }`}
+            >
+              {t(`setting.${item}` as TKey)}
             </button>
           );
         })}

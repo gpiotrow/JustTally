@@ -2,6 +2,8 @@ import type { Unit } from './units';
 import type { MuscleGroup } from './muscles';
 import type { EquipmentItem } from './equipment';
 import type { GoalItem } from './goals';
+import type { TrackingMode } from './tracking';
+import type { MachineSetting } from './machineSettings';
 
 export type Role = 'admin' | 'user';
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
@@ -69,6 +71,14 @@ export interface Exercise {
   equipment: EquipmentItem[];
   /** Training-goal tags (§ Teil 2). Distinct from the free-text purpose fields. */
   goals: GoalItem[];
+  /**
+   * Which fields a set of this exercise records. Absent on exercises created
+   * before tracking modes existed; read as `'reps_weight'`, today's only
+   * behavior.
+   */
+  tracking?: TrackingMode;
+  /** Which adjustable settings this machine exposes (seat height, lever arm, ...). */
+  settings?: MachineSetting[];
   createdAt: number;
   updatedAt: number;
   /** Archived exercises are hidden from the catalog but stay readable from history. */
@@ -76,6 +86,13 @@ export interface Exercise {
   archivedAt?: number | null;
   media: Media[];
 }
+
+/** Read-default for exercises written before tracking modes existed. */
+export const exerciseTracking = (e: Pick<Exercise, 'tracking'>): TrackingMode =>
+  e.tracking ?? 'reps_weight';
+
+/** Read-default for exercises written before machine settings existed. */
+export const exerciseSettings = (e: Pick<Exercise, 'settings'>): MachineSetting[] => e.settings ?? [];
 
 /**
  * Warm-up sets must stay out of volume and 1RM estimates, drop sets belong to
@@ -92,6 +109,13 @@ export interface WorkoutSet {
    * preference that can change.
    */
   weight?: number;
+  /**
+   * Canonical seconds, set for `time`/`time_weight`/`distance_time` tracking
+   * modes. Display and input convert at the edge, same as `weight`.
+   */
+  durationSec?: number;
+  /** Canonical meters, set for the `distance_time` tracking mode. */
+  distanceM?: number;
   /** Absent on sets logged before set types existed; read as `'working'`. */
   type?: SetType;
   /**
@@ -131,7 +155,28 @@ export interface WorkoutEntry {
    * but carried through so an entry never silently loses it in the meantime.
    */
   plannedExerciseId?: string;
+  /**
+   * The tracking mode in effect when this entry was logged, frozen at save
+   * time. Statistics and history must never re-resolve this from the current
+   * catalog: the exercise's own `tracking` can change (or the exercise can be
+   * archived) long after the entry was recorded, and re-reading it live would
+   * silently reinterpret old sets under a mode they were never logged under.
+   * Absent on entries logged before tracking modes existed; read as
+   * `'reps_weight'` via `entryTracking`.
+   */
+  tracking?: TrackingMode;
+  /**
+   * Machine-setting values for this entry, keyed by code from
+   * `MACHINE_SETTINGS`. Free-text values — real machines label dials "4",
+   * "B", or "12 cm" side by side, so a numeric type would fail on half of
+   * them.
+   */
+  settings?: Record<string, string>;
 }
+
+/** Read-default for entries logged before tracking modes existed. */
+export const entryTracking = (e: Pick<WorkoutEntry, 'tracking'>): TrackingMode =>
+  e.tracking ?? 'reps_weight';
 
 export interface WorkoutSession {
   id: string;
@@ -176,6 +221,10 @@ export interface RoutineExercise {
   targetReps?: string;
   /** Always kilograms, like WorkoutSet.weight — converted at the display edge. */
   targetWeight?: number;
+  /** Canonical seconds, like WorkoutSet.durationSec — for time-tracked exercises. */
+  targetDurationSec?: number;
+  /** Canonical meters, like WorkoutSet.distanceM — for distance-tracked exercises. */
+  targetDistanceM?: number;
   targetRpe?: number;
   restSeconds?: number;
   /** Superset already baked into the plan; carried onto the instantiated entries. */

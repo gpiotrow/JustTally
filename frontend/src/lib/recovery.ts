@@ -1,5 +1,6 @@
-import { setType, isSetDone, type WorkoutSession } from './types';
+import { entryTracking, setType, isSetDone, type WorkoutSession } from './types';
 import { MUSCLE_GROUPS, RECOVERY_WINDOW_HOURS, type MuscleGroup } from './muscles';
+import { entryWorkload } from './analytics/volume';
 
 /**
  * How much of an exercise's volume is charged to a muscle depending on how
@@ -28,11 +29,21 @@ export interface MuscleLoad {
 
 export type RecoveryMap = Record<MuscleGroup, MuscleLoad>;
 
-/** Volume of one entry: Σ reps × weight over done, non-warm-up sets (same rule as § 10). */
-function entryVolume(sets: WorkoutSession['entries'][number]['sets']): number {
-  return sets
-    .filter((s) => isSetDone(s) && setType(s) !== 'warmup')
-    .reduce((sum, s) => sum + (s.weight ? s.reps * s.weight : 0), 0);
+/**
+ * How much stimulus one entry charges to a muscle, regardless of tracking
+ * mode. `reps_weight`/`time_weight` produce a real kg-based figure (§ 10);
+ * `reps`/`time`/`distance_time` have no such figure — reps, seconds and
+ * meters cannot be summed into the same "volume" a heatmap needs to compare
+ * across exercises, so the count of qualifying sets stands in instead. That
+ * keeps a plank or a set of pull-ups from being charged zero and vanishing
+ * from the heatmap entirely, at the cost of being a cruder measure than the
+ * real kg figure — consistent with this whole model being volume
+ * bookkeeping, not physiology (§ 11.4).
+ */
+function entryStimulus(entry: WorkoutSession['entries'][number]): number {
+  const workload = entryWorkload(entry.sets, entryTracking(entry));
+  if (workload.kind === 'load') return workload.value;
+  return entry.sets.filter((s) => isSetDone(s) && setType(s) !== 'warmup').length;
 }
 
 /**
@@ -83,7 +94,7 @@ export function computeRecovery(
       const muscles = musclesByExerciseId.get(entry.exerciseId);
       if (!muscles) continue;
 
-      const volume = entryVolume(entry.sets);
+      const volume = entryStimulus(entry);
       if (volume <= 0) continue;
 
       const charged: [string[], number][] = [

@@ -108,6 +108,102 @@ describe('round trip: import(export(x)) === x', () => {
     expect(errors).toEqual([]);
     expect(parsed).toEqual(bundle);
   });
+
+  it('parses a file predating tracking modes, without them, unchanged', () => {
+    // `session`/`routine` above carry no `tracking`, `settings`, `durationSec`,
+    // `distanceM`, `targetDurationSec` or `targetDistanceM` at all — exactly
+    // what a file exported before those fields existed looks like.
+    const file = buildExport(bundle, 'kg');
+    const roundTripped = JSON.parse(JSON.stringify(file));
+    const { bundle: parsed, errors } = parseExport(roundTripped);
+
+    expect(errors).toEqual([]);
+    expect(parsed.sessions[0].entries[0].tracking).toBeUndefined();
+    expect(parsed.routines[0].weeks[0].days[0].exercises[0].targetDurationSec).toBeUndefined();
+  });
+
+  it('carries duration, distance, tracking mode and machine settings through unchanged', () => {
+    const timedBundle: ExportBundle = {
+      exercises: [{ id: 'ex-plank', ref: 6, name: 'Plank', tracking: 'time' }],
+      routines: [
+        {
+          id: 'r2',
+          name: 'Conditioning',
+          updatedAt: 1_700_000_000_000,
+          weeks: [
+            {
+              id: 'w1',
+              days: [
+                {
+                  id: 'd1',
+                  name: 'Day 1',
+                  exercises: [
+                    {
+                      exerciseId: 'ex-plank',
+                      exerciseRef: 6,
+                      exerciseName: 'Plank',
+                      alternatives: [],
+                      targetSets: 3,
+                      targetDurationSec: 60,
+                      targetDistanceM: 1000,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      bodyWeights: [],
+      sessions: [
+        {
+          id: 's2',
+          date: 1_700_200_000_000,
+          updatedAt: 1_700_200_000_000,
+          entries: [
+            {
+              exerciseId: 'ex-plank',
+              exerciseRef: 6,
+              exerciseName: 'Plank',
+              tracking: 'time',
+              settings: { seat_height: '4', back_pad: '2' },
+              sets: [{ reps: 0, durationSec: 90, distanceM: 5000, done: true }],
+            },
+          ],
+        },
+      ],
+    };
+
+    const file = buildExport(timedBundle, 'kg');
+    const roundTripped = JSON.parse(JSON.stringify(file));
+    const { bundle: parsed, errors } = parseExport(roundTripped);
+
+    expect(errors).toEqual([]);
+    expect(parsed).toEqual(timedBundle);
+  });
+
+  it('drops the whole session when one entry carries an unknown machine-setting key', () => {
+    // Same "reject the row, not the file" latitude as the existing
+    // "drops malformed rows" test above — but a session is only as valid as
+    // every one of its entries, so one bad entry takes the whole session
+    // down with it rather than being filtered out on its own.
+    const file = buildExport(bundle, 'kg');
+    const withBadSettings = {
+      ...file,
+      sessions: [
+        {
+          ...file.sessions[0],
+          entries: [
+            { ...file.sessions[0].entries[0], settings: { warp_speed: '11' } },
+            file.sessions[0].entries[1],
+          ],
+        },
+      ],
+    };
+    const { bundle: parsed, errors } = parseExport(withBadSettings);
+    expect(parsed.sessions).toEqual([]);
+    expect(errors).toEqual(['sessions[0]: malformed, skipped']);
+  });
 });
 
 describe('parseExport', () => {

@@ -272,6 +272,16 @@ export async function initSchema() {
   await pool.query(`
     ALTER TABLE exercises ADD COLUMN IF NOT EXISTS goals JSONB NOT NULL DEFAULT '[]';
   `);
+
+  // Which fields a set of this exercise records (reps+weight, time, distance,
+  // ...) and which adjustable settings the machine exposes (seat height,
+  // lever arm, ...). Validated in the route layer, like `category` — not as a
+  // CHECK constraint, same reasoning muscles/equipment/goals above already
+  // apply to closed vocabularies stored here.
+  await pool.query(`
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS tracking TEXT NOT NULL DEFAULT 'reps_weight';
+    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS settings JSONB NOT NULL DEFAULT '[]';
+  `);
 }
 
 /**

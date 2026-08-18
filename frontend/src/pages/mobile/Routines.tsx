@@ -6,7 +6,8 @@ import { Modal, Spinner, EmptyState } from '../../components/ui';
 import { ExercisePicker } from '../../components/ExercisePicker';
 import { NumberField } from '../../components/NumberField';
 import { instantiateRoutineDay } from '../../lib/routineInstantiate';
-import type { Routine, RoutineDay, RoutineExercise } from '../../lib/types';
+import { exerciseTracking, type Routine, type RoutineDay, type RoutineExercise } from '../../lib/types';
+import { TRACKING_FIELDS } from '../../lib/tracking';
 import { useLanguage } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
 
@@ -357,88 +358,149 @@ function RoutineEditor({
 
               {day.exercises.length > 0 && (
                 <ul className="mb-2 space-y-2">
-                  {day.exercises.map((ex, exerciseIndex) => (
-                    <li key={exerciseIndex} className="rounded-lg bg-surface-2 p-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="min-w-0 truncate text-sm font-medium text-fg">
-                          {ex.exerciseName}
-                        </p>
-                        <button
-                          onClick={() => removeExercise(dayIndex, exerciseIndex)}
-                          className="shrink-0 text-xs text-fg-subtle hover:text-danger"
-                        >
-                          {t('workout.remove')}
-                        </button>
-                      </div>
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="mb-1 block text-xs text-fg-subtle">
-                            {t('routines.targetSets')}
-                          </span>
-                          <NumberField
-                            value={String(ex.targetSets)}
-                            onChange={(v) =>
-                              updateExercise(dayIndex, exerciseIndex, {
-                                targetSets: Math.max(1, Math.round(Number(v) || 1)),
-                              })
-                            }
-                            step={1}
-                            min={1}
-                            integer
-                            label={t('routines.targetSets')}
-                            stepUpLabel={t('set.more', { label: t('routines.targetSets') })}
-                            stepDownLabel={t('set.less', { label: t('routines.targetSets') })}
-                          />
-                        </div>
-                        <div>
-                          <span className="mb-1 block text-xs text-fg-subtle">
-                            {t('routines.targetReps')}
-                          </span>
-                          <input
-                            className="input"
-                            value={ex.targetReps ?? ''}
-                            onChange={(e) =>
-                              updateExercise(dayIndex, exerciseIndex, {
-                                targetReps: e.target.value || undefined,
-                              })
-                            }
-                            placeholder="8-12"
-                          />
-                        </div>
-                      </div>
+                  {day.exercises.map((ex, exerciseIndex) => {
+                    const catalogExercise = exercises.find((e) => e.id === ex.exerciseId);
+                    // Absent from the catalog (deleted, or not yet loaded)
+                    // falls back to the same default `exerciseTracking` uses
+                    // elsewhere.
+                    const mode = catalogExercise ? exerciseTracking(catalogExercise) : 'reps_weight';
+                    const fields = TRACKING_FIELDS[mode];
+                    // distance_time is the only mode needing two target
+                    // fields alongside sets; every other mode fits two columns.
+                    const gridClass = mode === 'distance_time' ? 'grid-cols-3' : 'grid-cols-2';
 
-                      <div className="mt-2">
-                        <span className="mb-1 block text-xs text-fg-subtle">
-                          {t('routines.alternatives')}
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {ex.alternatives.map((alt, altIndex) => (
-                            <span
-                              key={altIndex}
-                              className="chip flex items-center gap-1 bg-surface text-fg-muted"
-                            >
-                              {alt.exerciseName}
-                              <button
-                                onClick={() => removeAlternative(dayIndex, exerciseIndex, altIndex)}
-                                aria-label={t('routines.removeAlternative', {
-                                  name: alt.exerciseName,
-                                })}
-                                className="text-fg-subtle hover:text-danger"
-                              >
-                                ✕
-                              </button>
-                            </span>
-                          ))}
+                    return (
+                      <li key={exerciseIndex} className="rounded-lg bg-surface-2 p-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="min-w-0 truncate text-sm font-medium text-fg">
+                            {ex.exerciseName}
+                          </p>
                           <button
-                            onClick={() => setPicking({ dayIndex, exerciseIndex })}
-                            className="chip bg-surface text-accent hover:bg-surface-2"
+                            onClick={() => removeExercise(dayIndex, exerciseIndex)}
+                            className="shrink-0 text-xs text-fg-subtle hover:text-danger"
                           >
-                            {t('routines.addAlternative')}
+                            {t('workout.remove')}
                           </button>
                         </div>
-                      </div>
-                    </li>
-                  ))}
+                        <div className={`mt-2 grid ${gridClass} gap-2`}>
+                          <div>
+                            <span className="mb-1 block text-xs text-fg-subtle">
+                              {t('routines.targetSets')}
+                            </span>
+                            <NumberField
+                              value={String(ex.targetSets)}
+                              onChange={(v) =>
+                                updateExercise(dayIndex, exerciseIndex, {
+                                  targetSets: Math.max(1, Math.round(Number(v) || 1)),
+                                })
+                              }
+                              step={1}
+                              min={1}
+                              integer
+                              label={t('routines.targetSets')}
+                              stepUpLabel={t('set.more', { label: t('routines.targetSets') })}
+                              stepDownLabel={t('set.less', { label: t('routines.targetSets') })}
+                            />
+                          </div>
+
+                          {fields.includes('reps') && (
+                            <div>
+                              <span className="mb-1 block text-xs text-fg-subtle">
+                                {t('routines.targetReps')}
+                              </span>
+                              <input
+                                className="input"
+                                value={ex.targetReps ?? ''}
+                                onChange={(e) =>
+                                  updateExercise(dayIndex, exerciseIndex, {
+                                    targetReps: e.target.value || undefined,
+                                  })
+                                }
+                                placeholder="8-12"
+                              />
+                            </div>
+                          )}
+
+                          {fields.includes('distance') && (
+                            <div>
+                              <span className="mb-1 block text-xs text-fg-subtle">
+                                {t('routines.targetDistance')}
+                              </span>
+                              <NumberField
+                                value={ex.targetDistanceM != null ? String(ex.targetDistanceM) : ''}
+                                onChange={(v) =>
+                                  updateExercise(dayIndex, exerciseIndex, {
+                                    targetDistanceM:
+                                      v.trim() === '' ? undefined : Math.max(0, Math.round(Number(v) || 0)),
+                                  })
+                                }
+                                step={50}
+                                min={0}
+                                integer
+                                label={t('routines.targetDistance')}
+                                stepUpLabel={t('set.more', { label: t('routines.targetDistance') })}
+                                stepDownLabel={t('set.less', { label: t('routines.targetDistance') })}
+                              />
+                            </div>
+                          )}
+
+                          {fields.includes('duration') && (
+                            <div>
+                              <span className="mb-1 block text-xs text-fg-subtle">
+                                {t('routines.targetDuration')}
+                              </span>
+                              <NumberField
+                                value={ex.targetDurationSec != null ? String(ex.targetDurationSec) : ''}
+                                onChange={(v) =>
+                                  updateExercise(dayIndex, exerciseIndex, {
+                                    targetDurationSec:
+                                      v.trim() === '' ? undefined : Math.max(0, Math.round(Number(v) || 0)),
+                                  })
+                                }
+                                step={5}
+                                min={0}
+                                integer
+                                label={t('routines.targetDuration')}
+                                stepUpLabel={t('set.more', { label: t('routines.targetDuration') })}
+                                stepDownLabel={t('set.less', { label: t('routines.targetDuration') })}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-2">
+                          <span className="mb-1 block text-xs text-fg-subtle">
+                            {t('routines.alternatives')}
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {ex.alternatives.map((alt, altIndex) => (
+                              <span
+                                key={altIndex}
+                                className="chip flex items-center gap-1 bg-surface text-fg-muted"
+                              >
+                                {alt.exerciseName}
+                                <button
+                                  onClick={() => removeAlternative(dayIndex, exerciseIndex, altIndex)}
+                                  aria-label={t('routines.removeAlternative', {
+                                    name: alt.exerciseName,
+                                  })}
+                                  className="text-fg-subtle hover:text-danger"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            ))}
+                            <button
+                              onClick={() => setPicking({ dayIndex, exerciseIndex })}
+                              className="chip bg-surface text-accent hover:bg-surface-2"
+                            >
+                              {t('routines.addAlternative')}
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
 

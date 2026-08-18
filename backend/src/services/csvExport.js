@@ -19,6 +19,8 @@ export const CSV_EXPORT_COLUMNS = [
   'instructions_es',
   'equipment',
   'goals',
+  'tracking',
+  'settings',
 ];
 
 /** Quote a field for `;`-delimited CSV, doubling any embedded quotes. */
@@ -67,6 +69,8 @@ export function exercisesToCsv(rows) {
         r.instructions_es,
         musclesToCsvCell(r.equipment),
         musclesToCsvCell(r.goals),
+        r.tracking || 'reps_weight',
+        musclesToCsvCell(r.settings),
       ]
         .map(csvField)
         .join(';')

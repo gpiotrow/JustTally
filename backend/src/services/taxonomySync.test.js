@@ -6,6 +6,8 @@ import { MUSCLE_GROUPS } from './muscles.js';
 import { EQUIPMENT_ITEMS } from './equipment.js';
 import { GOAL_ITEMS } from './goals.js';
 import { CATEGORIES } from './categories.js';
+import { TRACKING_MODES } from './tracking.js';
+import { MACHINE_SETTINGS } from './machineSettings.js';
 
 /**
  * Backend and frontend are separate packages and cannot import from each
@@ -42,6 +44,8 @@ describe('frontend taxonomies stay in sync with the backend allow-lists', () => 
     ['EQUIPMENT_ITEMS', 'lib/equipment.ts', EQUIPMENT_ITEMS],
     ['GOAL_ITEMS', 'lib/goals.ts', GOAL_ITEMS],
     ['CATEGORIES', 'lib/types.ts', CATEGORIES],
+    ['TRACKING_MODES', 'lib/tracking.ts', TRACKING_MODES],
+    ['MACHINE_SETTINGS', 'lib/machineSettings.ts', MACHINE_SETTINGS],
   ])('%s matches exactly, in order', (name, relativePath, backendList) => {
     expect(readFrontendArray(relativePath, name)).toEqual(backendList);
   });

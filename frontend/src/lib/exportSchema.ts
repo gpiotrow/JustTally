@@ -1,5 +1,7 @@
 import type { Unit } from './units';
 import type { Routine, WorkoutSession } from './types';
+import type { TrackingMode } from './tracking';
+import type { MachineSetting } from './machineSettings';
 
 /**
  * The export file's format tag. Versioned so a future breaking change to the
@@ -24,6 +26,10 @@ export interface ExportedExercise {
   name: string;
   musclesPrimary?: string[];
   musclesSecondary?: string[];
+  /** The catalog's default tracking mode; reserved the same way musclesPrimary/Secondary are. */
+  tracking?: TrackingMode;
+  /** Which adjustable settings this machine exposes; reserved the same way as above. */
+  settings?: MachineSetting[];
 }
 
 /** Reserved for § 10 (body-weight tracking does not exist yet) — always `[]` until then. */

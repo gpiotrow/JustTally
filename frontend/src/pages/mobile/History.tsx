@@ -3,11 +3,43 @@ import { Link, useLocation } from 'react-router-dom';
 import { useWorkouts } from '../../hooks/useWorkouts';
 import { useOnline } from '../../hooks/useOnline';
 import { useAuth } from '../../hooks/useAuth';
-import { formatWeightWithUnit } from '../../lib/units';
-import { setType } from '../../lib/types';
+import { formatDistanceWithUnit, formatWeightWithUnit, type Unit } from '../../lib/units';
+import { formatDuration } from '../../lib/restTimer';
+import { entryTracking, setType, type WorkoutEntry, type WorkoutSet } from '../../lib/types';
+import type { TrackingMode } from '../../lib/tracking';
 import type { NewPR } from '../../lib/analytics/records';
 import { EmptyState, ErrorBanner, PendingSyncChip, Spinner } from '../../components/ui';
-import { useLanguage } from '../../i18n';
+import { useLanguage, type TKey } from '../../i18n';
+
+/** One set, formatted for the mode it was logged under — mirrors the columns `Workout.tsx` shows while logging. */
+function formatSetSummary(set: WorkoutSet, mode: TrackingMode, unit: Unit): string {
+  switch (mode) {
+    case 'reps':
+      return String(set.reps);
+    case 'time':
+      return set.durationSec != null ? formatDuration(set.durationSec) : '–';
+    case 'time_weight': {
+      const duration = set.durationSec != null ? formatDuration(set.durationSec) : '–';
+      return set.weight ? `${duration}×${formatWeightWithUnit(set.weight, unit)}` : duration;
+    }
+    case 'distance_time': {
+      const distance = set.distanceM != null ? formatDistanceWithUnit(set.distanceM) : '–';
+      const duration = set.durationSec != null ? formatDuration(set.durationSec) : '–';
+      return `${distance} · ${duration}`;
+    }
+    case 'reps_weight':
+    default:
+      return `${set.reps}${set.weight ? `×${formatWeightWithUnit(set.weight, unit)}` : ''}`;
+  }
+}
+
+/** Machine-setting values logged for an entry, as one labelled string — omitted entirely when there are none. */
+function formatEntrySettings(entry: WorkoutEntry, t: (key: TKey) => string): string | null {
+  if (!entry.settings) return null;
+  const parts = Object.entries(entry.settings);
+  if (parts.length === 0) return null;
+  return parts.map(([code, value]) => `${t(`setting.${code}` as TKey)}: ${value}`).join(' · ');
+}
 
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   weekday: 'short',
@@ -149,28 +181,28 @@ export function History() {
                   {s.durationMin != null && ` · ${s.durationMin} ${t('history.minutes')}`}
                 </p>
                 <ul className="space-y-1.5">
-                  {s.entries.map((e, i) => (
-                    <li key={i} className="text-sm text-fg-muted">
-                      {/* History is the only way back to an archived exercise —
-                          it is gone from the catalog list but still linkable. */}
-                      <Link
-                        to={`/exercise/${e.exerciseId}`}
-                        className="font-medium text-fg hover:text-accent"
-                      >
-                        {e.exerciseName}
-                      </Link>{' '}
-                      <span className="text-fg-subtle">
-                        {e.sets
-                          .map(
-                            (set) =>
-                              `${set.reps}${
-                                set.weight ? `×${formatWeightWithUnit(set.weight, unit)}` : ''
-                              }`
-                          )
-                          .join(', ')}
-                      </span>
-                    </li>
-                  ))}
+                  {s.entries.map((e, i) => {
+                    const mode = entryTracking(e);
+                    const settingsSummary = formatEntrySettings(e, t);
+                    return (
+                      <li key={i} className="text-sm text-fg-muted">
+                        {/* History is the only way back to an archived exercise —
+                            it is gone from the catalog list but still linkable. */}
+                        <Link
+                          to={`/exercise/${e.exerciseId}`}
+                          className="font-medium text-fg hover:text-accent"
+                        >
+                          {e.exerciseName}
+                        </Link>{' '}
+                        <span className="text-fg-subtle">
+                          {e.sets.map((set) => formatSetSummary(set, mode, unit)).join(', ')}
+                        </span>
+                        {settingsSummary && (
+                          <span className="block text-xs text-fg-subtle">{settingsSummary}</span>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
                 {s.notes?.trim() && (
                   <p className="mt-3 whitespace-pre-wrap border-t border-border pt-3 text-sm text-fg-muted">

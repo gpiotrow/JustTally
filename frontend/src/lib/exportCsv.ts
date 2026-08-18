@@ -1,4 +1,4 @@
-import { setType, isSetDone, type WorkoutSession } from './types';
+import { setType, isSetDone, entryTracking, type WorkoutSession } from './types';
 
 /**
  * Flat, spreadsheet-friendly export: one row per set. This is a convenience
@@ -17,7 +17,19 @@ export const CSV_EXPORT_COLUMNS = [
   'weight_kg',
   'rpe',
   'done',
+  'duration_sec',
+  'distance_m',
+  'tracking',
+  'settings',
 ] as const;
+
+/** Settings values as one CSV cell: `key=value` pairs joined by `|`, so the `;` column delimiter stays untouched. */
+function settingsToCsvCell(settings: Record<string, string> | undefined): string {
+  if (!settings) return '';
+  return Object.entries(settings)
+    .map(([k, v]) => `${k}=${v}`)
+    .join('|');
+}
 
 /** Quote a field for `;`-delimited CSV, doubling any embedded quotes — same rule as the exercise-catalog CSV. */
 function csvField(value: unknown): string {
@@ -50,6 +62,10 @@ export function sessionsToCsv(sessions: WorkoutSession[]): string {
             set.weight ?? '',
             set.rpe ?? '',
             isSetDone(set),
+            set.durationSec ?? '',
+            set.distanceM ?? '',
+            entryTracking(entry),
+            settingsToCsvCell(entry.settings),
           ]
             .map(csvField)
             .join(';')

@@ -92,6 +92,46 @@ describe('POST /api/routines/sync', () => {
     expect(JSON.parse(captured.weeks)).toEqual(validRoutine.weeks);
   });
 
+  it('persists targetDurationSec and targetDistanceM', async () => {
+    allExercisesExist();
+    const captured = captureInsertedWeeks();
+    const timedExercise = { ...validExercise, targetDurationSec: 60, targetDistanceM: 1000 };
+    const routine = {
+      ...validRoutine,
+      weeks: [{ id: 'w1', days: [{ id: 'd1', name: 'Day A', exercises: [timedExercise] }] }],
+    };
+
+    const res = await request(app)
+      .post('/api/routines/sync')
+      .send({ upserts: [{ ...routine, updatedAt: 10 }] });
+
+    expect(res.status).toBe(200);
+    const storedExercise = JSON.parse(captured.weeks)[0].days[0].exercises[0];
+    expect(storedExercise.targetDurationSec).toBe(60);
+    expect(storedExercise.targetDistanceM).toBe(1000);
+  });
+
+  it.each([
+    ['a negative targetDurationSec', { targetDurationSec: -1 }],
+    ['a non-numeric targetDurationSec', { targetDurationSec: '60' }],
+    ['a negative targetDistanceM', { targetDistanceM: -1 }],
+    ['a non-numeric targetDistanceM', { targetDistanceM: '1000' }],
+  ])('rejects a routine exercise with %s, rather than storing it', async (_label, patch) => {
+    allExercisesExist();
+    const captured = captureInsertedWeeks();
+    const badExercise = { ...validExercise, ...patch };
+    const routine = {
+      ...validRoutine,
+      weeks: [{ id: 'w1', days: [{ id: 'd1', name: 'Day A', exercises: [badExercise] }] }],
+    };
+
+    await request(app)
+      .post('/api/routines/sync')
+      .send({ upserts: [{ ...routine, updatedAt: 10 }] });
+
+    expect(captured.weeks).toBeUndefined();
+  });
+
   it('rejects a routine whose exercise does not exist, rather than storing it', async () => {
     onQuery(/SELECT id FROM exercises WHERE id = ANY/, () => ({ rows: [] })); // nothing exists
     const captured = captureInsertedWeeks();

@@ -16,6 +16,8 @@ import { isValidMuscleList, readMuscleList } from '../services/muscles.js';
 import { isValidEquipmentList, readEquipmentList } from '../services/equipment.js';
 import { isValidGoalList, readGoalList } from '../services/goals.js';
 import { isValidCategory } from '../services/categories.js';
+import { isTrackingMode } from '../services/tracking.js';
+import { isValidMachineSettingList, readMachineSettingList } from '../services/machineSettings.js';
 import { uploadLimiter } from '../middleware/rateLimiters.js';
 
 const router = Router();
@@ -104,6 +106,10 @@ function serializeExercise(exercise, media) {
     musclesSecondary: readMuscleList(exercise.muscles_secondary),
     equipment: readEquipmentList(exercise.equipment),
     goals: readGoalList(exercise.goals),
+    // Absent on rows written before tracking modes existed; read as
+    // 'reps_weight', today's only behavior.
+    tracking: exercise.tracking || 'reps_weight',
+    settings: readMachineSettingList(exercise.settings),
     createdAt: exercise.created_at,
     updatedAt: exercise.updated_at,
     // Archived exercises stay readable so past workouts still resolve a name;
@@ -294,6 +300,7 @@ router.get('/', requireAuth, async (req, res) => {
 router.get('/export.csv', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await db.query(
     `SELECT ref, category, difficulty, muscles_primary, muscles_secondary, equipment, goals,
+            tracking, settings,
             name_de, purpose_de, instructions_de,
             name_en, purpose_en, instructions_en,
             name_es, purpose_es, instructions_es
@@ -334,6 +341,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
     musclesSecondary,
     equipment,
     goals,
+    tracking,
+    settings,
   } = req.body || {};
   if (!resolve(nameDe, nameEn, nameEs)) {
     return res.status(400).json({ error: 'At least one of nameDe / nameEn / nameEs is required' });
@@ -356,6 +365,12 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   if (goals !== undefined && !isValidGoalList(goals)) {
     return res.status(400).json({ error: 'Invalid goals' });
   }
+  if (tracking !== undefined && !isTrackingMode(tracking)) {
+    return res.status(400).json({ error: 'Invalid tracking' });
+  }
+  if (settings !== undefined && !isValidMachineSettingList(settings)) {
+    return res.status(400).json({ error: 'Invalid settings' });
+  }
 
   const now = Date.now();
   const id = nanoid();
@@ -367,10 +382,10 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
          (id, ref, name, name_de, name_en, name_es, category, difficulty,
           instructions, instructions_de, instructions_en, instructions_es,
           purpose_de, purpose_en, purpose_es,
-          muscles_primary, muscles_secondary, equipment, goals,
+          muscles_primary, muscles_secondary, equipment, goals, tracking, settings,
           created_by, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-               $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20, $21, $22)
+               $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20, $21::jsonb, $22, $23, $24)
        RETURNING *`,
       [
         id,
@@ -392,6 +407,8 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         JSON.stringify(musclesSecondary ?? []),
         JSON.stringify(equipment ?? []),
         JSON.stringify(goals ?? []),
+        tracking || 'reps_weight',
+        JSON.stringify(settings ?? []),
         req.user.sub,
         now,
         now,
@@ -562,10 +579,10 @@ router.post(
              (id, ref, name, name_de, name_en, name_es, category, difficulty,
               instructions, instructions_de, instructions_en, instructions_es,
               purpose_de, purpose_en, purpose_es,
-              muscles_primary, muscles_secondary, equipment, goals,
+              muscles_primary, muscles_secondary, equipment, goals, tracking, settings,
               created_by, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-                   $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20, $21, $22)`,
+                   $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20, $21::jsonb, $22, $23, $24)`,
           [
             id,
             refNumber,
@@ -586,6 +603,8 @@ router.post(
             JSON.stringify(row.musclesSecondary ?? []),
             JSON.stringify(row.equipment ?? []),
             JSON.stringify(row.goals ?? []),
+            row.tracking,
+            JSON.stringify(row.settings ?? []),
             req.user.sub,
             now,
             now,
@@ -621,14 +640,15 @@ router.post(
           `UPDATE exercises
              SET ref = $1, name = $2, name_de = $3, name_en = $4, name_es = $5, category = $6, difficulty = $7,
                  instructions = $8, instructions_de = $9, instructions_en = $10, instructions_es = $11,
-                 purpose_de = $12, purpose_en = $13, purpose_es = $14,
+                 purpose_de = $12, purpose_en = $13, purpose_es = $14, tracking = $21,
                  -- NULL means the CSV had no such column: keep what is stored,
                  -- so an old export can still be re-imported without erasing
-                 -- muscle/equipment/goal data maintained since.
+                 -- muscle/equipment/goal/settings data maintained since.
                  muscles_primary   = COALESCE($15::jsonb, muscles_primary),
                  muscles_secondary = COALESCE($16::jsonb, muscles_secondary),
                  equipment         = COALESCE($17::jsonb, equipment),
                  goals             = COALESCE($18::jsonb, goals),
+                 settings          = COALESCE($22::jsonb, settings),
                  updated_at = $19, archived_at = NULL
            WHERE id = $20`,
           [
@@ -652,6 +672,8 @@ router.post(
             row.goals === undefined ? null : JSON.stringify(row.goals),
             now,
             existingId,
+            row.tracking,
+            row.settings === undefined ? null : JSON.stringify(row.settings),
           ]
         );
         await client.query('RELEASE SAVEPOINT row_update');
@@ -733,6 +755,8 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     musclesSecondary,
     equipment,
     goals,
+    tracking,
+    settings,
   } = req.body || {};
   if (difficulty && !VALID_DIFFICULTY.includes(difficulty)) {
     return res.status(400).json({ error: 'Invalid difficulty' });
@@ -751,6 +775,12 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
   }
   if (goals !== undefined && !isValidGoalList(goals)) {
     return res.status(400).json({ error: 'Invalid goals' });
+  }
+  if (tracking !== undefined && !isTrackingMode(tracking)) {
+    return res.status(400).json({ error: 'Invalid tracking' });
+  }
+  if (settings !== undefined && !isValidMachineSettingList(settings)) {
+    return res.status(400).json({ error: 'Invalid settings' });
   }
 
   const nextNameDe = (nameDe ?? existing.name_de ?? '').trim();
@@ -777,7 +807,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
              instructions = $8, instructions_de = $9, instructions_en = $10, instructions_es = $11,
              purpose_de = $12, purpose_en = $13, purpose_es = $14,
              muscles_primary = $15::jsonb, muscles_secondary = $16::jsonb, equipment = $17::jsonb,
-             goals = $18::jsonb,
+             goals = $18::jsonb, tracking = $21, settings = $22::jsonb,
              updated_at = $19
        WHERE id = $20
        RETURNING *`,
@@ -802,6 +832,8 @@ router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
         JSON.stringify(goals ?? readGoalList(existing.goals)),
         Date.now(),
         req.params.id,
+        tracking ?? existing.tracking ?? 'reps_weight',
+        JSON.stringify(settings ?? readMachineSettingList(existing.settings)),
       ]
     ));
   } catch (err) {

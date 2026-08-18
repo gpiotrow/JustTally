@@ -10,13 +10,14 @@ const session = (
   id: string,
   date: number,
   exerciseId: string,
-  sets: WorkoutSession['entries'][number]['sets']
+  sets: WorkoutSession['entries'][number]['sets'],
+  tracking?: WorkoutSession['entries'][number]['tracking']
 ): WorkoutSession => ({
   id,
   date,
   startedAt: date,
   updatedAt: date,
-  entries: [{ exerciseId, exerciseName: 'Test', sets }],
+  entries: [{ exerciseId, exerciseName: 'Test', tracking, sets }],
 });
 
 const workingSet = (reps: number, weight: number) =>
@@ -151,5 +152,44 @@ describe('computeRecovery', () => {
     const sessions = [session('s1', NOW - 40 * HOUR, 'ex-both', [workingSet(5, 100)])];
     const map = computeRecovery(sessions, curlMuscles, NOW);
     expect(map.chest.weightedVolume).toBeGreaterThan(map.biceps.weightedVolume);
+  });
+
+  it('charges a plank (time mode, no weight) by set count instead of vanishing at zero', () => {
+    const abMuscles = new Map([['ex-plank', { musclesPrimary: ['abs'] }]]);
+    const sessions = [
+      session(
+        's1',
+        NOW,
+        'ex-plank',
+        [
+          { reps: 0, durationSec: 60, type: 'working', done: true },
+          { reps: 0, durationSec: 45, type: 'working', done: true },
+        ],
+        'time'
+      ),
+    ];
+    const map = computeRecovery(sessions, abMuscles, NOW);
+    // Two qualifying sets stand in for a kg-based volume that does not exist
+    // for this mode — the muscle must not read as untrained.
+    expect(map.abs.weightedVolume).toBe(2);
+    expect(map.abs.value).toBe(1); // the only muscle charged, so it is the peak
+  });
+
+  it('still excludes a warm-up set from the time-mode set-count stimulus', () => {
+    const abMuscles = new Map([['ex-plank', { musclesPrimary: ['abs'] }]]);
+    const sessions = [
+      session(
+        's1',
+        NOW,
+        'ex-plank',
+        [
+          { reps: 0, durationSec: 20, type: 'warmup', done: true },
+          { reps: 0, durationSec: 60, type: 'working', done: true },
+        ],
+        'time'
+      ),
+    ];
+    const map = computeRecovery(sessions, abMuscles, NOW);
+    expect(map.abs.weightedVolume).toBe(1);
   });
 });

@@ -1,5 +1,7 @@
 import { EXPORT_FORMAT, type ExportBundle, type ExportedBodyWeight, type ExportedExercise } from './exportSchema';
 import type { Routine, RoutineAlternative, RoutineDay, RoutineExercise, RoutineWeek, WorkoutEntry, WorkoutSession, WorkoutSet } from './types';
+import { TRACKING_MODES } from './tracking';
+import { MACHINE_SETTINGS } from './machineSettings';
 
 /**
  * Structural validation mirrors the backend's `isValidEntries` /
@@ -9,6 +11,20 @@ import type { Routine, RoutineAlternative, RoutineDay, RoutineExercise, RoutineW
  */
 
 const SET_TYPES = new Set(['warmup', 'working', 'drop']);
+const TRACKING_MODE_SET = new Set<string>(TRACKING_MODES);
+const MACHINE_SETTING_SET = new Set<string>(MACHINE_SETTINGS);
+
+/**
+ * A settings-values object (`WorkoutEntry.settings`) is valid when every key
+ * is a known machine-setting code and every value is a string. Mirrors
+ * `backend/src/services/machineSettings.js`'s `isValidSettingsValues`.
+ */
+function isValidSettingsValues(value: unknown): value is Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Object.entries(value as Record<string, unknown>).every(
+    ([k, v]) => MACHINE_SETTING_SET.has(k) && typeof v === 'string'
+  );
+}
 
 function isValidSet(s: unknown): s is WorkoutSet {
   if (!s || typeof s !== 'object') return false;
@@ -16,6 +32,10 @@ function isValidSet(s: unknown): s is WorkoutSet {
   return (
     typeof set.reps === 'number' &&
     (set.weight === undefined || typeof set.weight === 'number') &&
+    (set.durationSec === undefined ||
+      (typeof set.durationSec === 'number' && Number.isFinite(set.durationSec) && set.durationSec >= 0)) &&
+    (set.distanceM === undefined ||
+      (typeof set.distanceM === 'number' && Number.isFinite(set.distanceM) && set.distanceM >= 0)) &&
     (set.type === undefined || (typeof set.type === 'string' && SET_TYPES.has(set.type))) &&
     (set.done === undefined || typeof set.done === 'boolean') &&
     (set.completedAt === undefined ||
@@ -39,6 +59,9 @@ function isValidEntry(e: unknown): e is WorkoutEntry {
       (typeof entry.exerciseRef === 'number' && Number.isInteger(entry.exerciseRef) && entry.exerciseRef > 0)) &&
     (entry.groupId === undefined || typeof entry.groupId === 'string') &&
     (entry.plannedExerciseId === undefined || typeof entry.plannedExerciseId === 'string') &&
+    (entry.tracking === undefined ||
+      (typeof entry.tracking === 'string' && TRACKING_MODE_SET.has(entry.tracking))) &&
+    (entry.settings === undefined || isValidSettingsValues(entry.settings)) &&
     Array.isArray(entry.sets) &&
     entry.sets.every(isValidSet)
   );
@@ -87,6 +110,8 @@ function isValidRoutineExercise(e: unknown): e is RoutineExercise {
     ex.targetSets > 0 &&
     (ex.targetReps === undefined || typeof ex.targetReps === 'string') &&
     (ex.targetWeight === undefined || typeof ex.targetWeight === 'number') &&
+    (ex.targetDurationSec === undefined || typeof ex.targetDurationSec === 'number') &&
+    (ex.targetDistanceM === undefined || typeof ex.targetDistanceM === 'number') &&
     (ex.targetRpe === undefined || typeof ex.targetRpe === 'number') &&
     (ex.restSeconds === undefined || typeof ex.restSeconds === 'number') &&
     (ex.groupId === undefined || typeof ex.groupId === 'string') &&
@@ -139,7 +164,11 @@ function isValidExercise(e: unknown): e is ExportedExercise {
     (ex.musclesPrimary === undefined ||
       (Array.isArray(ex.musclesPrimary) && ex.musclesPrimary.every((m) => typeof m === 'string'))) &&
     (ex.musclesSecondary === undefined ||
-      (Array.isArray(ex.musclesSecondary) && ex.musclesSecondary.every((m) => typeof m === 'string')))
+      (Array.isArray(ex.musclesSecondary) && ex.musclesSecondary.every((m) => typeof m === 'string'))) &&
+    (ex.tracking === undefined ||
+      (typeof ex.tracking === 'string' && TRACKING_MODE_SET.has(ex.tracking))) &&
+    (ex.settings === undefined ||
+      (Array.isArray(ex.settings) && ex.settings.every((s) => MACHINE_SETTING_SET.has(s as string))))
   );
 }
 

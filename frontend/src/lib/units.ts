@@ -71,6 +71,38 @@ export function weightInputToKg(raw: string, unit: Unit): number | undefined {
   return unitToKg(value, unit);
 }
 
+/**
+ * Duration as typed: a plain integer of seconds ("90"), or an `m:ss` pair
+ * ("1:30") for anyone who types it out of habit. The field itself always
+ * displays and steps in plain seconds — this is a parsing convenience, not a
+ * second display format.
+ */
+export function parseDurationInput(raw: string): number | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === '') return undefined;
+  const mmss = trimmed.match(/^(\d+):([0-5]?\d)$/);
+  if (mmss) return Number(mmss[1]) * 60 + Number(mmss[2]);
+  const value = parseDecimalInput(trimmed);
+  if (value === undefined || value < 0) return undefined;
+  return Math.round(value);
+}
+
+/** Canonical seconds → the string that belongs in an input field: plain seconds. */
+export function formatDurationInput(sec: number | undefined): string {
+  return sec === undefined ? '' : String(Math.round(sec));
+}
+
+/** Distance as typed, in meters: a non-negative number, or undefined when blank/invalid. */
+export function parseDistanceInput(raw: string): number | undefined {
+  const value = parseDecimalInput(raw);
+  return value !== undefined && value >= 0 ? value : undefined;
+}
+
+/** Canonical meters → the string that belongs in an input field. */
+export function formatDistanceInput(m: number | undefined): string {
+  return m === undefined ? '' : formatNumber(m);
+}
+
 /** Canonical kg → the string that belongs in an input field for `unit`. */
 export function formatWeightInput(kg: number | undefined, unit: Unit): string {
   if (kg === undefined) return '';
@@ -96,4 +128,17 @@ export function convertWeightInput(raw: string, from: Unit, to: Unit): string {
   const kg = weightInputToKg(raw, from);
   if (kg === undefined) return raw;
   return formatWeightInput(kg, to);
+}
+
+/** Canonical meters → a labelled distance for read-only display: kilometers once the distance reaches 1000 m, meters below that. */
+export function formatDistanceWithUnit(m: number): string {
+  return m >= 1000 ? `${formatNumber(m / 1000)} km` : `${formatNumber(m)} m`;
+}
+
+/** Seconds per kilometer → a labelled pace for read-only display, e.g. "5:12 /km". */
+export function formatPaceWithUnit(secPerKm: number): string {
+  const safe = Math.max(0, Math.round(secPerKm));
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')} /km`;
 }

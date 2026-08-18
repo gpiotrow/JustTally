@@ -312,6 +312,7 @@ export function Plan() {
             <PlanCatalog exercises={exercises} />
             <PlanWeekGrid
               week={currentWeek(draft)}
+              exercises={exercises}
               selectedSlot={selectedSlot}
               onSelectSlot={setSelectedSlot}
               onRemoveExercise={removeExercise}
@@ -323,6 +324,7 @@ export function Plan() {
             />
             <PlanDetailPanel
               exercise={selectedExercise}
+              exercises={exercises}
               onChange={updateSlot}
               onRemoveAlternative={removeAlternative}
             />

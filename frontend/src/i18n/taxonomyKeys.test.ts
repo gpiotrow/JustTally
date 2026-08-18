@@ -6,6 +6,8 @@ import { MUSCLE_GROUPS } from '../lib/muscles';
 import { EQUIPMENT_ITEMS } from '../lib/equipment';
 import { GOAL_ITEMS } from '../lib/goals';
 import { CATEGORIES } from '../lib/types';
+import { TRACKING_MODES } from '../lib/tracking';
+import { MACHINE_SETTINGS } from '../lib/machineSettings';
 
 /**
  * Taxonomy labels are looked up dynamically — `t(\`muscle.${code}\` as TKey)` —
@@ -24,6 +26,8 @@ const TAXONOMIES: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['equipment', EQUIPMENT_ITEMS],
   ['goal', GOAL_ITEMS],
   ['category', CATEGORIES],
+  ['tracking', TRACKING_MODES],
+  ['setting', MACHINE_SETTINGS],
 ];
 
 describe('every taxonomy code has a label in every language', () => {

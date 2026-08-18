@@ -1,5 +1,6 @@
 import { del, get, set } from 'idb-keyval';
 import type { SetType } from './types';
+import type { TrackingMode } from './tracking';
 
 /**
  * A snapshot of an in-progress workout, written locally well before the
@@ -12,6 +13,8 @@ import type { SetType } from './types';
 export interface WorkoutDraftSet {
   reps: string;
   weight: string;
+  duration: string;
+  distance: string;
   type: SetType;
   done: boolean;
   completedAt?: number;
@@ -24,6 +27,15 @@ export interface WorkoutDraftEntry {
   exerciseName: string;
   groupId?: string;
   plannedExerciseId?: string;
+  /**
+   * The tracking mode frozen on this entry when it was loaded from an
+   * existing saved session; absent for an entry added fresh this session,
+   * whose effective mode is resolved live from the current catalog until
+   * save freezes it. Mirrors `WorkoutEntry.tracking` — see `types.ts`.
+   */
+  tracking?: TrackingMode;
+  /** Mirrors `WorkoutEntry.settings` — see `types.ts`. */
+  settings?: Record<string, string>;
   sets: WorkoutDraftSet[];
 }
 

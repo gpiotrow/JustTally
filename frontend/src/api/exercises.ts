@@ -3,6 +3,8 @@ import type { Exercise, Difficulty } from '../lib/types';
 import type { MuscleGroup } from '../lib/muscles';
 import type { EquipmentItem } from '../lib/equipment';
 import type { GoalItem } from '../lib/goals';
+import type { TrackingMode } from '../lib/tracking';
+import type { MachineSetting } from '../lib/machineSettings';
 
 interface ExercisesResponse {
   exercises: Exercise[];
@@ -30,6 +32,10 @@ export interface ExerciseInput {
   equipment?: EquipmentItem[];
   /** Training-goal tags; omitted leaves whatever is stored unchanged. */
   goals?: GoalItem[];
+  /** Which fields a set of this exercise records; omitted defaults to 'reps_weight'. */
+  tracking?: TrackingMode;
+  /** Adjustable machine settings this exercise exposes; omitted leaves whatever is stored unchanged. */
+  settings?: MachineSetting[];
 }
 
 /**
@@ -79,6 +85,8 @@ const CSV_COLUMNS = [
   'instructions_es',
   'equipment',
   'goals',
+  'tracking',
+  'settings',
 ];
 
 /** How many workouts (and distinct users) reference an exercise. */
@@ -292,6 +300,8 @@ export function csvTemplate(): string {
     'Empuja la barra por encima de la cabeza. Mantén los codos ligeramente delante de la barra.',
     'barbell,bench',
     'strength,muscle_gain',
+    'reps_weight',
+    '',
   ];
   return `${CSV_COLUMNS.join(';')}\n${example.map((v) => `"${v}"`).join(';')}\n`;
 }

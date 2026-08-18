@@ -1,12 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
   convertWeightInput,
+  formatDistanceInput,
+  formatDistanceWithUnit,
+  formatDurationInput,
   formatNumber,
+  formatPaceWithUnit,
   formatWeightInput,
   formatWeightWithUnit,
   isUnit,
   kgToUnit,
   parseDecimalInput,
+  parseDistanceInput,
+  parseDurationInput,
   parseRepsInput,
   unitToKg,
   weightInputToKg,
@@ -138,5 +144,97 @@ describe('formatWeightWithUnit', () => {
   it('labels the converted value', () => {
     expect(formatWeightWithUnit(62.5, 'kg')).toBe('62.5 kg');
     expect(formatWeightWithUnit(45.359237, 'lb')).toBe('100 lb');
+  });
+});
+
+describe('parseDurationInput', () => {
+  it('accepts plain seconds', () => {
+    expect(parseDurationInput('90')).toBe(90);
+    expect(parseDurationInput('0')).toBe(0);
+  });
+
+  it('accepts an m:ss pair', () => {
+    expect(parseDurationInput('1:30')).toBe(90);
+    expect(parseDurationInput('01:05')).toBe(65);
+    expect(parseDurationInput('10:00')).toBe(600);
+  });
+
+  it('accepts a single-digit seconds half — sloppy input beats a rejected field', () => {
+    expect(parseDurationInput('1:9')).toBe(69);
+  });
+
+  it('rounds a fractional plain-seconds input', () => {
+    expect(parseDurationInput('12.6')).toBe(13);
+  });
+
+  it.each(['', '   ', 'abc', '-5', '1:60'])('returns undefined for %o', (raw) => {
+    expect(parseDurationInput(raw)).toBeUndefined();
+  });
+
+  it('distinguishes blank from zero', () => {
+    expect(parseDurationInput('')).toBeUndefined();
+    expect(parseDurationInput('0')).toBe(0);
+  });
+});
+
+describe('formatDurationInput', () => {
+  it('renders an empty string for an unset duration', () => {
+    expect(formatDurationInput(undefined)).toBe('');
+  });
+
+  it('renders whole seconds as typed', () => {
+    expect(formatDurationInput(90)).toBe('90');
+    expect(formatDurationInput(0)).toBe('0');
+  });
+});
+
+describe('parseDistanceInput', () => {
+  it('accepts a non-negative number of meters', () => {
+    expect(parseDistanceInput('1000')).toBe(1000);
+    expect(parseDistanceInput('5,5')).toBe(5.5);
+  });
+
+  it('rejects negative distances', () => {
+    expect(parseDistanceInput('-5')).toBeUndefined();
+  });
+
+  it('returns undefined for blank input rather than zero', () => {
+    expect(parseDistanceInput('')).toBeUndefined();
+  });
+});
+
+describe('formatDistanceInput', () => {
+  it('renders an empty string for an unset distance', () => {
+    expect(formatDistanceInput(undefined)).toBe('');
+  });
+
+  it('renders meters without trailing zeros', () => {
+    expect(formatDistanceInput(1000)).toBe('1000');
+    expect(formatDistanceInput(5.5)).toBe('5.5');
+  });
+});
+
+describe('formatDistanceWithUnit', () => {
+  it('shows meters below 1 km', () => {
+    expect(formatDistanceWithUnit(400)).toBe('400 m');
+  });
+
+  it('switches to kilometers at 1000 m', () => {
+    expect(formatDistanceWithUnit(1000)).toBe('1 km');
+    expect(formatDistanceWithUnit(5500)).toBe('5.5 km');
+  });
+});
+
+describe('formatPaceWithUnit', () => {
+  it('formats seconds per kilometer as mm:ss /km', () => {
+    expect(formatPaceWithUnit(312)).toBe('5:12 /km');
+  });
+
+  it('pads seconds under 10', () => {
+    expect(formatPaceWithUnit(305)).toBe('5:05 /km');
+  });
+
+  it('clamps a negative pace to zero rather than showing a negative time', () => {
+    expect(formatPaceWithUnit(-5)).toBe('0:00 /km');
   });
 });

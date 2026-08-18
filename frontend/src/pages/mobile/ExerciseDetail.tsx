@@ -3,12 +3,12 @@ import { Link, useParams } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useFavorites } from '../../hooks/useFavorites';
 import { getExercise } from '../../api/exercises';
-import { CategoryBadge, DifficultyBadge, Spinner, EmptyState, ErrorBanner } from '../../components/ui';
+import { CategoryBadge, DifficultyBadge, TrackingBadge, Spinner, EmptyState, ErrorBanner } from '../../components/ui';
 import { useLanguage, type TKey } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { ImageLightbox } from '../../components/ImageLightbox';
-import type { Exercise } from '../../lib/types';
+import { exerciseTracking, exerciseSettings, type Exercise } from '../../lib/types';
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -75,6 +75,7 @@ export function ExerciseDetail() {
           <div className="mt-2 flex flex-wrap gap-1.5">
             <CategoryBadge category={exercise.category} />
             <DifficultyBadge difficulty={exercise.difficulty} />
+            <TrackingBadge tracking={exerciseTracking(exercise)} />
             {exercise.equipment.map((item) => (
               <span key={item} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted">
                 {t(`equipment.${item}` as TKey)}
@@ -169,6 +170,21 @@ export function ExerciseDetail() {
           <p className="text-fg-subtle">{t('detail.noInstructions')}</p>
         )}
       </section>
+
+      {exerciseSettings(exercise).length > 0 && (
+        <section className="card p-4">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg-muted">
+            {t('detail.settings')}
+          </h2>
+          <div className="flex flex-wrap gap-1.5">
+            {exerciseSettings(exercise).map((code) => (
+              <span key={code} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-fg-muted">
+                {t(`setting.${code}` as TKey)}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Link to={`/exercise/${exercise.id}/stats`} className="btn-ghost w-full">
         {t('detail.viewStats')}

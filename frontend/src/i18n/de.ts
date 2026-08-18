@@ -77,6 +77,7 @@ export const de = {
   'detail.addToWorkout': 'Zum Training hinzufügen',
   'detail.archived': 'Archiviert',
   'detail.viewStats': 'Statistiken ansehen',
+  'detail.settings': 'Maschineneinstellungen',
 
   // Image lightbox
   'lightbox.previous': 'Vorheriges Foto',
@@ -95,8 +96,11 @@ export const de = {
   'workout.reps': 'Wdh.',
   // Ohne Einheit im Text: die hängt an der Nutzereinstellung und wird angehängt.
   'workout.weight': 'Gewicht',
+  'workout.setDuration': 'Dauer',
+  'workout.setDistance': 'Distanz (m)',
   'workout.doneColumn': 'Erledigt',
   'workout.addSet': '+ Satz',
+  'workout.settings': 'Einstellungen',
   'workout.addExercise': '+ Übung hinzufügen',
   'workout.pickTitle': 'Übung wählen',
   'workout.editTitle': 'Training bearbeiten',
@@ -187,6 +191,10 @@ export const de = {
   'history.recordKind.weight': 'Gewicht',
   'history.recordKind.e1rm': 'geschätztes 1RM',
   'history.recordKind.setVolume': 'Satzvolumen',
+  'history.recordKind.reps': 'Wiederholungen',
+  'history.recordKind.duration': 'Dauer',
+  'history.recordKind.distance': 'Distanz',
+  'history.recordKind.pace': 'Pace',
 
   // Exercise stats
   'stats.title': 'Statistik: {name}',
@@ -197,11 +205,20 @@ export const de = {
   'stats.maxWeight': 'Höchstes Gewicht',
   'stats.maxE1rm': 'Bestes geschätztes 1RM',
   'stats.maxSetVolume': 'Größtes Satzvolumen',
+  'stats.maxReps': 'Meiste Wiederholungen',
+  'stats.maxDuration': 'Längste Dauer',
+  'stats.maxDistance': 'Weiteste Distanz',
+  'stats.bestPace': 'Beste Pace',
   'stats.e1rmCaveat': 'Grobe Schätzung — viele Wiederholungen machen die Formel unzuverlässig',
   'stats.e1rmHistory': 'Verlauf: geschätztes 1RM',
   'stats.e1rmHint':
     'Geschätzt nach der Epley-Formel. Ab {maxReps}+ Wiederholungen im besten Satz wird die Schätzung unzuverlässig — solche Punkte erscheinen als Kreis ohne Füllung.',
   'stats.volumeHistory': 'Verlauf: Volumen',
+  'stats.repsHistory': 'Verlauf: Wiederholungen',
+  'stats.durationHistory': 'Verlauf: Dauer',
+  'stats.weightHistory': 'Verlauf: Gewicht',
+  'stats.distanceHistory': 'Verlauf: Distanz',
+  'stats.paceHistory': 'Verlauf: Pace',
   'stats.relativeStrength': 'Relative Kraft',
   'stats.wilks': 'Wilks',
   'stats.dots': 'DOTS',
@@ -315,6 +332,10 @@ export const de = {
   'form.equipmentHint': 'Was für diese Übung gebraucht wird.',
   'form.goals': 'Trainingsziele',
   'form.goalsHint': 'Wofür diese Übung geeignet ist.',
+  'form.tracking': 'Erfassung',
+  'form.trackingHint': 'Welche Felder beim Training für diese Übung erfasst werden.',
+  'form.settings': 'Maschineneinstellungen',
+  'form.settingsHint': 'Welche Einstellungen diese Maschine hat — beim Training werden dafür Werte abgefragt.',
   'form.instructionsPlaceholder': 'Schritt-für-Schritt Anleitung…',
   'form.saveChanges': 'Änderungen speichern',
   'form.create': 'Übung erstellen',
@@ -423,6 +444,8 @@ export const de = {
   'routines.addDay': '+ Tag hinzufügen',
   'routines.targetSets': 'Ziel-Sätze',
   'routines.targetReps': 'Ziel-Wdh.',
+  'routines.targetDuration': 'Ziel-Dauer (Sek.)',
+  'routines.targetDistance': 'Ziel-Distanz (m)',
   'routines.alternatives': 'Alternativen',
   'routines.addAlternative': '+ Alternative',
   'routines.removeAlternative': 'Alternative {name} entfernen',
@@ -505,6 +528,29 @@ export const de = {
   'goal.strength': 'Kraftsteigerung',
   'goal.muscle_gain': 'Muskelaufbau',
   'goal.rehab_prevention': 'Rehabilitation/Prävention',
+
+  // Tracking mode labels
+  'tracking.reps_weight': 'Wiederholungen & Gewicht',
+  'tracking.reps': 'Nur Wiederholungen',
+  'tracking.time': 'Nur Zeit',
+  'tracking.time_weight': 'Zeit & Gewicht',
+  'tracking.distance_time': 'Distanz & Zeit',
+
+  // Machine setting labels
+  'setting.seat_height': 'Sitzhöhe',
+  'setting.seat_depth': 'Sitztiefe',
+  'setting.back_pad': 'Rückenpolster',
+  'setting.chest_pad': 'Brustpolster',
+  'setting.leg_pad': 'Beinpolster',
+  'setting.thigh_pad': 'Oberschenkelpolster',
+  'setting.lever_arm': 'Hebelarm',
+  'setting.range_limiter': 'Bewegungsbegrenzer',
+  'setting.foot_plate': 'Fußplatte',
+  'setting.handle_position': 'Griffposition',
+  'setting.cable_height': 'Seilzughöhe',
+  'setting.bench_angle': 'Bankwinkel',
+  'setting.safety_pins': 'Sicherheitsstifte',
+  'setting.resistance_level': 'Widerstandsstufe',
 } as const;
 
 export type TKey = keyof typeof de;

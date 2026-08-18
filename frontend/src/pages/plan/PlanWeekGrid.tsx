@@ -1,5 +1,6 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import type { RoutineDay, RoutineWeek } from '../../lib/types';
+import { exerciseTracking, type Exercise, type RoutineDay, type RoutineWeek } from '../../lib/types';
+import { targetSummary } from '../../lib/routineTargets';
 import { useT } from '../../i18n';
 
 interface SlotRef {
@@ -10,17 +11,23 @@ interface SlotRef {
 function ExerciseSlot({
   day,
   index,
+  exercises,
   selected,
   onSelect,
   onRemove,
 }: {
   day: RoutineDay;
   index: number;
+  exercises: Exercise[];
   selected: boolean;
   onSelect: () => void;
   onRemove: () => void;
 }) {
   const exercise = day.exercises[index];
+  // Absent from the catalog (deleted, or not yet loaded) falls back to the
+  // same default `exerciseTracking` uses elsewhere.
+  const catalogExercise = exercises.find((e) => e.id === exercise.exerciseId);
+  const mode = catalogExercise ? exerciseTracking(catalogExercise) : 'reps_weight';
   const dragId = `slot-${day.id}-${index}`;
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: dragId,
@@ -58,7 +65,7 @@ function ExerciseSlot({
         </button>
       </div>
       <p className="mt-0.5 text-xs text-fg-subtle">
-        {exercise.targetSets}× {exercise.targetReps ?? '–'}
+        {exercise.targetSets}× {targetSummary(exercise, mode)}
         {exercise.alternatives.length > 0 ? ` · +${exercise.alternatives.length}` : ''}
       </p>
     </li>
@@ -67,6 +74,7 @@ function ExerciseSlot({
 
 function DayColumn({
   day,
+  exercises,
   selectedSlot,
   onSelectSlot,
   onRemoveExercise,
@@ -76,6 +84,7 @@ function DayColumn({
   copyTargets,
 }: {
   day: RoutineDay;
+  exercises: Exercise[];
   selectedSlot: SlotRef | null;
   onSelectSlot: (slot: SlotRef) => void;
   onRemoveExercise: (index: number) => void;
@@ -127,6 +136,7 @@ function DayColumn({
             key={index}
             day={day}
             index={index}
+            exercises={exercises}
             selected={selectedSlot?.dayId === day.id && selectedSlot.index === index}
             onSelect={() => onSelectSlot({ dayId: day.id, index })}
             onRemove={() => onRemoveExercise(index)}
@@ -145,6 +155,7 @@ function DayColumn({
 /** Middle column: one horizontally scrollable row of day columns for the active week. */
 export function PlanWeekGrid({
   week,
+  exercises,
   selectedSlot,
   onSelectSlot,
   onRemoveExercise,
@@ -155,6 +166,7 @@ export function PlanWeekGrid({
   copyTargets,
 }: {
   week: RoutineWeek;
+  exercises: Exercise[];
   selectedSlot: SlotRef | null;
   onSelectSlot: (slot: SlotRef) => void;
   onRemoveExercise: (dayId: string, index: number) => void;
@@ -171,6 +183,7 @@ export function PlanWeekGrid({
         <DayColumn
           key={day.id}
           day={day}
+          exercises={exercises}
           selectedSlot={selectedSlot}
           onSelectSlot={onSelectSlot}
           onRemoveExercise={(index) => onRemoveExercise(day.id, index)}

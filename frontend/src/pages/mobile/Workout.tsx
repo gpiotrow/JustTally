@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useWorkouts } from '../../hooks/useWorkouts';
@@ -8,22 +8,31 @@ import { Modal, Spinner, EmptyState, ErrorBanner, PendingSyncChip } from '../../
 import { ExercisePicker } from '../../components/ExercisePicker';
 import { PlateCalculator } from '../../components/PlateCalculator';
 import { NumberField } from '../../components/NumberField';
+import { DurationField } from '../../components/DurationField';
 import { SetTypeToggle } from '../../components/SetTypeToggle';
 import { RpePicker } from '../../components/RpePicker';
 import { PlatesIcon, CheckIcon } from '../../components/icons';
 import {
   setType,
+  entryTracking,
   type WorkoutEntry,
   type WorkoutSession,
   type WorkoutSet,
   type SetType,
   type RoutineAlternative,
+  type Exercise,
 } from '../../lib/types';
+import { TRACKING_FIELDS, type TrackingField, type TrackingMode } from '../../lib/tracking';
 import {
   convertWeightInput,
   formatWeightInput,
   formatWeightWithUnit,
+  formatDistanceWithUnit,
+  formatDurationInput,
+  formatDistanceInput,
   parseRepsInput,
+  parseDurationInput,
+  parseDistanceInput,
   weightInputToKg,
   weightStep,
   type Unit,
@@ -38,9 +47,11 @@ import {
 } from '../../lib/supersets';
 import { shouldSwipe } from '../../lib/swipeGesture';
 import { exerciseRecency } from '../../lib/exerciseRecency';
-import { findNewRecords, newRecordKinds, type NewPR } from '../../lib/analytics/records';
+import { formatDuration } from '../../lib/restTimer';
+import { findNewRecords, newRecordKinds, RECORD_KINDS_BY_TRACKING, type NewPR } from '../../lib/analytics/records';
+import { lastSettingsFor } from '../../lib/analytics/lastSettings';
 import type { RoutineInstantiation } from '../../lib/routineInstantiate';
-import { useLanguage } from '../../i18n';
+import { useLanguage, type TKey } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
 import { useRpeVisibility } from '../../hooks/useRpeVisibility';
 import {
@@ -56,6 +67,22 @@ const SWAP_HINT_SEEN_KEY = 'jt_swap_hint_seen';
 const UNDO_TOAST_MS = 6000;
 /** Debounce for the local draft snapshot — frequent enough that a kill mid-set loses at most a keystroke, rare enough not to hammer IndexedDB on every character. */
 const DRAFT_SAVE_DEBOUNCE_MS = 800;
+/** Seconds per stepper tap on a duration field — fine enough for a hold, coarse enough not to take forever to reach a minute. */
+const DURATION_STEP_SEC = 5;
+/** Meters per stepper tap on a distance field. */
+const DISTANCE_STEP_M = 50;
+
+/**
+ * Grid columns for one set row: the type toggle, one column per tracking
+ * field, and the done button. Both literal class strings must appear
+ * verbatim in this file for Tailwind's static scan to pick them up — this
+ * function only chooses between them, never composes one at runtime.
+ */
+function setRowGridClass(fieldCount: number): string {
+  return fieldCount === 1
+    ? 'grid-cols-[2.75rem,1fr,3.25rem]'
+    : 'grid-cols-[2.75rem,1fr,1fr,3.25rem]';
+}
 
 /**
  * Sets under edit hold the raw text of each field rather than a number.
@@ -68,6 +95,10 @@ const DRAFT_SAVE_DEBOUNCE_MS = 800;
 interface DraftSet {
   reps: string;
   weight: string;
+  /** Plain seconds as typed; see `DurationField`. Only meaningful for time-tracked modes. */
+  duration: string;
+  /** Meters as typed. Only meaningful for the distance_time mode. */
+  distance: string;
   type: SetType;
   done: boolean;
   completedAt?: number;
@@ -85,6 +116,22 @@ interface DraftEntry {
   /** Which routine exercise this entry started from — set once, at instantiation, never by editing. */
   plannedExerciseId?: string;
   /**
+   * The tracking mode frozen on this entry, if it was loaded from an
+   * existing saved session. Absent for an entry added fresh this session —
+   * its effective mode (`effectiveTracking` below) is resolved live from the
+   * current catalog until save freezes it onto `WorkoutEntry.tracking`.
+   * Cleared on a swap to a different exercise, so a stale frozen mode from
+   * before the swap never survives it.
+   */
+  tracking?: TrackingMode;
+  /**
+   * Machine-setting values for this entry, keyed by code — only ever holds
+   * keys the exercise actually exposes (`Exercise.settings`). Cleared the
+   * same way `tracking` is on a swap: the values belonged to the exercise
+   * being left behind.
+   */
+  settings?: Record<string, string>;
+  /**
    * Plan B, Plan C for the swipe/tap swap gesture. Only ever present on an
    * entry started from a routine; never saved onto `WorkoutEntry` — a swap
    * changes this session, not the plan's list of alternatives.
@@ -98,10 +145,40 @@ interface DraftEntry {
    * what was actually lifted last time, which matters more mid-set. Purely
    * local to this editing session, never saved.
    */
-  target?: { reps?: string; weight?: number; rpe?: number; restSeconds?: number };
+  target?: {
+    reps?: string;
+    weight?: number;
+    durationSec?: number;
+    distanceM?: number;
+    rpe?: number;
+    restSeconds?: number;
+  };
 }
 
-const blankSet = (): DraftSet => ({ reps: '', weight: '', type: 'working', done: false });
+const blankSet = (): DraftSet => ({
+  reps: '',
+  weight: '',
+  duration: '',
+  distance: '',
+  type: 'working',
+  done: false,
+});
+
+/** The catalog's tracking mode for an exercise, or the default when the catalog has no entry for it (not yet loaded, or the exercise was since removed). */
+function trackingModeFor(exercises: Exercise[], exerciseId: string): TrackingMode {
+  const exercise = exercises.find((e) => e.id === exerciseId);
+  return exercise?.tracking ?? 'reps_weight';
+}
+
+/**
+ * The mode an entry's fields are shown and saved under: the frozen mode if
+ * this entry was loaded from an existing session, otherwise resolved live
+ * from the current catalog. Freezing itself only happens at save time
+ * (`toSavedEntries`) — a brand-new entry has nothing to freeze yet.
+ */
+function effectiveTracking(entry: Pick<DraftEntry, 'tracking' | 'exerciseId'>, exercises: Exercise[]): TrackingMode {
+  return entry.tracking ?? trackingModeFor(exercises, entry.exerciseId);
+}
 
 /** Convert an epoch ms timestamp to a local `datetime-local` input value (no seconds). */
 function toLocalInputValue(ms: number): string {
@@ -123,9 +200,13 @@ function toDraftEntries(entries: WorkoutEntry[], unit: Unit): DraftEntry[] {
     exerciseName: entry.exerciseName,
     groupId: entry.groupId,
     plannedExerciseId: entry.plannedExerciseId,
+    tracking: entry.tracking,
+    settings: entry.settings,
     sets: entry.sets.map((s) => ({
       reps: String(s.reps),
       weight: formatWeightInput(s.weight, unit),
+      duration: formatDurationInput(s.durationSec),
+      distance: formatDistanceInput(s.distanceM),
       type: setType(s),
       // Sets that predate check-off were logged after the fact; treating them
       // as unfinished would reopen every workout in the history.
@@ -136,14 +217,30 @@ function toDraftEntries(entries: WorkoutEntry[], unit: Unit): DraftEntry[] {
   }));
 }
 
-const isBlank = (s: DraftSet) => s.reps.trim() === '' && s.weight.trim() === '';
+// All four raw fields, not just reps/weight — a set logged under a time or
+// distance mode never touches reps/weight at all, so checking only those two
+// would silently drop it as "never filled in" (see § tracking-modes plan, UI).
+const isBlank = (s: DraftSet) =>
+  s.reps.trim() === '' && s.weight.trim() === '' && s.duration.trim() === '' && s.distance.trim() === '';
+
+/**
+ * A field the user opened but left blank is not a value to save — dropping it
+ * here keeps a later "last time" placeholder from showing an empty string
+ * instead of falling through to nothing. `undefined` when nothing is left,
+ * so it can be spread away entirely rather than saved as `{}`.
+ */
+function filledSettings(settings: Record<string, string> | undefined): Record<string, string> | undefined {
+  if (!settings) return undefined;
+  const filled = Object.fromEntries(Object.entries(settings).filter(([, v]) => v.trim() !== ''));
+  return Object.keys(filled).length > 0 ? filled : undefined;
+}
 
 /**
  * Rows the user never filled in are sets they never did — dropping them keeps
  * "0 ×" phantoms out of the history, and entries left with nothing at all go
  * with them.
  */
-function toSavedEntries(entries: DraftEntry[], unit: Unit): WorkoutEntry[] {
+function toSavedEntries(entries: DraftEntry[], unit: Unit, exercises: Exercise[]): WorkoutEntry[] {
   return entries
     .map((entry) => ({
       exerciseId: entry.exerciseId,
@@ -153,11 +250,20 @@ function toSavedEntries(entries: DraftEntry[], unit: Unit): WorkoutEntry[] {
       ...(entry.plannedExerciseId !== undefined
         ? { plannedExerciseId: entry.plannedExerciseId }
         : {}),
+      // Frozen here, at save time: an entry loaded from an existing session
+      // keeps the mode it was logged under, a fresh one takes whatever the
+      // catalog says right now — see `effectiveTracking`.
+      tracking: effectiveTracking(entry, exercises),
+      ...(filledSettings(entry.settings) ? { settings: filledSettings(entry.settings) } : {}),
       sets: entry.sets.filter((s) => !isBlank(s)).map((s): WorkoutSet => {
         const weight = weightInputToKg(s.weight, unit);
+        const durationSec = parseDurationInput(s.duration);
+        const distanceM = parseDistanceInput(s.distance);
         return {
           reps: parseRepsInput(s.reps) ?? 0,
           ...(weight !== undefined ? { weight } : {}),
+          ...(durationSec !== undefined ? { durationSec } : {}),
+          ...(distanceM !== undefined ? { distanceM } : {}),
           type: s.type,
           done: s.done,
           ...(s.completedAt !== undefined ? { completedAt: s.completedAt } : {}),
@@ -181,6 +287,8 @@ function toDraftSnapshot(entry: DraftEntry): WorkoutDraftEntry {
     exerciseName: entry.exerciseName,
     groupId: entry.groupId,
     plannedExerciseId: entry.plannedExerciseId,
+    tracking: entry.tracking,
+    settings: entry.settings,
     sets: entry.sets.map((s) => ({ ...s })),
   };
 }
@@ -192,6 +300,8 @@ function fromDraftSnapshot(entry: WorkoutDraftEntry): DraftEntry {
     exerciseName: entry.exerciseName,
     groupId: entry.groupId,
     plannedExerciseId: entry.plannedExerciseId,
+    tracking: entry.tracking,
+    settings: entry.settings,
     sets: entry.sets.map((s) => ({ ...s })),
   };
 }
@@ -209,6 +319,8 @@ function instantiationToDraftEntries(instantiation: RoutineInstantiation): Draft
     target: {
       reps: ex.targetReps,
       weight: ex.targetWeight,
+      durationSec: ex.targetDurationSec,
+      distanceM: ex.targetDistanceM,
       rpe: ex.targetRpe,
       restSeconds: ex.restSeconds,
     },
@@ -306,6 +418,8 @@ function WorkoutEditor({
   );
   /** Entries checked for the next "group as superset" action. */
   const [selectedForGroup, setSelectedForGroup] = useState<Set<number>>(new Set());
+  /** Entries whose machine-settings panel is open — closed by default, so a plain reps/weight workout never shows it. */
+  const [expandedSettings, setExpandedSettings] = useState<Set<number>>(new Set());
   /** `'add'` appends a new entry; an index replaces that entry's exercise instead. */
   const [picking, setPicking] = useState<'add' | number | false>(false);
   /** Entry index whose alternatives list is open (tap on the exercise name). */
@@ -323,7 +437,13 @@ function WorkoutEditor({
     | {
         kind: 'swap';
         ei: number;
-        previous: { exerciseId: string; exerciseRef?: number; exerciseName: string };
+        previous: {
+          exerciseId: string;
+          exerciseRef?: number;
+          exerciseName: string;
+          tracking?: TrackingMode;
+          settings?: Record<string, string>;
+        };
         showHint: boolean;
       }
     | { kind: 'remove'; entries: DraftEntry[]; selectedForGroup: Set<number>; exerciseName: string }
@@ -525,7 +645,10 @@ function WorkoutEditor({
     [sessions, initial?.id]
   );
 
-  const savedEntries = useMemo(() => toSavedEntries(entries, unit), [entries, unit]);
+  const savedEntries = useMemo(
+    () => toSavedEntries(entries, unit, exercises),
+    [entries, unit, exercises]
+  );
 
   /** A/B/C per entry within its superset; `undefined` for ungrouped entries. */
   const letters = useMemo(() => groupLetters(entries), [entries]);
@@ -567,9 +690,16 @@ function WorkoutEditor({
       exerciseId: entry.exerciseId,
       exerciseRef: entry.exerciseRef,
       exerciseName: entry.exerciseName,
+      tracking: entry.tracking,
+      settings: entry.settings,
     };
     setEntries((prev) =>
-      prev.map((e, i) => (i !== ei ? e : { ...e, ...next }))
+      // Clears any frozen tracking mode and logged settings along with the
+      // swap: both belonged to the exercise being left behind. Tracking
+      // resolves its own live from the catalog (`effectiveTracking`) until
+      // this entry is saved; settings simply has nothing to show until the
+      // new exercise's own slots are filled in.
+      prev.map((e, i) => (i !== ei ? e : { ...e, ...next, tracking: undefined, settings: undefined }))
     );
     const seenHint = localStorage.getItem(SWAP_HINT_SEEN_KEY) === 'true';
     if (!seenHint) localStorage.setItem(SWAP_HINT_SEEN_KEY, 'true');
@@ -609,6 +739,23 @@ function WorkoutEditor({
           : { ...entry, sets: entry.sets.map((s, j) => (j !== si ? s : { ...s, ...patch })) }
       )
     );
+  }
+
+  function updateEntrySetting(ei: number, code: string, value: string) {
+    setEntries((prev) =>
+      prev.map((entry, i) =>
+        i !== ei ? entry : { ...entry, settings: { ...entry.settings, [code]: value } }
+      )
+    );
+  }
+
+  function toggleSettingsExpanded(ei: number) {
+    setExpandedSettings((prev) => {
+      const next = new Set(prev);
+      if (next.has(ei)) next.delete(ei);
+      else next.add(ei);
+      return next;
+    });
   }
 
   function addSet(ei: number) {
@@ -652,12 +799,25 @@ function WorkoutEditor({
       });
       return next;
     });
+    setExpandedSettings((prev) => {
+      const next = new Set<number>();
+      prev.forEach((i) => {
+        if (i === ei) return;
+        next.add(i > ei ? i - 1 : i);
+      });
+      return next;
+    });
   }
 
   function undoRemove() {
     if (!undo || undo.kind !== 'remove') return;
     setEntries(undo.entries);
     setSelectedForGroup(undo.selectedForGroup);
+    // Not restored to its pre-removal mapping: it is display-only state, and
+    // the indices `removeEntry` shifted have no matching "undo" snapshot the
+    // way `selectedForGroup` does. Closing every panel is a safe default —
+    // wrong, but never misleadingly wrong.
+    setExpandedSettings(new Set());
     setUndo(null);
   }
 
@@ -740,10 +900,17 @@ function WorkoutEditor({
     const exerciseIds = [...new Set(savedEntries.map((e) => e.exerciseId))];
     const newPRs: NewPR[] = exerciseIds
       .map((exerciseId): NewPR | null => {
-        const kinds = newRecordKinds(findNewRecords(priorSessions, session, exerciseId));
+        const savedEntry = savedEntries.find((e) => e.exerciseId === exerciseId)!;
+        // Every record kind is computed unconditionally (see
+        // `computeExerciseRecords`), so this narrows "everything that
+        // changed" down to what this entry's own tracking mode actually
+        // means — a bench-press session never announces a "reps record".
+        const relevant = RECORD_KINDS_BY_TRACKING[entryTracking(savedEntry)];
+        const kinds = newRecordKinds(findNewRecords(priorSessions, session, exerciseId)).filter((k) =>
+          relevant.includes(k)
+        );
         if (kinds.length === 0) return null;
-        const exerciseName = savedEntries.find((e) => e.exerciseId === exerciseId)!.exerciseName;
-        return { exerciseId, exerciseName, kinds };
+        return { exerciseId, exerciseName: savedEntry.exerciseName, kinds };
       })
       .filter((pr): pr is NewPR => pr !== null);
 
@@ -775,16 +942,22 @@ function WorkoutEditor({
 
   /** Plate calculator / remove — shared between a standalone card and a group member's row. */
   function renderEntryActions(ei: number) {
+    const entry = entries[ei];
+    // No weight is ever logged under this mode — a plate calculator for a
+    // plank or a bodyweight pull-up has nothing to compute.
+    const showPlates = entry && TRACKING_FIELDS[effectiveTracking(entry, exercises)].includes('weight');
     return (
       <div className="flex shrink-0 items-center">
-        <button
-          onClick={() => setPlateEntry(ei)}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-fg-subtle transition hover:bg-surface-2 hover:text-fg"
-          aria-label={t('plates.open')}
-          title={t('plates.open')}
-        >
-          <PlatesIcon width={20} height={20} />
-        </button>
+        {showPlates && (
+          <button
+            onClick={() => setPlateEntry(ei)}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-fg-subtle transition hover:bg-surface-2 hover:text-fg"
+            aria-label={t('plates.open')}
+            title={t('plates.open')}
+          >
+            <PlatesIcon width={20} height={20} />
+          </button>
+        )}
         <button
           onClick={() => removeEntry(ei)}
           className="inline-flex min-h-11 items-center rounded-xl px-3 text-xs text-fg-subtle transition hover:bg-surface-2 hover:text-danger"
@@ -803,10 +976,23 @@ function WorkoutEditor({
    */
   function renderExerciseName(ei: number, entry: DraftEntry, letter?: string) {
     const target = entry.target;
+    // Only the fields this entry's own mode actually uses — a routine slot
+    // can carry stale targets from before a swap or a mode change, and
+    // showing e.g. a leftover target duration on a reps_weight lift would be
+    // exactly the kind of irrelevant-field noise tracking modes exist to cut.
+    const fields = TRACKING_FIELDS[effectiveTracking(entry, exercises)];
     const targetHint = target
       ? [
-          target.reps ? `${target.reps} ${t('workout.reps')}` : null,
-          target.weight != null ? formatWeightWithUnit(target.weight, unit) : null,
+          fields.includes('reps') && target.reps ? `${target.reps} ${t('workout.reps')}` : null,
+          fields.includes('weight') && target.weight != null
+            ? formatWeightWithUnit(target.weight, unit)
+            : null,
+          fields.includes('duration') && target.durationSec != null
+            ? formatDuration(target.durationSec)
+            : null,
+          fields.includes('distance') && target.distanceM != null
+            ? formatDistanceWithUnit(target.distanceM)
+            : null,
           target.rpe != null ? `RPE ${target.rpe}` : null,
         ]
           .filter((part): part is string => part !== null)
@@ -845,27 +1031,120 @@ function WorkoutEditor({
     );
   }
 
+  /** The header label for one tracking-field column. */
+  function fieldHeaderLabel(field: TrackingField): string {
+    switch (field) {
+      case 'reps':
+        return t('workout.reps');
+      case 'weight':
+        return `${t('workout.weight')} (${unit})`;
+      case 'duration':
+        return t('workout.setDuration');
+      case 'distance':
+        return t('workout.setDistance');
+    }
+  }
+
+  /** One set row's field for a given tracking mode. `inputRef` is only wired on the row's first field, so the check-off jump lands somewhere real regardless of mode. */
+  function renderTrackingField(
+    field: TrackingField,
+    ei: number,
+    si: number,
+    set: DraftSet,
+    last: WorkoutSet | undefined,
+    isPrimary: boolean
+  ) {
+    const inputRef = isPrimary ? registerReps(`${ei}:${si}`) : undefined;
+    const label = fieldHeaderLabel(field);
+    const fieldLabel = `${t('workout.set')} ${si + 1} — ${label}`;
+    const stepUpLabel = t('set.more', { label });
+    const stepDownLabel = t('set.less', { label });
+
+    switch (field) {
+      case 'reps':
+        return (
+          <NumberField
+            inputRef={inputRef}
+            value={set.reps}
+            onChange={(reps) => updateSet(ei, si, { reps })}
+            step={1}
+            min={0}
+            integer
+            label={fieldLabel}
+            stepUpLabel={stepUpLabel}
+            stepDownLabel={stepDownLabel}
+            placeholder={last ? String(last.reps) : '–'}
+          />
+        );
+      case 'weight':
+        return (
+          <NumberField
+            inputRef={inputRef}
+            value={set.weight}
+            onChange={(weight) => updateSet(ei, si, { weight })}
+            step={weightStep(unit)}
+            min={0}
+            label={fieldLabel}
+            stepUpLabel={stepUpLabel}
+            stepDownLabel={stepDownLabel}
+            placeholder={last?.weight != null ? formatWeightInput(last.weight, unit) : '–'}
+          />
+        );
+      case 'duration':
+        return (
+          <DurationField
+            inputRef={inputRef}
+            value={set.duration}
+            onChange={(duration) => updateSet(ei, si, { duration })}
+            step={DURATION_STEP_SEC}
+            label={fieldLabel}
+            stepUpLabel={stepUpLabel}
+            stepDownLabel={stepDownLabel}
+            placeholder={last?.durationSec != null ? formatDuration(last.durationSec) : '–'}
+          />
+        );
+      case 'distance':
+        return (
+          <NumberField
+            inputRef={inputRef}
+            value={set.distance}
+            onChange={(distance) => updateSet(ei, si, { distance })}
+            step={DISTANCE_STEP_M}
+            min={0}
+            integer
+            label={fieldLabel}
+            stepUpLabel={stepUpLabel}
+            stepDownLabel={stepDownLabel}
+            placeholder={last?.distanceM != null ? String(last.distanceM) : '–'}
+          />
+        );
+    }
+  }
+
   /** Set rows for one entry — shared between a standalone card and a group member. */
   function renderSetRows(ei: number, entry: DraftEntry) {
+    const mode = effectiveTracking(entry, exercises);
+    const fields = TRACKING_FIELDS[mode];
+    const gridClass = setRowGridClass(fields.length);
+
     return (
       <>
-        <div className="grid grid-cols-[2.75rem,1fr,1fr,3.25rem] gap-x-2 text-xs font-semibold uppercase text-fg-subtle">
+        <div className={`grid ${gridClass} gap-x-2 text-xs font-semibold uppercase text-fg-subtle`}>
           <span>{t('workout.set')}</span>
-          <span>{t('workout.reps')}</span>
-          <span>{`${t('workout.weight')} (${unit})`}</span>
+          {fields.map((field) => (
+            <span key={field}>{fieldHeaderLabel(field)}</span>
+          ))}
           <span className="sr-only">{t('workout.doneColumn')}</span>
         </div>
 
         <div className="mt-2 space-y-2">
           {entry.sets.map((set, si) => {
             const last = previousSet(entry.exerciseId, si);
-            const repsLabel = t('workout.reps');
-            const weightLabel = t('workout.weight');
             const dampened = set.done || set.type === 'warmup';
             return (
               <div key={si} className="space-y-1.5">
                 <div
-                  className={`grid grid-cols-[2.75rem,1fr,1fr,3.25rem] items-start gap-x-2 transition-opacity ${
+                  className={`grid ${gridClass} items-start gap-x-2 transition-opacity ${
                     dampened ? 'opacity-55' : ''
                   }`}
                 >
@@ -875,31 +1154,11 @@ function WorkoutEditor({
                     onChange={(type) => updateSet(ei, si, { type })}
                   />
 
-                  <NumberField
-                    inputRef={registerReps(`${ei}:${si}`)}
-                    value={set.reps}
-                    onChange={(reps) => updateSet(ei, si, { reps })}
-                    step={1}
-                    min={0}
-                    integer
-                    label={`${t('workout.set')} ${si + 1} — ${repsLabel}`}
-                    stepUpLabel={t('set.more', { label: repsLabel })}
-                    stepDownLabel={t('set.less', { label: repsLabel })}
-                    placeholder={last ? String(last.reps) : '–'}
-                  />
-
-                  <NumberField
-                    value={set.weight}
-                    onChange={(weight) => updateSet(ei, si, { weight })}
-                    step={weightStep(unit)}
-                    min={0}
-                    label={`${t('workout.set')} ${si + 1} — ${weightLabel}`}
-                    stepUpLabel={t('set.more', { label: weightLabel })}
-                    stepDownLabel={t('set.less', { label: weightLabel })}
-                    placeholder={
-                      last?.weight != null ? formatWeightInput(last.weight, unit) : '–'
-                    }
-                  />
+                  {fields.map((field, fi) => (
+                    <Fragment key={field}>
+                      {renderTrackingField(field, ei, si, set, last, fi === 0)}
+                    </Fragment>
+                  ))}
 
                   <button
                     type="button"
@@ -932,6 +1191,55 @@ function WorkoutEditor({
           {t('workout.addSet')}
         </button>
       </>
+    );
+  }
+
+  /**
+   * Machine-setting values for one entry — collapsed by default, and absent
+   * entirely for an exercise with no settings configured in the catalog, so
+   * a plain reps/weight workout never shows an empty panel.
+   */
+  function renderSettingsPanel(ei: number, entry: DraftEntry) {
+    const codes = exercises.find((e) => e.id === entry.exerciseId)?.settings ?? [];
+    if (codes.length === 0) return null;
+
+    const expanded = expandedSettings.has(ei);
+    const last = lastSettingsFor(sessions, entry.exerciseId, { excludeSessionId: initial?.id });
+
+    return (
+      <div className="mt-3 border-t border-border pt-3">
+        <button
+          type="button"
+          onClick={() => toggleSettingsExpanded(ei)}
+          aria-expanded={expanded}
+          className="focus-ring flex min-h-8 items-center gap-1 text-xs font-semibold uppercase text-fg-subtle transition hover:text-fg"
+        >
+          <span className={`inline-block transition-transform ${expanded ? 'rotate-90' : ''}`}>
+            ›
+          </span>
+          {t('workout.settings')}
+        </button>
+        {expanded && (
+          <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {codes.map((code) => (
+              <div key={code}>
+                <label className="label" htmlFor={`wo-setting-${ei}-${code}`}>
+                  {t(`setting.${code}` as TKey)}
+                </label>
+                <input
+                  id={`wo-setting-${ei}-${code}`}
+                  type="text"
+                  autoComplete="off"
+                  className="input"
+                  value={entry.settings?.[code] ?? ''}
+                  onChange={(e) => updateEntrySetting(ei, code, e.target.value)}
+                  placeholder={last?.[code] ?? '–'}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -1082,6 +1390,7 @@ function WorkoutEditor({
                     {renderEntryActions(ei)}
                   </div>
                   {renderSetRows(ei, entry)}
+                  {renderSettingsPanel(ei, entry)}
                 </div>
               );
             }
@@ -1112,6 +1421,7 @@ function WorkoutEditor({
                         {renderEntryActions(ei)}
                       </div>
                       {renderSetRows(ei, entry)}
+                      {renderSettingsPanel(ei, entry)}
                     </div>
                   );
                 })}

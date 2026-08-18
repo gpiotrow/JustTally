@@ -2,6 +2,8 @@ import { Router } from 'express';
 import db from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import { syncLimiter } from '../middleware/rateLimiters.js';
+import { isTrackingMode } from '../services/tracking.js';
+import { isValidSettingsValues } from '../services/machineSettings.js';
 
 const router = Router();
 
@@ -39,6 +41,8 @@ function isValidSet(s) {
     s &&
     typeof s.reps === 'number' &&
     (s.weight === undefined || typeof s.weight === 'number') &&
+    (s.durationSec === undefined || (Number.isFinite(s.durationSec) && s.durationSec >= 0)) &&
+    (s.distanceM === undefined || (Number.isFinite(s.distanceM) && s.distanceM >= 0)) &&
     (s.type === undefined || SET_TYPES.has(s.type)) &&
     (s.done === undefined || typeof s.done === 'boolean') &&
     (s.completedAt === undefined || (Number.isFinite(s.completedAt) && s.completedAt > 0)) &&
@@ -65,6 +69,8 @@ function isValidEntries(entries) {
         // any non-empty string is a valid one, there is nothing else to check.
         (e.groupId === undefined || typeof e.groupId === 'string') &&
         (e.plannedExerciseId === undefined || typeof e.plannedExerciseId === 'string') &&
+        (e.tracking === undefined || isTrackingMode(e.tracking)) &&
+        (e.settings === undefined || isValidSettingsValues(e.settings)) &&
         Array.isArray(e.sets) &&
         e.sets.every(isValidSet)
     )

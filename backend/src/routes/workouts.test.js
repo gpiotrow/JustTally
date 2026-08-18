@@ -198,6 +198,44 @@ describe('writing workouts', () => {
     expect(stored.plannedExerciseId).toBe('planned-1');
   });
 
+  it('persists tracking mode, settings, and the duration/distance set fields', async () => {
+    const captured = captureInsertedEntries();
+    const entry = {
+      ...validEntry,
+      tracking: 'distance_time',
+      settings: { resistance_level: '7' },
+      sets: [{ reps: 0, durationSec: 300, distanceM: 1000, done: true }],
+    };
+
+    await request(app)
+      .post('/api/workouts/sync')
+      .send({ upserts: [{ id: 'w1', updatedAt: 10, date: 10, entries: [entry] }] });
+
+    const stored = JSON.parse(captured.entries)[0];
+    expect(stored.tracking).toBe('distance_time');
+    expect(stored.settings).toEqual({ resistance_level: '7' });
+    expect(stored.sets[0].durationSec).toBe(300);
+    expect(stored.sets[0].distanceM).toBe(1000);
+  });
+
+  it.each([
+    ['an unknown tracking mode', { tracking: 'laps' }],
+    ['a non-string tracking mode', { tracking: 1 }],
+    ['a settings value keyed by an unknown code', { settings: { warp_speed: '5' } }],
+    ['a settings object with a non-string value', { settings: { seat_height: 4 } }],
+    ['a non-object settings', { settings: 'seat 4' }],
+  ])('rejects %s rather than storing it', async (_label, patch) => {
+    const captured = captureInsertedEntries();
+
+    await request(app)
+      .post('/api/workouts/sync')
+      .send({
+        upserts: [{ id: 'w1', updatedAt: 10, date: 10, entries: [{ ...validEntry, ...patch }] }],
+      });
+
+    expect(captured.entries).toBeUndefined();
+  });
+
   it.each([
     ['a non-string groupId', { groupId: 42 }],
     ['a non-string plannedExerciseId', { plannedExerciseId: 42 }],
@@ -232,6 +270,10 @@ describe('writing workouts', () => {
     ['a non-string set type', { reps: 5, type: 1 }],
     ['a non-boolean done', { reps: 5, done: 'yes' }],
     ['a non-numeric weight', { reps: 5, weight: '60' }],
+    ['a negative durationSec', { reps: 5, durationSec: -1 }],
+    ['a non-numeric durationSec', { reps: 5, durationSec: '90' }],
+    ['a negative distanceM', { reps: 5, distanceM: -1 }],
+    ['a non-numeric distanceM', { reps: 5, distanceM: '1000' }],
     ['a non-numeric completedAt', { reps: 5, completedAt: 'now' }],
     ['a zero completedAt', { reps: 5, completedAt: 0 }],
     ['an rpe below the scale', { reps: 5, rpe: 4.5 }],
