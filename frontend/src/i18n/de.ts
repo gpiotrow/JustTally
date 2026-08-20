@@ -130,6 +130,12 @@ export const de = {
   'picker.forYouEmptyHint':
     'Markiere Übungen mit dem Herz oder trainiere sie — dann stehen sie beim nächsten Mal ganz oben.',
   'picker.showAll': 'Alle Übungen zeigen',
+  'picker.filters': 'Filter',
+  'picker.filterReset': 'Zurücksetzen',
+  'picker.removeFilter': '{label} entfernen',
+  'picker.filterCategory': 'Kategorie',
+  'picker.filterDifficulty': 'Stufe',
+  'picker.filterEquipment': 'Gerät',
 
   // Set execution
   'set.done': 'Satz {n} abhaken',
@@ -185,6 +191,7 @@ export const de = {
   'history.syncing': 'Synchronisiere…',
   'history.syncError': 'Synchronisierung fehlgeschlagen',
   'history.deleteConfirm': 'Dieses Training löschen? Das kann nicht rückgängig gemacht werden.',
+  'history.saveAsRoutine': 'Als Routine',
   'history.pending': '{count} Änderung(en) warten',
   'history.lastSynced': 'Zuletzt synchronisiert:',
   'history.newRecordsTitle': 'Neue Rekorde!',
@@ -456,6 +463,7 @@ export const de = {
   'routines.swapped': '{name} eingesetzt',
   'routines.swapHint': 'Gilt nur für dieses Training — der Plan bleibt unverändert.',
   'routines.undoSwap': 'Rückgängig',
+  'routines.fromWorkoutName': 'Training vom {date}',
 
   // Desktop planner
   'plan.title': 'Planer',

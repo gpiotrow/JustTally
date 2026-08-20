@@ -46,6 +46,25 @@ export interface PickerGroup<T extends PickableExercise> {
   items: PickerItem<T>[];
 }
 
+/**
+ * Category/difficulty/equipment, each either a code or `'all'` (no
+ * restriction). One object rather than three loose fields because every
+ * caller needs to pass, compare, and reset them together — as the active
+ * filter set, not three independent bits of state.
+ */
+export interface PickerFilters {
+  category: string;
+  difficulty: string;
+  equipment: string;
+}
+
+export const EMPTY_FILTERS: PickerFilters = { category: 'all', difficulty: 'all', equipment: 'all' };
+
+/** How many of the three axes are actually narrowing the list right now. */
+export function activeFilterCount(filters: PickerFilters): number {
+  return Object.values(filters).filter((v) => v !== 'all').length;
+}
+
 export interface PickerInput<T extends PickableExercise> {
   /** The whole catalog, in the order it should appear when nothing reorders it. */
   candidates: PickerItem<T>[];
@@ -53,12 +72,13 @@ export interface PickerInput<T extends PickableExercise> {
   mode: PickerMode;
   /** Which muscle group is open in `'muscle'` mode; `null` means none yet. */
   muscle: MuscleGroup | null;
-  /** Category filter in `'all'` mode: a category code, or `'all'`. */
-  category: string;
-  /** Difficulty filter in `'all'` mode: a `Difficulty`, or `'all'`. */
-  difficulty: string;
-  /** Equipment filter in `'all'` mode: an equipment code, or `'all'`. */
-  equipment: string;
+  /**
+   * Category/difficulty/equipment, applied before the mode branches below —
+   * so they narrow "for you" and "by muscle" too, not just "all". Search
+   * still beats everything, filters included: a query searches the whole
+   * catalog regardless of what is checked here.
+   */
+  filters: PickerFilters;
   favoriteIds: ReadonlySet<string>;
   recency: ReadonlyMap<string, ExerciseRecency>;
   recentLimit?: number;
@@ -111,15 +131,25 @@ function nonEmpty<T extends PickableExercise>(groups: PickerGroup<T>[]): PickerG
  * - **By muscle** lists the primary movers, then the secondaries below them.
  *   Exercises with no muscles recorded do not appear at all — an unmaintained
  *   row is honestly absent rather than quietly guessed at.
- * - **Everything** is the plain catalog, narrowed by the category, difficulty,
- *   and equipment chips — independent filters, all three applied together.
+ * - **Everything** is the plain catalog, narrowed by the same three filters.
+ *
+ * Category, difficulty, and equipment are independent filters, ANDed
+ * together and applied ahead of every mode branch (including search) — a
+ * "beginner" filter checked while searching still applies, and "for you" or
+ * "by muscle" narrowed to "dumbbell" only offers dumbbell exercises.
  */
 export function buildPickerGroups<T extends PickableExercise>(
   input: PickerInput<T>
 ): PickerGroup<T>[] {
-  const { candidates, mode, muscle, category, difficulty, equipment, favoriteIds, recency } =
-    input;
+  const { mode, muscle, filters, favoriteIds, recency } = input;
   const query = input.query.trim();
+
+  const candidates = input.candidates.filter(
+    (item) =>
+      (filters.category === 'all' || item.exercise.category === filters.category) &&
+      (filters.difficulty === 'all' || item.exercise.difficulty === filters.difficulty) &&
+      (filters.equipment === 'all' || item.exercise.equipment.includes(filters.equipment))
+  );
 
   if (query !== '') {
     return nonEmpty([
@@ -159,11 +189,5 @@ export function buildPickerGroups<T extends PickableExercise>(
     ]);
   }
 
-  const items = candidates.filter(
-    (item) =>
-      (category === 'all' || item.exercise.category === category) &&
-      (difficulty === 'all' || item.exercise.difficulty === difficulty) &&
-      (equipment === 'all' || item.exercise.equipment.includes(equipment))
-  );
-  return nonEmpty([{ kind: 'all', items }]);
+  return nonEmpty([{ kind: 'all', items: candidates }]);
 }

@@ -863,3 +863,72 @@ Liste bleibt aus dem Cache lesbar).
 Kopfzeile der App (Sprachumschalter, Theme, Einstellungen, Abmelden) unabhängig
 von diesem Feature um rund 69 px — vorbestehend, nicht durch diese Änderung
 verursacht. Als separate Aufgabe vorgemerkt.
+
+---
+
+## 17. Übungsauswahl — Filter-Panel, Mehrfachauswahl in Routinen, Planer-Katalog, Training → Routine — ✅ erledigt
+
+*Löst die in § 16.1 dokumentierte Abweichung auf ("Einzelauswahl im
+Routine-Editor") und behebt zwei zum Zeitpunkt von § 16 offene Lücken: der
+Desktop-Planer-Katalog (`pages/plan/PlanCatalog.tsx`) hatte nie mehr als ein
+Namens-Suchfeld, und es gab keinen Weg von einem absolvierten Training zurück
+zu einer Routine.*
+
+**Filter-Panel statt drei Chip-Reihen.** `category`/`difficulty`/`equipment`
+waren in `buildPickerGroups` bislang nur im Tab „Alle" wirksam — in „Für dich",
+„Muskel" und bei aktiver Suche griffen sie nicht, ohne dass die UI das kenntlich
+machte. `lib/exercisePicker.ts` nimmt jetzt ein `PickerFilters`-Objekt
+(`{category, difficulty, equipment}`, `EMPTY_FILTERS`, `activeFilterCount`) und
+wendet es vor der Modus-Verzweigung an — auch auf Suchtreffer. Die drei zuvor
+immer sichtbaren, seitlich scrollenden Chip-Reihen sind einem einklappbaren
+Panel gewichen (`components/ExerciseFilterBar.tsx`): eingeklappt eine Zeile mit
+Filter-Button (Badge zeigt die Anzahl aktiver Achsen), den aktiven Filtern als
+entfernbaren Chips und dem Trefferzähler — jetzt in jedem Tab statt nur in
+„Alle". Aufgeklappt drei Abschnitte mit umbrechenden statt scrollenden Chips.
+
+**Ein Zustand für drei Oberflächen.** `hooks/useExercisePicker.ts` zieht den
+bisher in `ExercisePicker.tsx` liegenden Zustand (Suche, Tab, Muskel, Filter,
+Favoriten/Zuletzt-Anbindung) heraus. `ExercisePicker.tsx` (das Modal),
+`PlanCatalog.tsx` (die Desktop-Planer-Spalte) und `ExerciseList.tsx` (unverändert
+im Verhalten, nur auf das `filters`-Objekt umgestellt) rufen denselben Hook und
+dieselbe `buildPickerGroups`-Regel auf — der Katalog im Planer hatte bislang
+weder Favoriten noch Zuletzt-trainiert noch Muskelgruppen-Filter und war rein
+namensbasiert; jetzt zeigt er dieselben vier Einstiege und Gruppen-Überschriften
+(`lib/pickerGroupLabels.ts`) wie das mobile Modal, Drag-and-drop unverändert.
+
+**Mehrfachauswahl im Routine-Editor.** `Routines.tsx` öffnet den Picker beim
+Befüllen eines Tages jetzt im Modus `'add'` statt `'single'` — mehrere Übungen
+sammeln und mit einem Tap auf „N hinzufügen" committen, wie im Workout-Editor.
+Eine Alternative füllt weiterhin genau einen Platz und committet sofort
+(`'single'`). `addExercisesToDay` baut die neue Liste aus dem `setDays`-Updater
+heraus statt aus der `days`-Closure zu lesen — sonst würde eine Schleife über
+mehrere ausgewählte Übungen alle bis auf die letzte verlieren.
+
+**Training → Routine.** `lib/sessionToRoutine.ts` ist die Umkehrung von
+`lib/routineInstantiate.ts`: `routineDayFromSession`/`routineFromSession` bauen
+aus einem `WorkoutSession` einen `RoutineDay`/`Routine`-Entwurf. Nur
+Arbeitssätze zählen (`setType(set) !== 'warmup'`, dieselbe Regel, die
+`History.tsx` für die Satzzahl nutzt); die Zielfelder richten sich nach dem am
+Eintrag **eingefrorenen** Tracking-Modus (`entryTracking`), nie nach dem
+aktuellen Katalogwert. `targetReps` wird "10" bei gleicher Wiederholungszahl,
+sonst "min-max"; `targetWeight`/`targetDurationSec`/`targetDistanceM` kommen
+vom jeweils stärksten Arbeitssatz. RPE und Pause bleiben unbelegt. In
+`History.tsx` öffnet „Als Routine" (ausgeblendet ohne Einträge) den
+Routine-Editor über `Routines.tsx` mit dem Entwurf vorbefüllt (Name/Tag-Name =
+Trainingstitel, sonst formatiertes Datum) — Router-State, per `useEffect` einmal
+gelesen und danach mit `replace: true, state: null` gelöscht, damit ein Reload
+den Dialog nicht erneut öffnet. Gespeichert wird erst mit „Speichern"; bis
+dahin ist nichts geschrieben, und es bleibt bei der in § 2.3 festgelegten
+Kopie-nicht-Referenz-Regel.
+
+**Verifikation:** `npx tsc -b`, `npm run build`, `npm test` — 422/422 Frontend
+(davon neu: Filter-Tests in allen drei Modi in `exercisePicker.test.ts`, 18 neue
+Tests in `sessionToRoutine.test.ts`), 337/337 Backend (unverändert, kein
+Backend-Code berührt). Im Browser gegen eine lokale Postgres-Instanz geprüft:
+Filter-Panel auf/zu, Filterchip entfernen, „Zurücksetzen", Filter bleiben beim
+Tab- und Suchwechsel sichtbar aktiv; Routine-Editor mit Mehrfachauswahl (Footer
+„2 hinzufügen") und weiterhin sofort committender Alternative; `/plan` zeigt
+dieselbe Filterleiste in der Katalogspalte; „Als Routine" aus der Historie →
+vorbefüllter Editor (Ziel-Sätze/Ziel-Wdh. korrekt aus den geloggten
+Arbeitssätzen) → Speichern → „Training starten" aus der neuen Routine liefert
+dieselben Werte (10 Wdh. · 60 kg) zurück.

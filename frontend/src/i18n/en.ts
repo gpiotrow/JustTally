@@ -128,6 +128,12 @@ export const en: Record<TKey, string> = {
   'picker.forYouEmptyHint':
     'Tap the heart on an exercise or train it — then it will be waiting at the top next time.',
   'picker.showAll': 'Show all exercises',
+  'picker.filters': 'Filters',
+  'picker.filterReset': 'Reset',
+  'picker.removeFilter': 'Remove {label}',
+  'picker.filterCategory': 'Category',
+  'picker.filterDifficulty': 'Difficulty',
+  'picker.filterEquipment': 'Equipment',
 
   // Set execution
   'set.done': 'Check off set {n}',
@@ -183,6 +189,7 @@ export const en: Record<TKey, string> = {
   'history.syncing': 'Syncing…',
   'history.syncError': 'Sync failed',
   'history.deleteConfirm': 'Delete this workout? This cannot be undone.',
+  'history.saveAsRoutine': 'Save as routine',
   'history.pending': '{count} change(s) waiting',
   'history.lastSynced': 'Last synced:',
   'history.newRecordsTitle': 'New records!',
@@ -453,6 +460,7 @@ export const en: Record<TKey, string> = {
   'routines.swapped': 'Swapped in {name}',
   'routines.swapHint': 'Only for this workout — the plan stays unchanged.',
   'routines.undoSwap': 'Undo',
+  'routines.fromWorkoutName': 'Workout from {date}',
 
   // Desktop planner
   'plan.title': 'Planner',

@@ -128,6 +128,12 @@ export const es: Record<TKey, string> = {
   'picker.forYouEmptyHint':
     'Toca el corazón en un ejercicio o entrénalo — así aparecerá arriba la próxima vez.',
   'picker.showAll': 'Mostrar todos los ejercicios',
+  'picker.filters': 'Filtros',
+  'picker.filterReset': 'Restablecer',
+  'picker.removeFilter': 'Quitar {label}',
+  'picker.filterCategory': 'Categoría',
+  'picker.filterDifficulty': 'Nivel',
+  'picker.filterEquipment': 'Equipo',
 
   // Set execution
   'set.done': 'Marcar la serie {n}',
@@ -183,6 +189,7 @@ export const es: Record<TKey, string> = {
   'history.syncing': 'Sincronizando…',
   'history.syncError': 'Error de sincronización',
   'history.deleteConfirm': '¿Eliminar este entrenamiento? Esto no se puede deshacer.',
+  'history.saveAsRoutine': 'Guardar como rutina',
   'history.pending': '{count} cambio(s) en espera',
   'history.lastSynced': 'Última sincronización:',
   'history.newRecordsTitle': '¡Nuevos récords!',
@@ -454,6 +461,7 @@ export const es: Record<TKey, string> = {
   'routines.swapped': 'Sustituido por {name}',
   'routines.swapHint': 'Solo para este entrenamiento — el plan no cambia.',
   'routines.undoSwap': 'Deshacer',
+  'routines.fromWorkoutName': 'Entrenamiento del {date}',
 
   // Planificador de escritorio
   'plan.title': 'Planificador',

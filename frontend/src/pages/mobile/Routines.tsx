@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useRoutines } from '../../hooks/useRoutines';
 import { Modal, Spinner, EmptyState } from '../../components/ui';
 import { ExercisePicker } from '../../components/ExercisePicker';
 import { NumberField } from '../../components/NumberField';
 import { instantiateRoutineDay } from '../../lib/routineInstantiate';
-import { exerciseTracking, type Routine, type RoutineDay, type RoutineExercise } from '../../lib/types';
+import {
+  exerciseTracking,
+  type Exercise,
+  type Routine,
+  type RoutineDay,
+  type RoutineExercise,
+} from '../../lib/types';
 import { TRACKING_FIELDS } from '../../lib/tracking';
 import { useLanguage } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
@@ -40,9 +46,24 @@ function blankRoutine(): Routine {
 export function Routines() {
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const { exercises, loading: exercisesLoading } = useExercises();
   const { routines, loaded, saveRoutine, deleteRoutine } = useRoutines();
   const [editing, setEditing] = useState<Routine | null>(null);
+
+  // "Als Routine" from the history hands a pre-filled draft over via router
+  // state — opened once here, then cleared from history state so a reload or
+  // browser back doesn't reopen the editor a second time. Same pattern
+  // `Workout.tsx` uses for a routine's `instantiation` and `History.tsx` for
+  // `newPRs`, just with the state cleared afterwards since this one edits.
+  useEffect(() => {
+    const draft = (location.state as { draftRoutine?: Routine } | null)?.draftRoutine;
+    if (!draft) return;
+    setEditing(draft);
+    navigate(location.pathname, { replace: true, state: null });
+    // Only ever meant to fire for the state this mount arrived with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!loaded || exercisesLoading) return <Spinner label={t('common.loading')} />;
 
@@ -210,17 +231,24 @@ function RoutineEditor({
     setDays((prev) => prev.filter((_, i) => i !== dayIndex));
   }
 
-  function addExerciseToDay(dayIndex: number, exerciseId: string, exerciseName: string, ref: number) {
-    const newExercise: RoutineExercise = {
-      exerciseId,
-      exerciseRef: ref,
-      exerciseName,
+  /**
+   * Adds every picked exercise to the day in one go — mirrors the workout
+   * editor's "add" picker, which also commits a whole selection at once.
+   * Builds the new list from `prev` rather than the `days` closure: looping
+   * `updateDay` calls per exercise would each read the same stale
+   * `days[dayIndex]` and only the last one would survive.
+   */
+  function addExercisesToDay(dayIndex: number, picked: Exercise[]) {
+    const added: RoutineExercise[] = picked.map((ex) => ({
+      exerciseId: ex.id,
+      exerciseRef: ex.ref,
+      exerciseName: localizedExercise(ex, lang).name,
       alternatives: [],
       targetSets: 3,
-    };
-    updateDay(dayIndex, {
-      exercises: [...days[dayIndex].exercises, newExercise],
-    });
+    }));
+    setDays((prev) =>
+      prev.map((d, i) => (i !== dayIndex ? d : { ...d, exercises: [...d.exercises, ...added] }))
+    );
     setPicking(null);
   }
 
@@ -542,13 +570,16 @@ function RoutineEditor({
       {picking && (
         <ExercisePicker
           exercises={exercises}
-          mode="single"
+          // Filling a day's exercise list collects a whole selection, just
+          // like the workout editor's "add" picker — an alternative fills
+          // exactly one slot and commits on the first tap, like "replace".
+          mode={picking.exerciseIndex === undefined ? 'add' : 'single'}
           onSelect={(picked) => {
-            const ex = picked[0];
-            const localized = localizedExercise(ex, lang).name;
             if (picking.exerciseIndex === undefined) {
-              addExerciseToDay(picking.dayIndex, ex.id, localized, ex.ref);
+              addExercisesToDay(picking.dayIndex, picked);
             } else {
+              const ex = picked[0];
+              const localized = localizedExercise(ex, lang).name;
               addAlternative(picking.dayIndex, picking.exerciseIndex, ex.id, localized, ex.ref);
             }
           }}

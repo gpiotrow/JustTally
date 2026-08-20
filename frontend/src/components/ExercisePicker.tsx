@@ -1,23 +1,16 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Modal, EmptyState, CategoryBadge } from './ui';
+import { ExerciseFilterBar } from './ExerciseFilterBar';
 import { FavoriteButton } from './FavoriteButton';
 import { CheckIcon, ChevronLeftIcon } from './icons';
-import { useFavorites } from '../hooks/useFavorites';
-import { useWorkouts } from '../hooks/useWorkouts';
-import { useAuth } from '../hooks/useAuth';
-import { CATEGORIES, DIFFICULTIES, type Exercise } from '../lib/types';
-import { EQUIPMENT_ITEMS } from '../lib/equipment';
-import { MUSCLE_GROUPS, type MuscleGroup } from '../lib/muscles';
-import { localizedExercise } from '../lib/exerciseText';
-import { exerciseRecency, type ExerciseRecency } from '../lib/exerciseRecency';
+import { useExercisePicker } from '../hooks/useExercisePicker';
+import { type Exercise } from '../lib/types';
+import { type MuscleGroup } from '../lib/muscles';
+import { type ExerciseRecency } from '../lib/exerciseRecency';
 import { formatWeightWithUnit, type Unit } from '../lib/units';
-import {
-  buildPickerGroups,
-  type PickerGroup,
-  type PickerGroupKind,
-  type PickerItem,
-  type PickerMode,
-} from '../lib/exercisePicker';
+import { type PickerGroup, type PickerMode } from '../lib/exercisePicker';
+import { GROUP_LABEL } from '../lib/pickerGroupLabels';
+import { MuscleGrid } from './MuscleGrid';
 import { useLanguage, type TKey } from '../i18n';
 
 /**
@@ -49,14 +42,6 @@ export interface ExercisePickerProps {
   title?: string;
 }
 
-/** Heading per block; `results` and `all` are the unlabelled flat lists. */
-const GROUP_LABEL: Partial<Record<PickerGroupKind, TKey>> = {
-  favorites: 'picker.favorites',
-  recent: 'picker.recent',
-  primary: 'picker.primary',
-  secondary: 'picker.secondary',
-};
-
 /**
  * Choosing an exercise, from every place the app asks for one.
  *
@@ -64,10 +49,18 @@ const GROUP_LABEL: Partial<Record<PickerGroupKind, TKey>> = {
  * already marked or trained ("for you", the default and zero taps), the muscle
  * you came here to train, the whole catalog, and search — which beats whichever
  * mode is active, so there is never a question about what is being searched.
+ * Category/difficulty/equipment are filters that cut across all four rather
+ * than a fifth mode — narrowing "for you" to "dumbbell" is a real question
+ * someone at the gym asks, not just narrowing "all".
  *
  * The search field deliberately does not autofocus: the keyboard would cover
  * half the list on a phone, and the fast path is a tap on "for you" rather than
  * typing anything at all.
+ *
+ * State and grouping logic live in `useExercisePicker` — the same hook backs
+ * the desktop planner's catalog column (`pages/plan/PlanCatalog.tsx`), so the
+ * two surfaces can't drift into different rules for what "for you" or a
+ * filter means.
  */
 export function ExercisePicker({
   exercises,
@@ -76,48 +69,12 @@ export function ExercisePicker({
   onClose,
   title,
 }: ExercisePickerProps) {
-  const { lang, t } = useLanguage();
-  // Read straight from their own hooks rather than passed in: none of them has
-  // a context, and threading them through every caller would put the picker's
-  // data needs into pages that do not otherwise care about them.
-  const { favoriteIds, isFavorite, toggle, canToggle, isPending } = useFavorites();
-  const { sessions } = useWorkouts();
-  const { unit } = useAuth();
-  const recency = useMemo(() => exerciseRecency(sessions), [sessions]);
+  const { t } = useLanguage();
+  const picker = useExercisePicker(exercises);
+  const { favorites } = picker;
 
-  const [query, setQuery] = useState('');
-  const [tab, setTab] = useState<PickerMode>('forYou');
-  const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
-  const [category, setCategory] = useState('all');
-  const [difficulty, setDifficulty] = useState('all');
-  const [equipment, setEquipment] = useState('all');
   /** Tap order is commit order, so this is a list rather than a set. */
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  const candidates = useMemo<PickerItem<Exercise>[]>(
-    () => exercises.map((exercise) => ({ exercise, name: localizedExercise(exercise, lang).name })),
-    [exercises, lang]
-  );
-
-  const groups = useMemo(
-    () =>
-      buildPickerGroups({
-        candidates,
-        query,
-        mode: tab,
-        muscle,
-        category,
-        difficulty,
-        equipment,
-        favoriteIds,
-        recency,
-      }),
-    [candidates, query, tab, muscle, category, difficulty, equipment, favoriteIds, recency]
-  );
-
-  const searching = query.trim() !== '';
-  /** The muscle grid stands in for the list until a group is picked. */
-  const showingMuscleGrid = tab === 'muscle' && muscle === null && !searching;
 
   function commit(picked: Exercise[]) {
     if (picked.length === 0) return;
@@ -140,101 +97,20 @@ export function ExercisePicker({
     commit(selectedIds.map((id) => byId.get(id)).filter((ex): ex is Exercise => ex !== undefined));
   }
 
-  /**
-   * Switching mode clears the search, because a query overrides the mode: the
-   * button would otherwise change a state nothing on screen reflects.
-   */
-  function switchTab(next: PickerMode) {
-    setTab(next);
-    setQuery('');
-    if (next !== 'muscle') setMuscle(null);
-  }
-
   const toolbar = (
-    <div className="space-y-2">
-      <input
-        className="input"
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t('exercises.searchPlaceholder')}
-        aria-label={t('exercises.searchPlaceholder')}
-      />
-      {/* Dimmed while searching: the mode is still there, it just does not
-          decide the list right now. Tapping one brings it back. */}
-      <div
-        className={`flex gap-1 rounded-xl bg-surface-2 p-1 transition-opacity ${
-          searching ? 'opacity-60' : ''
-        }`}
-      >
-        <TabButton active={!searching && tab === 'forYou'} onClick={() => switchTab('forYou')}>
-          {t('picker.forYou')}
-        </TabButton>
-        <TabButton active={!searching && tab === 'muscle'} onClick={() => switchTab('muscle')}>
-          {t('picker.muscle')}
-        </TabButton>
-        <TabButton active={!searching && tab === 'all'} onClick={() => switchTab('all')}>
-          {t('exercises.all')}
-        </TabButton>
-      </div>
-      {tab === 'all' && !searching && (
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          <CategoryChip
-            active={category === 'all'}
-            onClick={() => setCategory('all')}
-            label={t('exercises.all')}
-          />
-          {CATEGORIES.map((c) => (
-            <CategoryChip
-              key={c}
-              active={category === c}
-              onClick={() => setCategory(c)}
-              label={t(`category.${c}` as TKey)}
-            />
-          ))}
-        </div>
-      )}
-      {tab === 'all' && !searching && (
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          <CategoryChip
-            active={difficulty === 'all'}
-            onClick={() => setDifficulty('all')}
-            label={t('exercises.allDifficulties')}
-          />
-          {DIFFICULTIES.map((d) => (
-            <CategoryChip
-              key={d}
-              active={difficulty === d}
-              onClick={() => setDifficulty(d)}
-              label={t(`difficulty.${d}` as TKey)}
-            />
-          ))}
-        </div>
-      )}
-      {tab === 'all' && !searching && (
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          <CategoryChip
-            active={equipment === 'all'}
-            onClick={() => setEquipment('all')}
-            label={t('exercises.allEquipment')}
-          />
-          {EQUIPMENT_ITEMS.map((eq) => (
-            <CategoryChip
-              key={eq}
-              active={equipment === eq}
-              onClick={() => setEquipment(eq)}
-              label={t(`equipment.${eq}` as TKey)}
-            />
-          ))}
-        </div>
-      )}
-      {/* Feedback while scanning three filter rows, not just after. */}
-      {tab === 'all' && !searching && (
-        <p className="px-1 text-xs text-fg-subtle">
-          {t('exercises.resultCount', { count: groups[0]?.items.length ?? 0 })}
-        </p>
-      )}
-    </div>
+    <ExerciseFilterBar
+      query={picker.query}
+      onQueryChange={picker.setQuery}
+      tab={picker.tab}
+      onTabChange={picker.switchTab}
+      searching={picker.searching}
+      filters={picker.filters}
+      onFilterChange={picker.setFilter}
+      onResetFilters={picker.resetFilters}
+      activeFilters={picker.activeFilters}
+      filterCount={picker.filterCount}
+      resultCount={picker.resultCount}
+    />
   );
 
   const footer =
@@ -251,13 +127,13 @@ export function ExercisePicker({
       toolbar={toolbar}
       footer={footer}
     >
-      {showingMuscleGrid ? (
-        <MuscleGrid onPick={setMuscle} label={(m) => t(`muscle.${m}` as TKey)} />
+      {picker.showingMuscleGrid ? (
+        <MuscleGrid onPick={picker.setMuscle} label={(m) => t(`muscle.${m}` as TKey)} />
       ) : (
         <div className="space-y-4">
-          {tab === 'muscle' && muscle !== null && !searching && (
+          {picker.tab === 'muscle' && picker.muscle !== null && !picker.searching && (
             <button
-              onClick={() => setMuscle(null)}
+              onClick={() => picker.setMuscle(null)}
               className="flex min-h-11 items-center gap-1 text-sm font-semibold text-accent"
             >
               <ChevronLeftIcon width={16} height={16} />
@@ -265,15 +141,15 @@ export function ExercisePicker({
             </button>
           )}
 
-          {groups.length === 0 ? (
+          {picker.groups.length === 0 ? (
             <PickerEmpty
-              tab={tab}
-              searching={searching}
-              muscle={muscle}
-              onShowAll={() => switchTab('all')}
+              tab={picker.tab}
+              searching={picker.searching}
+              muscle={picker.muscle}
+              onShowAll={() => picker.switchTab('all')}
             />
           ) : (
-            groups.map((group) => (
+            picker.groups.map((group) => (
               <GroupBlock
                 key={group.kind}
                 group={group}
@@ -281,98 +157,18 @@ export function ExercisePicker({
                 selectable={mode === 'add'}
                 selectedIds={selectedIds}
                 onPick={pick}
-                recency={recency}
-                unit={unit}
-                isFavorite={isFavorite}
-                onToggleFavorite={toggle}
-                canToggleFavorite={canToggle}
-                isFavoritePending={isPending}
+                recency={picker.recency}
+                unit={picker.unit}
+                isFavorite={favorites.isFavorite}
+                onToggleFavorite={favorites.toggle}
+                canToggleFavorite={favorites.canToggle}
+                isFavoritePending={favorites.isPending}
               />
             ))
           )}
         </div>
       )}
     </Modal>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`min-h-11 flex-1 rounded-lg px-2 text-sm font-semibold transition ${
-        active ? 'bg-surface text-fg shadow-sm' : 'text-fg-muted hover:text-fg'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-/**
- * The category/difficulty/equipment filter chips. `.chip` is a label, not a
- * touch target (`py-0.5`), so this uses `.chip-btn` — the real-44px, focus-ring
- * variant shared with `ExerciseList`'s identical filter row.
- */
-function CategoryChip({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`chip-btn ${active ? 'bg-fg text-bg' : 'bg-surface-2 text-fg-muted hover:text-fg'}`}
-    >
-      {label}
-    </button>
-  );
-}
-
-/**
- * All sixteen groups, including the ones nothing is recorded for — an empty
- * group says something true about the catalog, and hiding it would just move
- * the confusion one step further away.
- *
- * Two columns at 320 px rather than four: four would clear the 44 px target but
- * leave about 64 px of width for labels like "Seitliche Bauchmuskeln".
- */
-function MuscleGrid({
-  onPick,
-  label,
-}: {
-  onPick: (muscle: MuscleGroup) => void;
-  label: (muscle: MuscleGroup) => string;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {MUSCLE_GROUPS.map((m) => (
-        <button
-          key={m}
-          type="button"
-          onClick={() => onPick(m)}
-          className="min-h-14 rounded-xl bg-surface-2 px-3 py-2 text-sm font-semibold text-fg transition hover:bg-border"
-        >
-          {label(m)}
-        </button>
-      ))}
-    </div>
   );
 }
 

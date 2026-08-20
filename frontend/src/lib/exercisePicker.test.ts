@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildPickerGroups,
   DEFAULT_RECENT_LIMIT,
+  EMPTY_FILTERS,
+  activeFilterCount,
   type PickableExercise,
   type PickerInput,
   type PickerItem,
@@ -71,9 +73,7 @@ function input(overrides: Partial<PickerInput<PickableExercise>> = {}): PickerIn
     query: '',
     mode: 'all',
     muscle: null,
-    category: 'all',
-    difficulty: 'all',
-    equipment: 'all',
+    filters: { category: 'all', difficulty: 'all', equipment: 'all' },
     favoriteIds: new Set(),
     recency: new Map(),
     ...overrides,
@@ -90,9 +90,12 @@ describe('buildPickerGroups — search', () => {
     expect(ids(groups[0].items)).toEqual(['squat']);
   });
 
-  it('ignores the category filter while searching', () => {
-    const groups = buildPickerGroups(input({ mode: 'all', category: 'chest', query: 'kniebeuge' }));
-    expect(ids(groups[0].items)).toEqual(['squat']);
+  it('still applies the category filter while searching, unlike the mode', () => {
+    // 'kniebeuge' alone would find squat, but squat is 'legs' — filtered out.
+    const groups = buildPickerGroups(
+      input({ mode: 'all', filters: { ...EMPTY_FILTERS, category: 'chest' }, query: 'kniebeuge' })
+    );
+    expect(groups).toEqual([]);
   });
 
   it('ignores the selected muscle while searching', () => {
@@ -247,34 +250,37 @@ describe('buildPickerGroups — all', () => {
   });
 
   it('narrows to one category', () => {
-    const groups = buildPickerGroups(input({ mode: 'all', category: 'chest' }));
+    const groups = buildPickerGroups(input({ mode: 'all', filters: { ...EMPTY_FILTERS, category: 'chest' } }));
     expect(ids(groups[0].items)).toEqual(['bench', 'flies', 'dips']);
   });
 
   it('returns no group for a category with nothing in it', () => {
-    expect(buildPickerGroups(input({ mode: 'all', category: 'cardio' }))).toEqual([]);
+    expect(buildPickerGroups(input({ mode: 'all', filters: { ...EMPTY_FILTERS, category: 'cardio' } }))).toEqual([]);
   });
 
   it('narrows to one difficulty', () => {
-    const groups = buildPickerGroups(input({ mode: 'all', difficulty: 'advanced' }));
+    const groups = buildPickerGroups(input({ mode: 'all', filters: { ...EMPTY_FILTERS, difficulty: 'advanced' } }));
     expect(ids(groups[0].items)).toEqual(['dips']);
   });
 
   it('narrows to one equipment item', () => {
-    const groups = buildPickerGroups(input({ mode: 'all', equipment: 'barbell' }));
+    const groups = buildPickerGroups(input({ mode: 'all', filters: { ...EMPTY_FILTERS, equipment: 'barbell' } }));
     expect(ids(groups[0].items)).toEqual(['bench', 'squat']);
   });
 
   it('combines category, difficulty, and equipment as independent filters', () => {
     const groups = buildPickerGroups(
-      input({ mode: 'all', category: 'chest', difficulty: 'beginner', equipment: 'dumbbell' })
+      input({
+        mode: 'all',
+        filters: { category: 'chest', difficulty: 'beginner', equipment: 'dumbbell' },
+      })
     );
     expect(ids(groups[0].items)).toEqual(['flies']);
   });
 
   it('returns no group when the difficulty/equipment combination matches nothing', () => {
     expect(
-      buildPickerGroups(input({ mode: 'all', difficulty: 'beginner', equipment: 'barbell' }))
+      buildPickerGroups(input({ mode: 'all', filters: { category: 'all', difficulty: 'beginner', equipment: 'barbell' } }))
     ).toEqual([]);
   });
 
@@ -282,5 +288,56 @@ describe('buildPickerGroups — all', () => {
     const candidates = [...ALL];
     buildPickerGroups(input({ candidates, mode: 'muscle', muscle: 'chest' }));
     expect(ids(candidates)).toEqual(['bench', 'flies', 'dips', 'squat', 'curl']);
+  });
+});
+
+describe('buildPickerGroups — filters apply in every mode', () => {
+  it('narrows "for you" by equipment', () => {
+    const groups = buildPickerGroups(
+      input({
+        mode: 'forYou',
+        filters: { ...EMPTY_FILTERS, equipment: 'dumbbell' },
+        favoriteIds: new Set(['bench', 'flies']),
+      })
+    );
+    // bench takes a barbell, not a dumbbell — filtered out even though favorited.
+    expect(groups.map((g) => g.kind)).toEqual(['favorites']);
+    expect(ids(groups[0].items)).toEqual(['flies']);
+  });
+
+  it('narrows "by muscle" on both the primary and secondary block', () => {
+    const groups = buildPickerGroups(
+      input({
+        mode: 'muscle',
+        muscle: 'chest',
+        filters: { ...EMPTY_FILTERS, equipment: 'bodyweight' },
+      })
+    );
+    // Only dips (secondary chest mover) is bodyweight; bench/flies (primary) are filtered out.
+    expect(groups.map((g) => g.kind)).toEqual(['secondary']);
+    expect(ids(groups[0].items)).toEqual(['dips']);
+  });
+
+  it('narrows search results too', () => {
+    // 'i' alone matches flies, dips, squat and curl — the difficulty filter
+    // narrows that down to the one advanced exercise among them.
+    const groups = buildPickerGroups(
+      input({
+        query: 'i',
+        filters: { ...EMPTY_FILTERS, difficulty: 'advanced' },
+      })
+    );
+    expect(ids(groups[0].items)).toEqual(['dips']);
+  });
+});
+
+describe('activeFilterCount', () => {
+  it('is zero when nothing is filtered', () => {
+    expect(activeFilterCount(EMPTY_FILTERS)).toBe(0);
+  });
+
+  it('counts each non-"all" axis', () => {
+    expect(activeFilterCount({ category: 'chest', difficulty: 'all', equipment: 'all' })).toBe(1);
+    expect(activeFilterCount({ category: 'chest', difficulty: 'beginner', equipment: 'barbell' })).toBe(3);
   });
 });

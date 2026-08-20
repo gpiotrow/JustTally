@@ -9,7 +9,7 @@ import { DumbbellIcon, HeartIcon } from '../../components/icons';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { useLanguage, type TKey } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
-import { buildPickerGroups } from '../../lib/exercisePicker';
+import { buildPickerGroups, EMPTY_FILTERS } from '../../lib/exercisePicker';
 
 export function ExerciseList() {
   const { exercises, loading, error, fromCache } = useExercises();
@@ -26,6 +26,13 @@ export function ExerciseList() {
     [exercises, lang]
   );
 
+  // A non-blank query searches the whole catalog; the chips are hidden while
+  // searching (below) rather than staying lit for filters this list keeps
+  // applying underneath — so the query is passed the empty filter set here,
+  // same as it always effectively saw before `buildPickerGroups` grew a
+  // filters-during-search rule for the picker's own use.
+  const searching = query.trim() !== '';
+
   // Category/difficulty/equipment/search share the exact matching rules the
   // exercise picker uses — `buildPickerGroups` in 'all' mode is that shared
   // rule set, so this list can't quietly drift from what the picker shows.
@@ -37,21 +44,13 @@ export function ExerciseList() {
       query,
       mode: 'all',
       muscle: null,
-      category,
-      difficulty,
-      equipment,
+      filters: searching ? EMPTY_FILTERS : { category, difficulty, equipment },
       favoriteIds: new Set<string>(),
       recency: new Map(),
     });
     const items = groups[0]?.items ?? [];
     return favoritesOnly ? items.filter(({ exercise }) => isFavorite(exercise.id)) : items;
-  }, [candidates, query, category, difficulty, equipment, favoritesOnly, isFavorite]);
-
-  // A non-blank query searches the whole catalog and beats category/
-  // difficulty/equipment entirely (the same rule `buildPickerGroups` applies
-  // for the picker's own search) — so those chips are hidden while searching
-  // instead of staying lit for filters that have silently stopped applying.
-  const searching = query.trim() !== '';
+  }, [candidates, query, searching, category, difficulty, equipment, favoritesOnly, isFavorite]);
 
   if (loading) return <Spinner label={t('exercises.loading')} />;
   if (error) return <ErrorBanner message={error} />;

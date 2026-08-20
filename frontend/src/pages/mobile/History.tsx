@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useWorkouts } from '../../hooks/useWorkouts';
 import { useOnline } from '../../hooks/useOnline';
 import { useAuth } from '../../hooks/useAuth';
 import { formatDistanceWithUnit, formatWeightWithUnit, type Unit } from '../../lib/units';
 import { formatDuration } from '../../lib/restTimer';
-import { entryTracking, setType, type WorkoutEntry, type WorkoutSet } from '../../lib/types';
+import { entryTracking, setType, type WorkoutEntry, type WorkoutSession, type WorkoutSet } from '../../lib/types';
 import type { TrackingMode } from '../../lib/tracking';
 import type { NewPR } from '../../lib/analytics/records';
+import { routineFromSession } from '../../lib/sessionToRoutine';
 import { EmptyState, ErrorBanner, PendingSyncChip, Spinner } from '../../components/ui';
 import { useLanguage, type TKey } from '../../i18n';
 
@@ -58,6 +59,7 @@ export function History() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const dateFmt = new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-US', DATE_OPTIONS);
 
+  const navigate = useNavigate();
   const location = useLocation();
   // Shown once, right after a save that beat a prior record — cleared
   // locally on dismiss; router state doesn't survive a reload, so it never
@@ -88,6 +90,17 @@ export function History() {
   function handleDelete(id: string) {
     if (!window.confirm(t('history.deleteConfirm'))) return;
     void deleteSession(id);
+  }
+
+  /**
+   * Builds a routine draft from this session and hands it to the routine
+   * editor — nothing is saved here. `Routines.tsx` opens it pre-filled, the
+   * same way `Workout.tsx` opens pre-filled from a routine's own "Training
+   * starten" (`instantiateRoutineDay`), just running the other direction.
+   */
+  function saveAsRoutine(s: WorkoutSession) {
+    const name = s.title?.trim() || t('routines.fromWorkoutName', { date: dateFmt.format(s.startedAt ?? s.date) });
+    navigate('/routines', { state: { draftRoutine: routineFromSession(s, name) } });
   }
 
   return (
@@ -161,7 +174,15 @@ export function History() {
                     </p>
                     <p className="text-xs text-fg-subtle">{dateFmt.format(s.startedAt ?? s.date)}</p>
                   </div>
-                  <div className="flex shrink-0 gap-3">
+                  <div className="flex shrink-0 flex-wrap justify-end gap-x-3 gap-y-1">
+                    {s.entries.length > 0 && (
+                      <button
+                        onClick={() => saveAsRoutine(s)}
+                        className="text-xs text-fg-subtle hover:text-accent"
+                      >
+                        {t('history.saveAsRoutine')}
+                      </button>
+                    )}
                     <Link
                       to={`/workout/${s.id}`}
                       className="text-xs text-fg-subtle hover:text-accent"
