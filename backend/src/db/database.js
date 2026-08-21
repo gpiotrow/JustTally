@@ -103,11 +103,19 @@ export async function initSchema() {
   `);
 
   // Idempotent migrations for columns added after the initial release.
-  // Bilingual execution tips (separate from instructions).
-  await pool.query(`
-    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS tips_de TEXT NOT NULL DEFAULT '';
-    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS tips_en TEXT NOT NULL DEFAULT '';
-  `);
+  //
+  // tips_de/tips_en (bilingual execution tips, separate from instructions)
+  // lived here as ADD COLUMN IF NOT EXISTS, added on every boot and then
+  // dropped again a few statements below — a one-time migration whose ADD
+  // half was never removed. On a database that already migrated past this
+  // (this one has, since v9), every single boot re-allocated two fresh
+  // column slots that DROP COLUMN never gives back — Postgres's 1600-column
+  // ceiling counts dropped columns too. With `min_machines_running = 0`
+  // scaling this app to zero between uses, that is one cold start away
+  // from happening constantly, and eventually exhausted `exercises`
+  // entirely (see the DROP COLUMN IF EXISTS tips_de/tips_en below — that
+  // half stays; it is what actually needs to keep running, once, on any
+  // database that still carries the columns from before this was noticed).
 
   // Storage backend + object keys, added when media moved off the app's own
   // filesystem. Rows written before this keep storage='local' with a NULL
@@ -159,16 +167,16 @@ export async function initSchema() {
       ON workouts USING GIN (entries jsonb_path_ops);
   `);
 
-  // Spanish as a third content language, plus a "purpose" field distinct from
-  // instructions. tips_de/tips_en are dropped: user feedback was that "tips"
-  // and "execution instructions" are the same thing — instructions_* now
-  // carries what tips_* used to hold.
+  // Spanish as a third content language. tips_de/tips_en are dropped: user
+  // feedback was that "tips" and "execution instructions" are the same
+  // thing — instructions_* now carries what tips_* used to hold. (purpose_*
+  // was added here too, on the same one-time-migration footing as tips_*
+  // above; its ADD half is gone for the same reason — see the DROP COLUMN
+  // IF EXISTS purpose_de/en/es further below, which is what actually needs
+  // to stay.)
   await pool.query(`
     ALTER TABLE exercises ADD COLUMN IF NOT EXISTS name_es          TEXT NOT NULL DEFAULT '';
     ALTER TABLE exercises ADD COLUMN IF NOT EXISTS instructions_es  TEXT NOT NULL DEFAULT '';
-    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS purpose_de       TEXT NOT NULL DEFAULT '';
-    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS purpose_en       TEXT NOT NULL DEFAULT '';
-    ALTER TABLE exercises ADD COLUMN IF NOT EXISTS purpose_es       TEXT NOT NULL DEFAULT '';
     ALTER TABLE exercises DROP COLUMN IF EXISTS tips_de;
     ALTER TABLE exercises DROP COLUMN IF EXISTS tips_en;
   `);
