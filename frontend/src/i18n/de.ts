@@ -10,6 +10,7 @@ export const de = {
   'common.save': 'Speichern',
   'common.saving': 'Speichert…',
   'common.delete': 'Löschen',
+  'common.cancel': 'Abbrechen',
   'common.edit': 'Bearbeiten',
   'common.close': 'Schließen',
   'common.loading': 'Laden…',
@@ -374,6 +375,8 @@ export const de = {
   // Settings — offline photos
   'settings.title': 'Einstellungen',
   'settings.open': 'Einstellungen öffnen',
+  'settings.language': 'Sprache',
+  'settings.account': 'Konto',
   'settings.units': 'Einheiten',
   'settings.unitsHint': 'Gilt für alle deine Geräte. Gespeichert wird immer in Kilogramm — die Umstellung ändert nur die Anzeige, nie deine Daten.',
   'settings.unitError': 'Einheit konnte nicht gespeichert werden',

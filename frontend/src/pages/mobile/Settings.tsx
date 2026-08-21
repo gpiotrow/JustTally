@@ -1,9 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useOfflineMedia } from '../../hooks/useOfflineMedia';
 import { useAuth } from '../../hooks/useAuth';
+import { LanguageToggle } from '../../components/LanguageToggle';
+import { ChevronLeftIcon } from '../../components/icons';
 import { useRestTimer } from '../../hooks/useRestTimer';
 import { useRpeVisibility } from '../../hooks/useRpeVisibility';
 import { useWorkouts } from '../../hooks/useWorkouts';
@@ -72,7 +74,8 @@ export function Settings() {
   const { lang, t } = useLanguage();
   const { exercises, loading } = useExercises();
   const { favoriteIds, loading: favoritesLoading } = useFavorites();
-  const { unit, updateProfile, user } = useAuth();
+  const { unit, updateProfile, user, isAdmin, logout } = useAuth();
+  const navigate = useNavigate();
   const { defaultSeconds, setDefaultSeconds, wakeLockEnabled, setWakeLockEnabled } = useRestTimer();
   const [rpeVisible, setRpeVisible] = useRpeVisibility();
   const [savingUnit, setSavingUnit] = useState(false);
@@ -286,13 +289,43 @@ export function Settings() {
           to="/"
           className="inline-flex items-center gap-1 text-sm font-medium text-fg-muted hover:text-fg"
         >
-          ‹ {t('detail.back')}
+          <ChevronLeftIcon width={16} height={16} /> {t('detail.back')}
         </Link>
         <h1 className="mt-2 text-2xl font-bold">{t('settings.title')}</h1>
       </div>
 
       {error && <ErrorBanner message={error} />}
       {profileError && <ErrorBanner message={profileError} />}
+
+      {/* Moved here from the global header: set once, not per screen, so it
+          doesn't earn a permanent spot in the row every screen shows. */}
+      <section className="card space-y-3 p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+          {t('settings.language')}
+        </h2>
+        <LanguageToggle />
+      </section>
+
+      <section className="card space-y-3 p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+          {t('settings.account')}
+        </h2>
+        <p className="truncate text-sm text-fg-subtle">{user?.email}</p>
+        <div className="flex flex-wrap gap-2">
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => navigate('/admin')}
+              className="btn-ghost px-4 text-sm"
+            >
+              {t('common.admin')}
+            </button>
+          )}
+          <button type="button" onClick={logout} className="btn-ghost px-4 text-sm">
+            {t('common.logout')}
+          </button>
+        </div>
+      </section>
 
       <section className="card space-y-4 p-4">
         <div>

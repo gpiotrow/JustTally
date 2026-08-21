@@ -8,6 +8,8 @@ interface SetTypeToggleProps {
   value: SetType;
   onChange: (type: SetType) => void;
   setNumber: number;
+  /** Extra classes merged onto the button — e.g. the mobile-tier `order-*` a wide two-field set row needs to reflow around. */
+  className?: string;
 }
 
 /**
@@ -16,7 +18,7 @@ interface SetTypeToggleProps {
  * fit next to reps and weight at 320px — cycling keeps a single 44px target
  * instead of shrinking three below it.
  */
-export function SetTypeToggle({ value, onChange, setNumber }: SetTypeToggleProps) {
+export function SetTypeToggle({ value, onChange, setNumber, className = '' }: SetTypeToggleProps) {
   const t = useT();
   const next = ORDER[(ORDER.indexOf(value) + 1) % ORDER.length];
   return (
@@ -30,7 +32,7 @@ export function SetTypeToggle({ value, onChange, setNumber }: SetTypeToggleProps
           : value === 'drop'
             ? 'border-accent/50 bg-accent/10 text-accent'
             : 'border-border text-fg-muted hover:bg-surface-2'
-      }`}
+      } ${className}`}
     >
       {LABELS[value]}
     </button>

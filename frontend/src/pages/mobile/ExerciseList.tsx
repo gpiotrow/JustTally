@@ -5,7 +5,7 @@ import { useFavorites } from '../../hooks/useFavorites';
 import { CATEGORIES, DIFFICULTIES } from '../../lib/types';
 import { EQUIPMENT_ITEMS } from '../../lib/equipment';
 import { CategoryBadge, DifficultyBadge, EmptyState, ErrorBanner, Spinner } from '../../components/ui';
-import { DumbbellIcon, HeartIcon } from '../../components/icons';
+import { DumbbellIcon, HeartIcon, ChevronRightIcon } from '../../components/icons';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { useLanguage, type TKey } from '../../i18n';
 import { localizedExercise } from '../../lib/exerciseText';
@@ -202,7 +202,7 @@ export function ExerciseList() {
                   onClick={() => toggle(exercise.id)}
                 />
                 <span className="text-fg-subtle" aria-hidden>
-                  ›
+                  <ChevronRightIcon width={16} height={16} />
                 </span>
               </li>
             );

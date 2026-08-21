@@ -2,6 +2,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { exerciseTracking, type Exercise, type RoutineDay, type RoutineWeek } from '../../lib/types';
 import { targetSummary } from '../../lib/routineTargets';
 import { useT } from '../../i18n';
+import { CloseIcon } from '../../components/icons';
 
 interface SlotRef {
   dayId: string;
@@ -61,7 +62,7 @@ function ExerciseSlot({
           }}
           className="shrink-0 text-xs text-fg-subtle hover:text-danger"
         >
-          ✕
+          <CloseIcon width={14} height={14} />
         </button>
       </div>
       <p className="mt-0.5 text-xs text-fg-subtle">
@@ -127,7 +128,7 @@ function DayColumn({
           </select>
         )}
         <button onClick={onRemoveDay} className="btn-ghost px-2 py-1 text-xs text-danger">
-          ✕
+          <CloseIcon width={14} height={14} />
         </button>
       </div>
       <ul ref={setNodeRef} className="min-h-24 flex-1 space-y-1.5 p-2">

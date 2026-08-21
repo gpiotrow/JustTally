@@ -1,10 +1,9 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { RestTimerProvider } from './hooks/useRestTimer';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { MobileLayout } from './components/MobileLayout';
-import { PlanLayout } from './components/PlanLayout';
-import { AdminLayout } from './components/AdminLayout';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { ExerciseList } from './pages/mobile/ExerciseList';
@@ -15,9 +14,26 @@ import { Routines } from './pages/mobile/Routines';
 import { History } from './pages/mobile/History';
 import { Recovery } from './pages/mobile/Recovery';
 import { Settings } from './pages/mobile/Settings';
-import { Plan } from './pages/plan/Plan';
-import { ExerciseManager } from './pages/admin/ExerciseManager';
-import { UserManagement } from './pages/admin/UserManagement';
+import { Spinner } from './components/ui';
+import { useT } from './i18n';
+
+// The desktop planner and the admin web interface are never opened by the
+// lifter-on-a-phone flow every other route serves — splitting them out keeps
+// them out of the bundle everyone downloads to log a set.
+const PlanLayout = lazy(() => import('./components/PlanLayout').then((m) => ({ default: m.PlanLayout })));
+const Plan = lazy(() => import('./pages/plan/Plan').then((m) => ({ default: m.Plan })));
+const AdminLayout = lazy(() => import('./components/AdminLayout').then((m) => ({ default: m.AdminLayout })));
+const ExerciseManager = lazy(() =>
+  import('./pages/admin/ExerciseManager').then((m) => ({ default: m.ExerciseManager }))
+);
+const UserManagement = lazy(() =>
+  import('./pages/admin/UserManagement').then((m) => ({ default: m.UserManagement }))
+);
+
+function RouteFallback() {
+  const t = useT();
+  return <Spinner label={t('common.loading')} />;
+}
 
 export default function App() {
   return (
@@ -48,27 +64,52 @@ export default function App() {
               <Route path="/settings" element={<Settings />} />
             </Route>
 
-            {/* Desktop planner (any authenticated user, breaks out of the mobile shell) */}
+            {/* Desktop planner (any authenticated user, breaks out of the mobile shell) — lazy, see the import above */}
             <Route
               element={
                 <ProtectedRoute>
-                  <PlanLayout />
+                  <Suspense fallback={<RouteFallback />}>
+                    <PlanLayout />
+                  </Suspense>
                 </ProtectedRoute>
               }
             >
-              <Route path="/plan" element={<Plan />} />
+              <Route
+                path="/plan"
+                element={
+                  <Suspense fallback={<RouteFallback />}>
+                    <Plan />
+                  </Suspense>
+                }
+              />
             </Route>
 
-            {/* Admin web interface (admin only) */}
+            {/* Admin web interface (admin only) — lazy, see the import above */}
             <Route
               element={
                 <ProtectedRoute adminOnly>
-                  <AdminLayout />
+                  <Suspense fallback={<RouteFallback />}>
+                    <AdminLayout />
+                  </Suspense>
                 </ProtectedRoute>
               }
             >
-              <Route path="/admin" element={<ExerciseManager />} />
-              <Route path="/admin/users" element={<UserManagement />} />
+              <Route
+                path="/admin"
+                element={
+                  <Suspense fallback={<RouteFallback />}>
+                    <ExerciseManager />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <Suspense fallback={<RouteFallback />}>
+                    <UserManagement />
+                  </Suspense>
+                }
+              />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

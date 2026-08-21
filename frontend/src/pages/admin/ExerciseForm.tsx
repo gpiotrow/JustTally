@@ -13,6 +13,7 @@ import { EQUIPMENT_ITEMS, type EquipmentItem } from '../../lib/equipment';
 import { GOAL_ITEMS, type GoalItem } from '../../lib/goals';
 import { TRACKING_MODES, type TrackingMode } from '../../lib/tracking';
 import { MACHINE_SETTINGS, type MachineSetting } from '../../lib/machineSettings';
+import { CloseIcon } from '../../components/icons';
 import { ErrorBanner } from '../../components/ui';
 import { VideoIcon } from '../../components/icons';
 import { useT, type Lang, type TKey } from '../../i18n';
@@ -430,7 +431,7 @@ export function ExerciseForm({
                   onClick={() => removeMedia(m.id)}
                   className="absolute right-1 top-1 rounded-lg bg-black/70 px-2 py-1 text-xs text-white opacity-0 transition group-hover:opacity-100"
                 >
-                  ✕
+                  <CloseIcon width={14} height={14} />
                 </button>
               </div>
             ))}

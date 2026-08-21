@@ -9,6 +9,7 @@ import { entryTracking, setType, type WorkoutEntry, type WorkoutSet } from '../.
 import type { TrackingMode } from '../../lib/tracking';
 import type { NewPR } from '../../lib/analytics/records';
 import { EmptyState, ErrorBanner, PendingSyncChip, Spinner } from '../../components/ui';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useLanguage, type TKey } from '../../i18n';
 
 /** One set, formatted for the mode it was logged under — mirrors the columns `Workout.tsx` shows while logging. */
@@ -83,12 +84,11 @@ export function History() {
    * removal, so silently reviving it client-side risks a confusing
    * resurrect-then-vanish once that tombstone reaches the server. A confirm
    * step (the same pattern `Routines.tsx` already uses for deleting a
-   * routine) is the safe fix, not a toast this action can't safely offer.
+   * routine) is the safe fix, not a toast this action can't safely offer —
+   * via the app's own `Modal`/`ConfirmDialog`, not `window.confirm`, so it
+   * matches the rest of the app instead of an unstyled native dialog.
    */
-  function handleDelete(id: string) {
-    if (!window.confirm(t('history.deleteConfirm'))) return;
-    void deleteSession(id);
-  }
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   return (
     <div className="space-y-4">
@@ -169,7 +169,7 @@ export function History() {
                       {t('common.edit')}
                     </Link>
                     <button
-                      onClick={() => handleDelete(s.id)}
+                      onClick={() => setConfirmingDeleteId(s.id)}
                       className="text-xs text-fg-subtle hover:text-danger"
                     >
                       {t('common.delete')}
@@ -213,6 +213,15 @@ export function History() {
             );
           })}
         </ul>
+      )}
+
+      {confirmingDeleteId !== null && (
+        <ConfirmDialog
+          title={t('common.delete')}
+          message={t('history.deleteConfirm')}
+          onConfirm={() => void deleteSession(confirmingDeleteId)}
+          onClose={() => setConfirmingDeleteId(null)}
+        />
       )}
     </div>
   );

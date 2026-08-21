@@ -58,7 +58,7 @@ export function StepperButton({ onStep, label, children }: StepperButtonProps) {
       onPointerUp={stop}
       onPointerLeave={stop}
       onPointerCancel={stop}
-      className="focus-ring flex h-11 flex-1 items-center justify-center rounded-lg text-base font-bold text-fg-muted transition select-none touch-none hover:bg-surface-2 hover:text-fg active:bg-border"
+      className="focus-ring flex h-11 min-w-11 flex-1 items-center justify-center rounded-lg text-base font-bold text-fg-muted transition select-none touch-none hover:bg-surface-2 hover:text-fg active:bg-border"
     >
       {children}
     </button>

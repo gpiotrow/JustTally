@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from './icons';
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from './icons';
 import { useT } from '../i18n';
 
 export interface LightboxImage {
@@ -63,7 +63,7 @@ export function ImageLightbox({
         className="absolute right-3 top-3 z-10 rounded-full bg-black/50 p-2.5 text-white/90 hover:text-white"
         aria-label={t('common.close')}
       >
-        ✕
+        <CloseIcon width={20} height={20} />
       </button>
 
       {hasMultiple && (

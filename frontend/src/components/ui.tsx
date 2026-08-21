@@ -3,6 +3,7 @@ import type { Difficulty } from '../lib/types';
 import { useT, type TKey } from '../i18n';
 import { CATEGORIES } from '../lib/types';
 import type { TrackingMode } from '../lib/tracking';
+import { CloseIcon } from './icons';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -176,7 +177,7 @@ export function Modal({
             {title}
           </h2>
           <button onClick={onClose} className="btn-ghost px-2.5 py-1.5" aria-label={t('common.close')}>
-            ✕
+            <CloseIcon width={18} height={18} />
           </button>
         </div>
         {toolbar && <div className="mb-3 shrink-0">{toolbar}</div>}

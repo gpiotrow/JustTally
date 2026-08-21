@@ -1,8 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 import { useOnline } from '../hooks/useOnline';
 import { ThemeToggle } from './ThemeToggle';
-import { LanguageToggle } from './LanguageToggle';
 import { RestTimerBar } from './RestTimerBar';
 import { useT, type TKey } from '../i18n';
 import {
@@ -23,13 +21,19 @@ const NAV: { to: string; labelKey: TKey; Icon: typeof DumbbellIcon; end: boolean
 ];
 
 export function MobileLayout() {
-  const { user, isAdmin, logout } = useAuth();
   const online = useOnline();
   const navigate = useNavigate();
   const t = useT();
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col">
+      {/* Language, account and admin access live on the Settings page now —
+          set once, not per screen, they don't earn a permanent spot in the
+          one row every screen shows. Marque, offline status, theme (it
+          tracks the room you're lifting in) and the settings entry point
+          are what's left, and that's what keeps every target here at a
+          real 44px on a 320px phone instead of six controls fighting for
+          the same row. */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-bg/80 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <span className="text-lg font-extrabold tracking-tight">
@@ -45,23 +49,14 @@ export function MobileLayout() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <LanguageToggle />
           <ThemeToggle />
           <button
             onClick={() => navigate('/settings')}
-            className="btn-ghost p-2"
+            className="btn-ghost min-w-11 p-2"
             aria-label={t('settings.open')}
             title={t('settings.open')}
           >
             <SettingsIcon width={18} height={18} />
-          </button>
-          {isAdmin && (
-            <button onClick={() => navigate('/admin')} className="btn-ghost px-3 py-1.5 text-xs">
-              {t('common.admin')}
-            </button>
-          )}
-          <button onClick={logout} className="btn-ghost px-3 py-1.5 text-xs" title={user?.email}>
-            {t('common.logout')}
           </button>
         </div>
       </header>

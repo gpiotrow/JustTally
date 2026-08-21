@@ -13,7 +13,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      className="btn-ghost h-9 w-9 rounded-full !px-0"
+      className="btn-ghost h-11 w-11 rounded-full !px-0"
       aria-label={label}
       title={label}
     >

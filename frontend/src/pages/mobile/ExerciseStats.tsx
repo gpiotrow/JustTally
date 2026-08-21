@@ -13,6 +13,7 @@ import { dotsScore, nearestBodyWeight, wilksScore } from '../../lib/analytics/re
 import { formatDistanceWithUnit, formatPaceWithUnit, formatWeightWithUnit } from '../../lib/units';
 import { formatDuration } from '../../lib/restTimer';
 import { exerciseTracking } from '../../lib/types';
+import { ChevronLeftIcon } from '../../components/icons';
 import { useLanguage } from '../../i18n';
 
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: '2-digit' };
@@ -61,7 +62,7 @@ export function ExerciseStats() {
         to={id ? `/exercise/${id}` : '/'}
         className="inline-flex items-center gap-1 text-sm font-medium text-fg-muted hover:text-fg"
       >
-        ‹ {t('detail.back')}
+        <ChevronLeftIcon width={16} height={16} /> {t('detail.back')}
       </Link>
 
       <h1 className="text-2xl font-bold">{t('stats.title', { name })}</h1>

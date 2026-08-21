@@ -54,8 +54,25 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body {
-    transition: none;
+  /*
+   * App-wide, not just `body`: every `transition-*` utility in the app
+   * (rest-timer progress bar, tap-scale on `.btn`, dampened-set opacity,
+   * theme-toggle color swap, ...) collapses to effectively instant instead
+   * of eased. Only `transition-duration` is touched — the state each of
+   * these communicates (checked/unchecked, done/not-done, progress %,
+   * color) is a value change, not an animation-only signal, so it stays
+   * fully visible; nothing here relies on the motion itself to be noticed.
+   * `animation` is left alone on purpose: `.animate-spin` (the only
+   * animation-driven — not transition-driven — motion in this codebase) is
+   * a loading indicator, and forcing it to a single frame would remove the
+   * only signal that something is still in progress, exactly what reduced
+   * motion must not do.
+   */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

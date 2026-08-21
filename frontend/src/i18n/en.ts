@@ -9,6 +9,7 @@ export const en: Record<TKey, string> = {
   'common.save': 'Save',
   'common.saving': 'Saving…',
   'common.delete': 'Delete',
+  'common.cancel': 'Cancel',
   'common.edit': 'Edit',
   'common.close': 'Close',
   'common.loading': 'Loading…',
@@ -372,6 +373,8 @@ export const en: Record<TKey, string> = {
   // Settings — offline photos
   'settings.title': 'Settings',
   'settings.open': 'Open settings',
+  'settings.language': 'Language',
+  'settings.account': 'Account',
   'settings.units': 'Units',
   'settings.unitsHint': 'Applies to all your devices. Everything is stored in kilograms — switching changes the display only, never your data.',
   'settings.unitError': 'Could not save the unit',

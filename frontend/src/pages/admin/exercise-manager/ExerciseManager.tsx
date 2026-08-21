@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { listExercises, deleteExercise, unarchiveExercise, bulkDeleteExercises } from '../../../api/exercises';
 import type { Exercise } from '../../../lib/types';
 import { CategoryBadge, DifficultyBadge, EmptyState, ErrorBanner, Modal, Spinner } from '../../../components/ui';
+import { ConfirmDialog } from '../../../components/ConfirmDialog';
 import { ExerciseForm } from '../ExerciseForm';
 import { ImportPanel } from './ImportPanel';
 import { MediaBulkPanel } from './MediaBulkPanel';
@@ -18,6 +19,9 @@ export function ExerciseManager() {
   const [editing, setEditing] = useState<Exercise | null | undefined>(undefined); // undefined = closed
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deletingBulk, setDeletingBulk] = useState(false);
+  /** Exercise pending a delete confirmation — via the app's own `Modal`/`ConfirmDialog`, not `window.confirm`. */
+  const [confirmingDelete, setConfirmingDelete] = useState<Exercise | null>(null);
+  const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -63,7 +67,6 @@ export function ExerciseManager() {
 
   async function handleDelete(ex: Exercise) {
     const name = localizedExercise(ex, lang).name;
-    if (!confirm(t('admin.ex.deleteConfirm', { name }))) return;
     setError(null);
     setNotice(null);
     try {
@@ -106,7 +109,6 @@ export function ExerciseManager() {
   async function handleBulkDelete() {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
-    if (!confirm(t('admin.ex.bulkDeleteConfirm', { count: ids.length }))) return;
     setDeletingBulk(true);
     setError(null);
     setNotice(null);
@@ -158,7 +160,7 @@ export function ExerciseManager() {
           </span>
           <button
             type="button"
-            onClick={handleBulkDelete}
+            onClick={() => setConfirmingBulkDelete(true)}
             className="btn-danger px-3 py-1.5 text-xs"
             disabled={deletingBulk}
           >
@@ -229,7 +231,7 @@ export function ExerciseManager() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleDelete(ex)}
+                          onClick={() => setConfirmingDelete(ex)}
                           className="btn-danger px-3 py-1.5 text-xs"
                         >
                           {t('common.delete')}
@@ -251,6 +253,24 @@ export function ExerciseManager() {
         >
           <ExerciseForm initial={editing} onSaved={handleSaved} />
         </Modal>
+      )}
+
+      {confirmingDelete && (
+        <ConfirmDialog
+          title={t('common.delete')}
+          message={t('admin.ex.deleteConfirm', { name: localizedExercise(confirmingDelete, lang).name })}
+          onConfirm={() => void handleDelete(confirmingDelete)}
+          onClose={() => setConfirmingDelete(null)}
+        />
+      )}
+
+      {confirmingBulkDelete && (
+        <ConfirmDialog
+          title={t('common.delete')}
+          message={t('admin.ex.bulkDeleteConfirm', { count: selectedIds.size })}
+          onConfirm={() => void handleBulkDelete()}
+          onClose={() => setConfirmingBulkDelete(false)}
+        />
       )}
     </div>
   );

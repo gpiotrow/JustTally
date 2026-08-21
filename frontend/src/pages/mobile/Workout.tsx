@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useWorkouts } from '../../hooks/useWorkouts';
@@ -11,7 +11,7 @@ import { NumberField } from '../../components/NumberField';
 import { DurationField } from '../../components/DurationField';
 import { SetTypeToggle } from '../../components/SetTypeToggle';
 import { RpePicker } from '../../components/RpePicker';
-import { PlatesIcon, CheckIcon } from '../../components/icons';
+import { PlatesIcon, CheckIcon, ChevronRightIcon } from '../../components/icons';
 import {
   setType,
   entryTracking,
@@ -74,14 +74,23 @@ const DISTANCE_STEP_M = 50;
 
 /**
  * Grid columns for one set row: the type toggle, one column per tracking
- * field, and the done button. Both literal class strings must appear
+ * field, and the done button. Every literal class string must appear
  * verbatim in this file for Tailwind's static scan to pick them up — this
  * function only chooses between them, never composes one at runtime.
+ *
+ * A single-field row (reps-only, time-only, ...) already clears 44px per
+ * stepper on a 320px phone in one row and is left alone. A two-field row
+ * (reps_weight — the default for most exercises) does not: three fixed
+ * columns plus two flexible ones leave each stepper at ~32px on a 320px
+ * screen, no amount of padding trimming closes that gap. Below 375px the
+ * row wraps onto two: type toggle and done button spread across a 2-column
+ * grid on their own row, the two fields below on a second — see the
+ * `order-*` classes in `renderSetRows`, which this grid depends on.
  */
 function setRowGridClass(fieldCount: number): string {
   return fieldCount === 1
     ? 'grid-cols-[2.75rem,1fr,3.25rem]'
-    : 'grid-cols-[2.75rem,1fr,1fr,3.25rem]';
+    : 'grid-cols-2 gap-y-2 min-[375px]:grid-cols-[2.75rem,1fr,1fr,3.25rem] min-[375px]:gap-y-0';
 }
 
 /**
@@ -242,35 +251,45 @@ function filledSettings(settings: Record<string, string> | undefined): Record<st
  */
 function toSavedEntries(entries: DraftEntry[], unit: Unit, exercises: Exercise[]): WorkoutEntry[] {
   return entries
-    .map((entry) => ({
-      exerciseId: entry.exerciseId,
-      ...(entry.exerciseRef !== undefined ? { exerciseRef: entry.exerciseRef } : {}),
-      exerciseName: entry.exerciseName,
-      ...(entry.groupId !== undefined ? { groupId: entry.groupId } : {}),
-      ...(entry.plannedExerciseId !== undefined
-        ? { plannedExerciseId: entry.plannedExerciseId }
-        : {}),
+    .map((entry) => {
       // Frozen here, at save time: an entry loaded from an existing session
       // keeps the mode it was logged under, a fresh one takes whatever the
       // catalog says right now — see `effectiveTracking`.
-      tracking: effectiveTracking(entry, exercises),
-      ...(filledSettings(entry.settings) ? { settings: filledSettings(entry.settings) } : {}),
-      sets: entry.sets.filter((s) => !isBlank(s)).map((s): WorkoutSet => {
-        const weight = weightInputToKg(s.weight, unit);
-        const durationSec = parseDurationInput(s.duration);
-        const distanceM = parseDistanceInput(s.distance);
-        return {
-          reps: parseRepsInput(s.reps) ?? 0,
-          ...(weight !== undefined ? { weight } : {}),
-          ...(durationSec !== undefined ? { durationSec } : {}),
-          ...(distanceM !== undefined ? { distanceM } : {}),
-          type: s.type,
-          done: s.done,
-          ...(s.completedAt !== undefined ? { completedAt: s.completedAt } : {}),
-          ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
-        };
-      }),
-    }))
+      const mode = effectiveTracking(entry, exercises);
+      const fields = TRACKING_FIELDS[mode];
+      return {
+        exerciseId: entry.exerciseId,
+        ...(entry.exerciseRef !== undefined ? { exerciseRef: entry.exerciseRef } : {}),
+        exerciseName: entry.exerciseName,
+        ...(entry.groupId !== undefined ? { groupId: entry.groupId } : {}),
+        ...(entry.plannedExerciseId !== undefined
+          ? { plannedExerciseId: entry.plannedExerciseId }
+          : {}),
+        tracking: mode,
+        ...(filledSettings(entry.settings) ? { settings: filledSettings(entry.settings) } : {}),
+        sets: entry.sets.filter((s) => !isBlank(s)).map((s): WorkoutSet => {
+          // Scoped to this entry's own mode: a swap clears `tracking`/
+          // `settings` (see `replaceExercise`) but leaves whatever was
+          // already typed in `weight`/`duration`/`distance` sitting in the
+          // draft — without this, a value typed before swapping from a
+          // barbell lift to a plank could save onto the plank's set even
+          // though no field ever showed it after the swap.
+          const weight = fields.includes('weight') ? weightInputToKg(s.weight, unit) : undefined;
+          const durationSec = fields.includes('duration') ? parseDurationInput(s.duration) : undefined;
+          const distanceM = fields.includes('distance') ? parseDistanceInput(s.distance) : undefined;
+          return {
+            reps: parseRepsInput(s.reps) ?? 0,
+            ...(weight !== undefined ? { weight } : {}),
+            ...(durationSec !== undefined ? { durationSec } : {}),
+            ...(distanceM !== undefined ? { distanceM } : {}),
+            type: s.type,
+            done: s.done,
+            ...(s.completedAt !== undefined ? { completedAt: s.completedAt } : {}),
+            ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
+          };
+        }),
+      };
+    })
     .filter((entry) => entry.sets.length > 0);
 }
 
@@ -847,6 +866,12 @@ function WorkoutEditor({
       updateSet(ei, si, { done: false, completedAt: undefined });
       return;
     }
+    // A blank set has nothing to check off — `toSavedEntries` drops it on
+    // save regardless of `done`, so letting it show as checked would be a
+    // confirmation the save silently reneges on. The button is also
+    // `disabled` for this case (see the render below); this guard is here so
+    // nothing else that might call `toggleDone` can bypass that.
+    if (isBlank(set)) return;
 
     updateSet(ei, si, { done: true, completedAt: Date.now() });
 
@@ -947,7 +972,7 @@ function WorkoutEditor({
     // plank or a bodyweight pull-up has nothing to compute.
     const showPlates = entry && TRACKING_FIELDS[effectiveTracking(entry, exercises)].includes('weight');
     return (
-      <div className="flex shrink-0 items-center">
+      <div className="flex shrink-0 items-center gap-1">
         {showPlates && (
           <button
             onClick={() => setPlateEntry(ei)}
@@ -1126,11 +1151,21 @@ function WorkoutEditor({
     const mode = effectiveTracking(entry, exercises);
     const fields = TRACKING_FIELDS[mode];
     const gridClass = setRowGridClass(fields.length);
+    // Only a two-field row reflows onto two lines below 375px (see
+    // `setRowGridClass`) — a single-field row stays a plain one-row grid at
+    // every width, so it must never pick up an `order-*` class: doing so
+    // unconditionally would reorder its lone field against a toggle/done
+    // pair that isn't there to reorder around.
+    const twoFields = fields.length === 2;
 
     return (
       <>
         <div className={`grid ${gridClass} gap-x-2 text-xs font-semibold uppercase text-fg-subtle`}>
-          <span>{t('workout.set')}</span>
+          {/* No dedicated toggle/done column on the mobile-tier 2-col grid
+              (they're a row of their own, see `renderSetRows` below) — this
+              label would otherwise land over the first field instead of the
+              toggle it names. */}
+          <span className="hidden min-[375px]:block">{t('workout.set')}</span>
           {fields.map((field) => (
             <span key={field}>{fieldHeaderLabel(field)}</span>
           ))}
@@ -1145,27 +1180,50 @@ function WorkoutEditor({
               <div key={si} className="space-y-1.5">
                 <div
                   className={`grid ${gridClass} items-start gap-x-2 transition-opacity ${
-                    dampened ? 'opacity-55' : ''
+                    dampened ? 'opacity-65' : ''
                   }`}
                 >
                   <SetTypeToggle
                     value={set.type}
                     setNumber={si + 1}
                     onChange={(type) => updateSet(ei, si, { type })}
+                    className={twoFields ? 'order-1 min-[375px]:order-none' : ''}
                   />
 
+                  {/* A plain `<div>` wrapper, not a `Fragment` — the mobile-tier
+                      reflow needs a real grid item to carry the `order-*`
+                      class; `NumberField`/`DurationField` already render their
+                      own root `<div>`, so nesting one more here changes
+                      nothing else about their layout. */}
                   {fields.map((field, fi) => (
-                    <Fragment key={field}>
+                    <div
+                      key={field}
+                      className={
+                        twoFields
+                          ? fi === 0
+                            ? 'order-3 min-[375px]:order-none'
+                            : 'order-4 min-[375px]:order-none'
+                          : undefined
+                      }
+                    >
                       {renderTrackingField(field, ei, si, set, last, fi === 0)}
-                    </Fragment>
+                    </div>
                   ))}
 
                   <button
                     type="button"
                     onClick={() => toggleDone(ei, si)}
+                    // Nothing typed, nothing to check off — a blank set is
+                    // dropped on save regardless, so a checkmark here would
+                    // confirm something the save silently reneges on.
+                    disabled={!set.done && isBlank(set)}
                     aria-pressed={set.done}
                     aria-label={t(set.done ? 'set.undone' : 'set.done', { n: si + 1 })}
-                    className={`flex h-14 w-full items-center justify-center rounded-xl border transition ${
+                    className={`flex h-14 items-center justify-center rounded-xl border transition disabled:opacity-40 disabled:pointer-events-none ${
+                      twoFields
+                        ? 'order-2 w-11 justify-self-end min-[375px]:order-none min-[375px]:w-full min-[375px]:justify-self-auto'
+                        : 'w-full'
+                    } ${
                       set.done
                         ? 'border-accent bg-accent text-white'
                         : 'border-border bg-surface-2 text-fg-subtle hover:border-accent hover:text-accent'
@@ -1212,10 +1270,10 @@ function WorkoutEditor({
           type="button"
           onClick={() => toggleSettingsExpanded(ei)}
           aria-expanded={expanded}
-          className="focus-ring flex min-h-8 items-center gap-1 text-xs font-semibold uppercase text-fg-subtle transition hover:text-fg"
+          className="focus-ring flex min-h-11 items-center gap-1 text-xs font-semibold uppercase text-fg-subtle transition hover:text-fg"
         >
           <span className={`inline-block transition-transform ${expanded ? 'rotate-90' : ''}`}>
-            ›
+            <ChevronRightIcon width={14} height={14} />
           </span>
           {t('workout.settings')}
         </button>

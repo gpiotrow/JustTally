@@ -9,6 +9,7 @@ export const es: Record<TKey, string> = {
   'common.save': 'Guardar',
   'common.saving': 'Guardando…',
   'common.delete': 'Eliminar',
+  'common.cancel': 'Cancelar',
   'common.edit': 'Editar',
   'common.close': 'Cerrar',
   'common.loading': 'Cargando…',
@@ -372,6 +373,8 @@ export const es: Record<TKey, string> = {
   // Settings — offline photos
   'settings.title': 'Ajustes',
   'settings.open': 'Abrir ajustes',
+  'settings.language': 'Idioma',
+  'settings.account': 'Cuenta',
   'settings.units': 'Unidades',
   'settings.unitsHint': 'Se aplica a todos tus dispositivos. Todo se guarda en kilogramos — cambiarlo solo afecta a la visualización, nunca a tus datos.',
   'settings.unitError': 'No se pudo guardar la unidad',

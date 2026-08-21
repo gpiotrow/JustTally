@@ -4,6 +4,7 @@ import { TRACKING_FIELDS, type TrackingMode } from '../../lib/tracking';
 import { useAuth } from '../../hooks/useAuth';
 import { formatWeightInput, weightInputToKg } from '../../lib/units';
 import { useT } from '../../i18n';
+import { CloseIcon } from '../../components/icons';
 
 /**
  * Right column: every target a routine exercise carries. Only shown once a
@@ -184,7 +185,7 @@ export function PlanDetailPanel({
                   aria-label={t('routines.removeAlternative', { name: alt.exerciseName })}
                   className="shrink-0 text-fg-subtle hover:text-danger"
                 >
-                  ✕
+                  <CloseIcon width={14} height={14} />
                 </button>
               </li>
             ))}

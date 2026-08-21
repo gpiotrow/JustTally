@@ -3,6 +3,7 @@ import { listUsers, createUser, setUserRole, disableUser, enableUser } from '../
 import { useAuth } from '../../hooks/useAuth';
 import type { Role, User } from '../../lib/types';
 import { EmptyState, ErrorBanner, Modal, Spinner } from '../../components/ui';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useT } from '../../i18n';
 
 export function UserManagement() {
@@ -12,6 +13,8 @@ export function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  /** User pending a disable confirmation — via the app's own `Modal`/`ConfirmDialog`, not `window.confirm`. */
+  const [confirmingDisable, setConfirmingDisable] = useState<User | null>(null);
 
   async function load() {
     setLoading(true);
@@ -39,7 +42,6 @@ export function UserManagement() {
   }
 
   async function disable(u: User) {
-    if (!confirm(t('users.disableConfirm', { name: u.name }))) return;
     try {
       await disableUser(u.id);
       setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, disabledAt: Date.now() } : x)));
@@ -124,7 +126,7 @@ export function UserManagement() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => disable(u)}
+                          onClick={() => setConfirmingDisable(u)}
                           className="btn-danger px-3 py-1.5 text-xs"
                           disabled={u.id === me?.id}
                         >
@@ -147,6 +149,16 @@ export function UserManagement() {
             setUsers((prev) => [...prev, u]);
             setCreating(false);
           }}
+        />
+      )}
+
+      {confirmingDisable && (
+        <ConfirmDialog
+          title={t('users.disable')}
+          message={t('users.disableConfirm', { name: confirmingDisable.name })}
+          confirmLabel={t('users.disable')}
+          onConfirm={() => void disable(confirmingDisable)}
+          onClose={() => setConfirmingDisable(null)}
         />
       )}
     </div>

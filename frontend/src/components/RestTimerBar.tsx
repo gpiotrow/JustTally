@@ -16,11 +16,15 @@ export function RestTimerBar() {
   const progress = rest.durationSeconds > 0 ? remaining / rest.durationSeconds : 0;
 
   return (
-    <div
-      className="fixed bottom-16 left-1/2 z-30 w-full max-w-md -translate-x-1/2 px-3 pb-2"
-      role="status"
-      aria-live="polite"
-    >
+    <div className="fixed bottom-16 left-1/2 z-30 w-full max-w-md -translate-x-1/2 px-3 pb-2">
+      {/* Announces only the rest-finished transition, not the ticking
+          countdown itself — the live region used to wrap the whole bar,
+          so a screen reader re-announced the remaining time on every
+          500ms tick for the entire rest period. The visible number above
+          still updates every tick; this just stops broadcasting each one. */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {finished ? t('rest.done') : ''}
+      </div>
       <div
         className={`card relative flex items-center gap-2 overflow-hidden p-2 shadow-lg transition-colors ${
           finished ? 'border-accent bg-accent/10' : ''

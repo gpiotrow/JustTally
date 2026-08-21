@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useExercises } from '../../hooks/useExercises';
 import { useRoutines } from '../../hooks/useRoutines';
 import { Modal, Spinner, EmptyState } from '../../components/ui';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ExercisePicker } from '../../components/ExercisePicker';
 import { NumberField } from '../../components/NumberField';
 import { instantiateRoutineDay } from '../../lib/routineInstantiate';
+import { CloseIcon } from '../../components/icons';
 import { exerciseTracking, type Routine, type RoutineDay, type RoutineExercise } from '../../lib/types';
 import { TRACKING_FIELDS } from '../../lib/tracking';
 import { useLanguage } from '../../i18n';
@@ -43,6 +45,8 @@ export function Routines() {
   const { exercises, loading: exercisesLoading } = useExercises();
   const { routines, loaded, saveRoutine, deleteRoutine } = useRoutines();
   const [editing, setEditing] = useState<Routine | null>(null);
+  /** Routine pending a delete confirmation — via the app's own `Modal`/`ConfirmDialog`, not `window.confirm`. */
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   if (!loaded || exercisesLoading) return <Spinner label={t('common.loading')} />;
 
@@ -50,11 +54,6 @@ export function Routines() {
     const instantiation = instantiateRoutineDay(routine, 0, dayId);
     if (!instantiation) return;
     navigate('/workout', { state: { instantiation } });
-  }
-
-  async function remove(id: string) {
-    if (!window.confirm(t('routines.deleteConfirm'))) return;
-    await deleteRoutine(id);
   }
 
   return (
@@ -96,7 +95,7 @@ export function Routines() {
                       {t('common.edit')}
                     </button>
                     <button
-                      onClick={() => void remove(routine.id)}
+                      onClick={() => setConfirmingDeleteId(routine.id)}
                       className="text-xs text-fg-subtle hover:text-danger"
                     >
                       {t('common.delete')}
@@ -148,6 +147,15 @@ export function Routines() {
             await saveRoutine(routine);
             setEditing(null);
           }}
+        />
+      )}
+
+      {confirmingDeleteId !== null && (
+        <ConfirmDialog
+          title={t('common.delete')}
+          message={t('routines.deleteConfirm')}
+          onConfirm={() => void deleteRoutine(confirmingDeleteId)}
+          onClose={() => setConfirmingDeleteId(null)}
         />
       )}
     </div>
@@ -486,7 +494,7 @@ function RoutineEditor({
                                   })}
                                   className="text-fg-subtle hover:text-danger"
                                 >
-                                  ✕
+                                  <CloseIcon width={12} height={12} />
                                 </button>
                               </span>
                             ))}

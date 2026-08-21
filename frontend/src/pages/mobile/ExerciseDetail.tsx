@@ -9,6 +9,7 @@ import { localizedExercise } from '../../lib/exerciseText';
 import { FavoriteButton } from '../../components/FavoriteButton';
 import { ImageLightbox } from '../../components/ImageLightbox';
 import { exerciseTracking, exerciseSettings, type Exercise } from '../../lib/types';
+import { ChevronLeftIcon } from '../../components/icons';
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -198,7 +199,7 @@ function BackLink() {
   const t = useLanguage().t;
   return (
     <Link to="/" className="inline-flex items-center gap-1 text-sm font-medium text-fg-muted hover:text-fg">
-      ‹ {t('detail.back')}
+      <ChevronLeftIcon width={16} height={16} /> {t('detail.back')}
     </Link>
   );
 }
